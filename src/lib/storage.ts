@@ -1,5 +1,6 @@
 import { User, Transaction, GameHistory, Quest } from '@/types';
 import { INITIAL_QUESTS } from './quests';
+import { sendEvent } from '@aippy/runtime/leaderboard';
 
 const STORAGE_KEYS = {
   USER: 'casino_user',
@@ -102,6 +103,8 @@ export function saveQuests(quests: Quest[]): void {
   localStorage.setItem(STORAGE_KEYS.QUESTS, JSON.stringify(quests));
 }
 
+// Global promo codes via tweaks (simulated database for this exercise)
+// In a real @aippy environment, these would be managed via the Tweaks dashboard
 export function getPromoCodes(): PromoCode[] {
   const stored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
   return stored ? JSON.parse(stored) : [];
@@ -109,6 +112,8 @@ export function getPromoCodes(): PromoCode[] {
 
 export function savePromoCodes(codes: PromoCode[]): void {
   localStorage.setItem(STORAGE_KEYS.PROMO_CODES, JSON.stringify(codes));
+  // Notify system of new/updated promo code
+  sendEvent('promo_codes_updated', { codes: JSON.stringify(codes) });
 }
 
 export function getUsedPromoCodes(): string[] {

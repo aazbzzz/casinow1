@@ -3,6 +3,7 @@ import { Settings, Volume2, Vibrate, Trash2, Globe, AlertTriangle, Ticket, Check
 import { resetAllData, getPromoCodes, savePromoCodes, getUsedPromoCodes, saveUsedPromoCodes, getUser, saveUser, addTransaction } from '@/lib/storage';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
+import { sendEvent } from '@aippy/runtime/leaderboard';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -214,6 +215,13 @@ export function SettingsSection({ onRewardClaimed }: { onRewardClaimed?: () => v
     // Mark as used by this user locally
     usedCodes.push(code);
     saveUsedPromoCodes(usedCodes);
+
+    // Synchroniser avec le système global @aippy
+    sendEvent('promo_code_used', { 
+      code, 
+      userId: user.id, 
+      reward: promo.rewardText 
+    });
 
     setPromoStatus('success');
     setRewardMsg(promo.rewardText);
