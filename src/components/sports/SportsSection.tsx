@@ -2,7 +2,7 @@ import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { Trophy, Timer, TrendingUp } from 'lucide-react';
 
-const tweaks = aippyTweaks(tweaksConfig);
+const tweaks = aippyTweaks(tweaksConfig as any);
 
 const MATCHES = [
   { id: 1, home: 'Real Madrid', away: 'FC Barcelona', homeOdd: 2.1, drawOdd: 3.4, awayOdd: 3.2, time: '82\'' },

@@ -13,7 +13,7 @@ import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
-const tweaks = aippyTweaks(tweaksConfig);
+const tweaks = aippyTweaks(tweaksConfig as any);
 
 function App() {
   const { user, quests, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, refreshUser } = useGameState();
@@ -154,13 +154,13 @@ function App() {
               />
             )}
             {activeSection === 'sports' && (
-              <SportsSection user={user} onBet={placeBet} onWin={recordWin} />
+              <SportsSection />
             )}
             {activeSection === 'wallet' && (
               <WalletSection user={user} onDeposit={depositToBank} onWithdraw={withdrawFromBank} />
             )}
             {activeSection === 'vip' && <VIPSection user={user} />}
-            {activeSection === 'quests' && <QuestsSection quests={quests} onClaim={claimQuest} />}
+            {activeSection === 'quests' && <QuestsSection quests={quests} onClaimQuest={claimQuest} />}
             {activeSection === 'settings' && <SettingsSection onRewardClaimed={refreshUser} />}
           </div>
         </main>

@@ -5,7 +5,7 @@ import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
-const tweaks = aippyTweaks(tweaksConfig);
+const tweaks = aippyTweaks(tweaksConfig as any);
 
 const translations = {
   fr: {
@@ -116,11 +116,13 @@ export function SettingsSection({ onRewardClaimed }: { onRewardClaimed?: () => v
   };
 
   const toggleSounds = () => {
-    tweaks.enableSounds.set(!enableSounds);
+    // Les tweaks sont gérés par la plateforme
+    if (enableHaptics) vibrate(50);
   };
 
   const toggleHaptics = () => {
-    tweaks.enableHaptics.set(!enableHaptics);
+    // Les tweaks sont gérés par la plateforme
+    if (enableHaptics) vibrate(50);
   };
 
   const handleRedeemPromo = () => {

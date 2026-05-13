@@ -3,7 +3,7 @@ import { Coins, Trophy, ShieldAlert } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
-const tweaks = aippyTweaks(tweaksConfig);
+const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface TopBarProps {
   user: User;

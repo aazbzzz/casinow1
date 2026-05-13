@@ -12,7 +12,7 @@ import { ChevronRight } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
-const tweaks = aippyTweaks(tweaksConfig);
+const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface CasinoSectionProps {
   balance: number;

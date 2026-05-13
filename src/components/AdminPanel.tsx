@@ -45,7 +45,7 @@ import TypesContent from '@/types/index.ts?raw';
 import IndexCSSContent from '@/index.css?raw';
 import ViteEnvContent from '@/vite-env.d.ts?raw';
 
-const tweaks = aippyTweaks(tweaksConfig);
+const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface AdminPanelProps {
   onClose: () => void;

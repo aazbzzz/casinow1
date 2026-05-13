@@ -4,7 +4,7 @@ import { useAudioContext } from '@aippy/runtime/audio';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
-const tweaks = aippyTweaks(tweaksConfig);
+const tweaks = aippyTweaks(tweaksConfig as any);
 
 export function useGameSounds() {
   const {

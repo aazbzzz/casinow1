@@ -6,7 +6,7 @@ import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
 
-const tweaks = aippyTweaks(tweaksConfig);
+const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface MinesGameProps {
   balance: number;
