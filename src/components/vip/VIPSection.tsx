@@ -17,6 +17,14 @@ export function VIPSection({
   const currentVIP = getVIPLevel(user.totalWagered);
   const nextVIP = getNextVIPLevel(user.vipLevel);
   const progress = getVIPProgress(user.totalWagered, user.vipLevel);
+
+  const formatAmount = (amount: number) => {
+    if (amount >= 1000000000) return (amount / 1000000000).toFixed(1) + 'B';
+    if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
+    if (amount >= 1000) return (amount / 1000).toFixed(1) + 'K';
+    return amount.toString();
+  };
+
   return <div className="p-6">
       <h2 className="text-2xl font-bold text-white mb-6">🏆 VIP Program</h2>
       
@@ -48,7 +56,7 @@ export function VIPSection({
           }} />
             </div>
             <div className="text-xs text-gray-400 mt-2">
-              Wager {(nextVIP.wagerRequired - user.totalWagered).toFixed(0)} more to unlock
+              Wager {formatAmount(nextVIP.wagerRequired - user.totalWagered)} more to unlock
             </div>
           </div>}
       </div>
@@ -82,7 +90,7 @@ export function VIPSection({
               
               <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
                 <TrendingUp className="size-4" />
-                <span>Required Wager: {level.wagerRequired.toLocaleString()}</span>
+                <span>Required Wager: {formatAmount(level.wagerRequired)}</span>
               </div>
               
               <div className="flex flex-wrap gap-2">

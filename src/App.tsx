@@ -134,6 +134,13 @@ function App() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const formatWager = (amount: number) => {
+    if (amount >= 1000000000) return (amount / 1000000000).toFixed(1) + 'B';
+    if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
+    if (amount >= 1000) return (amount / 1000).toFixed(1) + 'K';
+    return amount.toString();
+  };
+
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
   const globalPromoCodesStr = tweaks.globalPromoCodes.useState();
