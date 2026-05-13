@@ -54,46 +54,46 @@ export function useGameState() {
   }, []);
 
   const updateBalance = useCallback(async (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
+    const numericAmount = Number(amount);
+    if (isNaN(numericAmount)) return;
+
     setUser(prev => {
-      const newBalance = prev.balance + amount;
+      const currentBalance = Number(prev.balance) || 0;
+      const newBalance = currentBalance + numericAmount;
       
-      // On déclenche la transaction de manière asynchrone sans bloquer l'UI
+      const newUser = { ...prev, balance: newBalance };
+      
+      // On déclenche les effets secondaires sans bloquer
       addTransaction({
         userId: prev.id,
         type,
-        amount,
+        amount: numericAmount,
         game,
         balanceAfter: newBalance,
-      });
+      }).catch(console.error);
 
-      const newUser = { ...prev, balance: newBalance };
-      // IMPORTANT: On sauvegarde immédiatement pour éviter les désynchronisations
-      saveUser(newUser);
+      saveUser(newUser).catch(console.error);
       
       return newUser;
     });
   }, []);
   
   const placeBet = useCallback((amount: number, game: string): boolean => {
+    const numericAmount = Number(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) return false;
+
     const cheats = getCheats();
+    const currentBalance = Number(user.balance) || 0;
     
-    // On vérifie le solde actuel
-    if (!cheats.infiniteBalance && user.balance < amount) return false;
+    if (!cheats.infiniteBalance && currentBalance < numericAmount) return false;
     
     setUser(prev => {
-      if (!cheats.infiniteBalance && prev.balance < amount) return prev;
+      const prevBalance = Number(prev.balance) || 0;
+      if (!cheats.infiniteBalance && prevBalance < numericAmount) return prev;
 
-      const newBalance = cheats.infiniteBalance ? prev.balance : prev.balance - amount;
-      const newWagered = prev.totalWagered + amount;
+      const newBalance = cheats.infiniteBalance ? prevBalance : prevBalance - numericAmount;
+      const newWagered = (Number(prev.totalWagered) || 0) + numericAmount;
       const vipLevel = getVIPLevel(newWagered);
-      
-      addTransaction({
-        userId: prev.id,
-        type: 'bet',
-        amount: -amount,
-        game,
-        balanceAfter: newBalance,
-      });
       
       const newUser = {
         ...prev,
@@ -102,14 +102,21 @@ export function useGameState() {
         vipLevel: vipLevel.level,
       };
 
-      // Sauvegarde immédiate
-      saveUser(newUser);
+      addTransaction({
+        userId: prev.id,
+        type: 'bet',
+        amount: -numericAmount,
+        game,
+        balanceAfter: newBalance,
+      }).catch(console.error);
+
+      saveUser(newUser).catch(console.error);
       
       return newUser;
     });
     
     setQuests(prev => updateQuestProgress(prev, 'play', 1));
-    setQuests(prev => updateQuestProgress(prev, 'wager', amount));
+    setQuests(prev => updateQuestProgress(prev, 'wager', numericAmount));
     
     return true;
   }, [user.balance, user.id]);
@@ -117,20 +124,27 @@ export function useGameState() {
   const recordWin = useCallback((betAmount: number, payout: number, multiplier: number, game: string) => {
     const cheats = getCheats();
     
-    // Si payout est 0 mais qu'on a un multiplier, on calcule le gain réel
-    // Coinflip par exemple envoie payout=0 et multiplier=2
-    const calculatedPayout = payout > 0 ? payout : betAmount * multiplier;
+    const numBet = Number(betAmount) || 0;
+    const numPayout = Number(payout) || 0;
+    const numMultiplier = Number(multiplier) || 0;
+
+    // Calcul du gain réel
+    let calculatedPayout = numPayout;
+    if (numPayout <= 0 && numMultiplier > 0) {
+      calculatedPayout = numBet * numMultiplier;
+    }
+    
     const finalAmount = cheats.infiniteBalance ? 0 : calculatedPayout;
     
     updateBalance(finalAmount, 'win', game);
     
     addGameHistory({
       game,
-      bet: betAmount,
-      multiplier,
+      bet: numBet,
+      multiplier: numMultiplier,
       payout: finalAmount,
       outcome: 'win',
-    });
+    }).catch(console.error);
     
     return finalAmount;
   }, [updateBalance]);
@@ -158,36 +172,66 @@ export function useGameState() {
   }, [quests, updateBalance]);
 
   const depositToBank = useCallback((amount: number) => {
-    if (user.balance < amount) return;
-    setUser(prev => ({
-      ...prev,
-      balance: prev.balance - amount,
-      bankBalance: prev.bankBalance + amount,
-    }));
-    addTransaction({
-      userId: user.id,
-      type: 'withdraw',
-      amount: -amount,
-      game: 'Bank Deposit',
-      balanceAfter: user.balance - amount,
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) return;
+
+    setUser(prev => {
+      const currentBalance = Number(prev.balance) || 0;
+      if (currentBalance < numAmount) return prev;
+
+      const newBalance = currentBalance - numAmount;
+      const newBankBalance = (Number(prev.bankBalance) || 0) + numAmount;
+      
+      const newUser = {
+        ...prev,
+        balance: newBalance,
+        bankBalance: newBankBalance,
+      };
+
+      addTransaction({
+        userId: prev.id,
+        type: 'withdraw',
+        amount: -numAmount,
+        game: 'Bank Deposit',
+        balanceAfter: newBalance,
+      }).catch(console.error);
+
+      saveUser(newUser).catch(console.error);
+
+      return newUser;
     });
-  }, [user.balance, user.id]);
+  }, []);
 
   const withdrawFromBank = useCallback((amount: number) => {
-    if (user.bankBalance < amount) return;
-    setUser(prev => ({
-      ...prev,
-      balance: prev.balance + amount,
-      bankBalance: prev.bankBalance - amount,
-    }));
-    addTransaction({
-      userId: user.id,
-      type: 'deposit',
-      amount,
-      game: 'Bank Withdrawal',
-      balanceAfter: user.balance + amount,
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) return;
+
+    setUser(prev => {
+      const currentBankBalance = Number(prev.bankBalance) || 0;
+      if (currentBankBalance < numAmount) return prev;
+
+      const newBalance = (Number(prev.balance) || 0) + numAmount;
+      const newBankBalance = currentBankBalance - numAmount;
+      
+      const newUser = {
+        ...prev,
+        balance: newBalance,
+        bankBalance: newBankBalance,
+      };
+
+      addTransaction({
+        userId: prev.id,
+        type: 'deposit',
+        amount: numAmount,
+        game: 'Bank Withdrawal',
+        balanceAfter: newBalance,
+      }).catch(console.error);
+
+      saveUser(newUser).catch(console.error);
+
+      return newUser;
     });
-  }, [user.bankBalance, user.id]);
+  }, []);
 
   return {
     user,
