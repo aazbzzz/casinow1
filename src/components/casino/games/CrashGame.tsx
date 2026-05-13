@@ -22,6 +22,7 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
   const [crashPoint, setCrashPoint] = useState(1.00);
   const [hasBet, setHasBet] = useState(false);
   const [cashedOut, setCashedOut] = useState(false);
+  const [lastWin, setLastWin] = useState<number | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [blink, setBlink] = useState(false);
   const startTimeRef = useRef(0);
@@ -134,6 +135,7 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     });
     
     const bonusWon = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Crash');
+    setLastWin(bonusWon);
     if (enableHaptics) vibrate(200);
     
     setTimeout(() => {
@@ -149,6 +151,7 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     setCurrentMultiplier(1.00);
     setHasBet(false);
     setCashedOut(false);
+    setLastWin(null);
     setCrashPoint(1.00);
     startTimeRef.current = 0;
   };
@@ -239,8 +242,15 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
           )}
           
           {cashedOut && (
-            <div className="text-3xl font-bold animate-in fade-in slide-in-from-bottom-4 duration-500 mt-4" style={{ color: primaryAccent }}>
-              ✅ Cashed Out!
+            <div className="text-center animate-in fade-in slide-in-from-bottom-4 duration-500 mt-4">
+              <div className="text-3xl font-bold" style={{ color: primaryAccent }}>
+                ✅ Cashed Out!
+              </div>
+              {lastWin !== null && (
+                <div className="text-4xl font-black mt-2" style={{ color: primaryAccent }}>
+                  +{lastWin.toFixed(2)} 🎉
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -181,10 +181,7 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
           const totalPayout = Number(betAmount) * finalMultiplier;
           
-          setLastMultiplier(finalMultiplier);
-          setLastPayout(totalPayout);
-          
-          if (finalMultiplier >= 1) {
+          if (totalPayout > 0) {
             console.log({ 
               game: 'Plinko', 
               betAmount: Number(betAmount), 
@@ -193,12 +190,24 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
               payoutType: typeof totalPayout, 
               multiplierType: typeof finalMultiplier 
             });
-            onWin(Number(betAmount), totalPayout, finalMultiplier, 'Plinko');
-            if (enableSounds) playWin();
+            const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Plinko');
+            setLastMultiplier(finalMultiplier);
+            setLastPayout(payoutResult);
+            
+            if (finalMultiplier >= 1 && enableSounds) playWin();
             if (enableHaptics) vibrate(200);
           } else {
-            onLoss(betAmount, 'Plinko');
-            if (enableHaptics) vibrate([100, 50, 100]);
+            console.log({ 
+              game: 'Plinko', 
+              betAmount: Number(betAmount), 
+              payout: 0, 
+              multiplier: finalMultiplier, 
+              outcome: 'loss' 
+            });
+            onLoss(Number(betAmount), 'Plinko');
+            setLastMultiplier(finalMultiplier);
+            setLastPayout(0);
+            if (enableHaptics) vibrate([50, 50]);
           }
           
           setIsDropping(false);

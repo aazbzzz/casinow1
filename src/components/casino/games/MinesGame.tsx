@@ -23,6 +23,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const [minePositions, setMinePositions] = useState<Set<number>>(new Set());
   const [gameOver, setGameOver] = useState(false);
+  const [lastWin, setLastWin] = useState<number | null>(null);
   const [currentMultiplier, setCurrentMultiplier] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -51,6 +52,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
     setRevealed(new Set());
     setGameActive(true);
     setGameOver(false);
+    setLastWin(null);
     setCurrentMultiplier(1);
     
     // Auto-scroll slightly to grid for better focus
@@ -104,7 +106,8 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
       multiplierType: typeof finalMultiplier 
     });
     
-    onWin(Number(betAmount), totalPayout, finalMultiplier, 'Mines');
+    const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Mines');
+    setLastWin(payoutResult);
     setGameActive(false);
     setGameOver(true);
     if (enableSounds) playWin();
@@ -274,9 +277,14 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
             <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-2">
               {revealed.size > 0 && minePositions.has(Array.from(revealed)[revealed.size - 1]) ? 'Game Over' : 'Victory!'}
             </h3>
-            <div className="text-white/60 font-bold uppercase tracking-widest text-sm">
+            <div className="text-white/60 font-bold uppercase tracking-widest text-sm mb-2">
               {revealed.size > 0 && minePositions.has(Array.from(revealed)[revealed.size - 1]) ? 'You hit a mine!' : `${currentMultiplier.toFixed(2)}x multiplier`}
             </div>
+            {lastWin !== null && lastWin > 0 && (
+              <div className="text-4xl font-black italic tracking-tighter animate-bounce mt-2" style={{ color: primaryAccent }}>
+                +{lastWin.toFixed(2)} 🎉
+              </div>
+            )}
           </div>
         )}
 
