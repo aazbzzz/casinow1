@@ -9,6 +9,7 @@ export interface User {
   totalWagered: number;
   createdAt: string;
   hasDeposited: boolean;
+  usedPromoCodes?: string[];
   activeMultiplier?: {
     value: number;
     expiresAt: number;

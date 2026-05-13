@@ -12,7 +12,8 @@ import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAler
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent, reportScore } from '@aippy/runtime/leaderboard';
-import { savePromoCodes, getPromoCodes, saveUser, getUser, logout, getAllUsers, saveForeignUsers } from '@/lib/storage';
+import { savePromoCodes, getPromoCodes, saveUser, getUser, logout, getAllUsers, getCurrentUID } from '@/lib/storage';
+import { syncLeaderboard, getGlobalPromoCodes, globalSyncRead } from '@/lib/sync';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -21,36 +22,27 @@ function App() {
   const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, refreshUser } = useGameState();
   const [activeSection, setActiveSection] = useState<'casino' | 'wallet' | 'vip' | 'quests' | 'settings' | 'leaderboard'>('casino');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  const [showAuth, setShowAuth] = useState(() => !localStorage.getItem('casino_current_user_id'));
+  const [showAuth, setShowAuth] = useState(() => !getCurrentUID());
 
+  // Sync Score to Global Leaderboard
   useEffect(() => {
-    if (user && user.id) {
+    if (user && user.id && user.id !== 'guest') {
       reportScore(user.balance);
-      fetchLeaderboard();
-      
-      // Diffuser ses infos aux autres joueurs pour le leaderboard "global"
-      sendEvent('user_sync', {
-        id: user.id,
-        username: user.username,
-        balance: user.balance,
-        vipLevel: user.vipLevel,
-        timestamp: Date.now()
-      });
+      syncLeaderboard({ id: user.id, username: user.username, balance: user.balance });
     }
-  }, [user?.balance, user?.id, user?.username, user?.vipLevel]);
+  }, [user?.balance, user?.id, user?.username]);
 
-  const fetchLeaderboard = () => {
-    const users = getAllUsers();
-    const sortedUsers = [...users]
-      .sort((a, b) => b.balance - a.balance)
-      .slice(0, 10)
-      .map(u => ({
-        userId: u.id,
-        score: u.balance,
-        metadata: { username: u.username }
-      }));
-    setLeaderboard(sortedUsers);
-  };
+  // Periodic Leaderboard Refresh
+  useEffect(() => {
+    const fetchGlobalLeaderboard = async () => {
+      const data = await globalSyncRead<any[]>('leaderboard');
+      if (data) setLeaderboard(data);
+    };
+    
+    fetchGlobalLeaderboard();
+    const interval = setInterval(fetchGlobalLeaderboard, 10000); // Every 10s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleAuthComplete = (newUser: any) => {
     saveUser(newUser);
@@ -82,7 +74,6 @@ function App() {
           setMultiplierTimeLeft(remaining);
         } else {
           setMultiplierTimeLeft(null);
-          // Multiplier expired, refresh user to update state
           refreshUser();
         }
       } else {
@@ -102,42 +93,33 @@ function App() {
     if (amount >= 1000000000) return (amount / 1000000000).toFixed(1) + 'B';
     if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
     if (amount >= 1000) return (amount / 1000).toFixed(1) + 'K';
-    return amount.toString();
+    return amount.toLocaleString();
   };
 
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
-  const globalPromoCodesStr = tweaks.globalPromoCodes.useState();
 
   // "Base de données" synchronisée des codes promo
-  const [syncedPromoCodes, setSyncedPromoCodes] = useState<any[]>(() => {
-    const local = getPromoCodes();
-    return local.length > 0 ? local : [];
-  });
+  const [syncedPromoCodes, setSyncedPromoCodes] = useState<any[]>([]);
 
-  // Synchronisation entre le tweak global et l'état local
+  // Sync Promo Codes from Global Storage
   useEffect(() => {
-    if (globalPromoCodesStr) {
-      try {
-        const remoteCodes = JSON.parse(globalPromoCodesStr);
-        if (Array.isArray(remoteCodes)) {
-          setSyncedPromoCodes(remoteCodes);
-          savePromoCodes(remoteCodes);
-        }
-      } catch (e) {
-        console.error("Failed to parse global promo codes", e);
+    const fetchGlobalCodes = async () => {
+      const remoteCodes = await getGlobalPromoCodes();
+      if (remoteCodes.length > 0) {
+        setSyncedPromoCodes(remoteCodes);
+        savePromoCodes(remoteCodes);
       }
-    }
-  }, [globalPromoCodesStr]);
+    };
+    fetchGlobalCodes();
+    const interval = setInterval(fetchGlobalCodes, 15000); // Every 15s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleUpdatePromoCodes = (newCodes: any[]) => {
     setSyncedPromoCodes(newCodes);
     savePromoCodes(newCodes);
-    
-    sendEvent('global_promo_codes_update', { 
-      codes: JSON.stringify(newCodes),
-      timestamp: Date.now()
-    });
+    // Sync function will be called from AdminPanel directly or here
   };
 
   const handleSectionChange = (section: typeof activeSection) => {
@@ -268,12 +250,12 @@ function App() {
                             {idx + 1}
                           </div>
                           <div>
-                            <div className="font-black text-white uppercase tracking-tight">{entry.metadata?.username || 'Anonyme'}</div>
+                            <div className="font-black text-white uppercase tracking-tight">{entry.username || 'Anonyme'}</div>
                             <div className="text-[10px] text-gray-500 font-bold uppercase">Rank {idx + 1}</div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="font-black text-lg italic" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>{entry.score.toLocaleString()}</div>
+                          <div className="font-black text-lg italic" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>{entry.balance.toLocaleString()}</div>
                           <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Credits</div>
                         </div>
                       </div>

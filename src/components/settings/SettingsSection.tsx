@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings, Volume2, Vibrate, Trash2, Globe, AlertTriangle, Ticket, CheckCircle2, XCircle, Gift, X } from 'lucide-react';
-import { resetAllData, getPromoCodes, savePromoCodes, getUsedPromoCodes, saveUsedPromoCodes, getUser, saveUser, addTransaction } from '@/lib/storage';
+import { resetAllData, getPromoCodes, savePromoCodes, getUser, saveUser, addTransaction } from '@/lib/storage';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent } from '@aippy/runtime/leaderboard';
@@ -113,8 +113,6 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
   const enableSounds = tweaks.enableSounds.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
   
-  const usedCodes = getUsedPromoCodes();
-  
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
     localStorage.setItem('app_language', lang);
@@ -140,8 +138,11 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     const code = promoInput.toUpperCase().trim();
     if (!code) return;
 
+    const user = getUser();
+    const userUsedCodes = user.usedPromoCodes || [];
+
     // Check if user already used it
-    if (usedCodes.includes(code)) {
+    if (userUsedCodes.includes(code)) {
       setPromoStatus('error');
       setPromoErrorMessage(t.promoErrorUsed as string);
       if (enableHaptics) vibrate([50, 50, 50]);
@@ -175,7 +176,6 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     }
 
     // Apply reward
-    const user = getUser();
     if (promo.type === 'currency') {
       user.balance += promo.value;
       addTransaction({
@@ -207,7 +207,10 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
       };
     }
 
+    // Mark as used by this user and save
+    user.usedPromoCodes = [...userUsedCodes, code];
     saveUser(user);
+    
     if (onRewardClaimed) onRewardClaimed();
 
     // Update code usage globally
@@ -219,15 +222,11 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     });
     onUpdatePromoCodes(updatedPromoCodes);
     
-    // Mark as used by this user locally
-    usedCodes.push(code);
-    saveUsedPromoCodes(usedCodes);
-
     // Synchroniser avec le système global @aippy
-    sendEvent('promo_code_used', { 
-      code, 
-      userId: user.id, 
-      reward: promo.rewardText 
+    sendEvent('promo_code_used', {
+      code,
+      userId: user.id,
+      reward: promo.rewardText
     });
 
     setPromoStatus('success');

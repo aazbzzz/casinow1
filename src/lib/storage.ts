@@ -1,25 +1,17 @@
-import { User, Transaction, GameHistory, Quest } from '@/types';
-import { INITIAL_QUESTS } from './quests';
-import { sendEvent } from '@aippy/runtime/leaderboard';
-import tweaksConfig from '@/config/tweaksConfig.json';
+import { type User } from '@/types';
 
 const STORAGE_KEYS = {
-  USER: 'casino_user',
+  USER_DATA_PREFIX: 'casino_user_data_', // Prefix for UID-based storage
+  CURRENT_UID: 'casino_current_uid',
   USERS_DB: 'casino_users_db',
-  CURRENT_USER_ID: 'casino_current_user_id',
-  FOREIGN_USERS: 'casino_foreign_users', // Cache pour les autres joueurs synchronisés
-  TRANSACTIONS: 'casino_transactions',
-  GAME_HISTORY: 'casino_game_history',
-  QUESTS: 'casino_quests',
   PROMO_CODES: 'casino_promo_codes',
-  USED_PROMO_CODES: 'casino_used_promo_codes',
 } as const;
 
 export interface PromoCode {
   code: string;
   type: 'currency' | 'multiplier' | 'crypto';
   value: number;
-  duration?: number; // In seconds, for multipliers
+  duration?: number;
   rewardText: string;
   maxUses: number;
   usedCount: number;
@@ -28,54 +20,27 @@ export interface PromoCode {
   isUnlimited: boolean;
 }
 
-export function getAllUsers(): User[] {
-  const localUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS_DB) || '[]');
-  const foreignUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.FOREIGN_USERS) || '[]');
-  
-  // Merge and deduplicate by ID, preferring local if available
-  const mergedMap = new Map<string, User>();
-  foreignUsers.forEach((u: User) => mergedMap.set(u.id, u));
-  localUsers.forEach((u: User) => mergedMap.set(u.id, u));
-  
-  return Array.from(mergedMap.values());
+export function getCurrentUID(): string | null {
+  return localStorage.getItem(STORAGE_KEYS.CURRENT_UID);
 }
 
-export function saveForeignUsers(users: User[]): void {
-  localStorage.setItem(STORAGE_KEYS.FOREIGN_USERS, JSON.stringify(users));
+export function setCurrentUID(uid: string): void {
+  localStorage.setItem(STORAGE_KEYS.CURRENT_UID, uid);
 }
 
-export function saveAllUsers(users: User[]): void {
-  localStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(users));
-}
-
-export function getUser(): User {
-  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-  const users = getAllUsers();
+export function getUser(uid?: string): User {
+  const targetUid = uid || getCurrentUID();
   
-  if (currentId) {
-    const user = users.find(u => u.id === currentId);
-    if (user) return user;
+  if (targetUid) {
+    const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
+    if (stored) return JSON.parse(stored);
   }
   
-  // Fallback or legacy support
-  const legacyStored = localStorage.getItem(STORAGE_KEYS.USER);
-  if (legacyStored) {
-    const user = JSON.parse(legacyStored);
-    // Migrate legacy user to DB if not exists
-    if (!users.find(u => u.id === user.id)) {
-      users.push(user);
-      saveAllUsers(users);
-    }
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
-    return user;
-  }
-
-  // No user found, but we won't create one here anymore to force Auth
-  // We'll return a default object but AuthModal should handle the creation
+  // Default user if not found
   return {
-    id: '',
-    username: 'Guest',
-    balance: 0,
+    id: targetUid || 'guest',
+    username: 'Player',
+    balance: 1000,
     bankBalance: 0,
     vipLevel: 1,
     totalWagered: 0,
@@ -86,154 +51,81 @@ export function getUser(): User {
 
 export function saveUser(user: User): void {
   if (!user.id) return;
+  localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
   
+  // Update local DB for leaderboard fallback
   const users = getAllUsers();
   const index = users.findIndex(u => u.id === user.id);
-  
   if (index >= 0) {
     users[index] = user;
   } else {
     users.push(user);
   }
-  
-  saveAllUsers(users);
-  localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
-  // Keep legacy for safety
-  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+  localStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(users.slice(0, 100)));
 }
 
-export function logout(): void {
-  localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-}
-
-export function getTransactions(): Transaction[] {
-  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-  if (!currentId) return [];
-  const stored = localStorage.getItem(`${STORAGE_KEYS.TRANSACTIONS}_${currentId}`);
+export function getAllUsers(): User[] {
+  const stored = localStorage.getItem(STORAGE_KEYS.USERS_DB);
   return stored ? JSON.parse(stored) : [];
-}
-
-export function addTransaction(transaction: Omit<Transaction, 'id' | 'timestamp'>): void {
-  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-  if (!currentId) return;
-  const transactions = getTransactions();
-  const newTransaction: Transaction = {
-    ...transaction,
-    id: crypto.randomUUID(),
-    timestamp: new Date().toISOString(),
-  };
-  transactions.unshift(newTransaction);
-  localStorage.setItem(`${STORAGE_KEYS.TRANSACTIONS}_${currentId}`, JSON.stringify(transactions.slice(0, 100)));
-}
-
-export function getGameHistory(): GameHistory[] {
-  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-  if (!currentId) return [];
-  const stored = localStorage.getItem(`${STORAGE_KEYS.GAME_HISTORY}_${currentId}`);
-  return stored ? JSON.parse(stored) : [];
-}
-
-export function addGameHistory(history: Omit<GameHistory, 'id' | 'timestamp'>): void {
-  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-  if (!currentId) return;
-  const histories = getGameHistory();
-  const newHistory: GameHistory = {
-    ...history,
-    id: crypto.randomUUID(),
-    timestamp: new Date().toISOString(),
-  };
-  histories.unshift(newHistory);
-  localStorage.setItem(`${STORAGE_KEYS.GAME_HISTORY}_${currentId}`, JSON.stringify(histories.slice(0, 100)));
-}
-
-export function getQuests(): Quest[] {
-  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-  if (!currentId) return [];
-  const stored = localStorage.getItem(`${STORAGE_KEYS.QUESTS}_${currentId}`);
-  if (stored) {
-    return JSON.parse(stored);
-  }
-  
-  const initialQuests: Quest[] = INITIAL_QUESTS.map((q, index) => ({
-    ...q,
-    id: `quest_${index}`,
-    progress: 0,
-    completed: false,
-    claimed: false,
-  }));
-  
-  localStorage.setItem(`${STORAGE_KEYS.QUESTS}_${currentId}`, JSON.stringify(initialQuests));
-  return initialQuests;
-}
-
-export function saveQuests(quests: Quest[]): void {
-  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-  if (!currentId) return;
-  localStorage.setItem(`${STORAGE_KEYS.QUESTS}_${currentId}`, JSON.stringify(quests));
-}
-
-// Global promo codes logic
-export function getPromoCodes(): PromoCode[] {
-  // Source 1: LocalStorage (Fallback/Local tests)
-  const localStored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
-  const localCodes: PromoCode[] = localStored ? JSON.parse(localStored) : [];
-
-  // Source 2: Tweaks (Shared Source of Truth)
-  // Note: Since tweaks are usually read-only for users, we merge them
-  const globalCodesStr = (tweaksConfig as any).globalPromoCodes?.value || "[]";
-  let globalCodes: PromoCode[] = [];
-  try {
-    globalCodes = JSON.parse(globalCodesStr);
-  } catch (e) {
-    console.error("Failed to parse global codes from tweaks", e);
-  }
-
-  // Merge codes by unique code string, preferring local if available for admin tests
-  const mergedMap = new Map<string, PromoCode>();
-  globalCodes.forEach(p => mergedMap.set(p.code, p));
-  localCodes.forEach(p => mergedMap.set(p.code, p));
-
-  return Array.from(mergedMap.values());
 }
 
 export function savePromoCodes(codes: PromoCode[]): void {
   localStorage.setItem(STORAGE_KEYS.PROMO_CODES, JSON.stringify(codes));
-  // Notify system of new/updated promo code via leaderboard event
-  sendEvent('global_promo_codes_update', { 
-    codes: JSON.stringify(codes),
-    timestamp: Date.now()
-  });
 }
 
-export function getUsedPromoCodes(): string[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.USED_PROMO_CODES);
+export function getPromoCodes(): PromoCode[] {
+  const stored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
   return stored ? JSON.parse(stored) : [];
 }
 
-export function saveUsedPromoCodes(codes: string[]): void {
-  localStorage.setItem(STORAGE_KEYS.USED_PROMO_CODES, JSON.stringify(codes));
+export function logout(): void {
+  localStorage.removeItem(STORAGE_KEYS.CURRENT_UID);
+}
+
+// Transaction & History storage remains UID-scoped
+export function getTransactions(): any[] {
+  const uid = getCurrentUID();
+  if (!uid) return [];
+  const stored = localStorage.getItem(`casino_transactions_${uid}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
+export function addTransaction(transaction: any): void {
+  const uid = getCurrentUID();
+  if (!uid) return;
+  const transactions = getTransactions();
+  transactions.unshift({ ...transaction, id: crypto.randomUUID(), timestamp: new Date().toISOString() });
+  localStorage.setItem(`casino_transactions_${uid}`, JSON.stringify(transactions.slice(0, 50)));
+}
+
+export function getGameHistory(): any[] {
+  const uid = getCurrentUID();
+  if (!uid) return [];
+  const stored = localStorage.getItem(`casino_history_${uid}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
+export function addGameHistory(history: any): void {
+  const uid = getCurrentUID();
+  if (!uid) return;
+  const histories = getGameHistory();
+  histories.unshift({ ...history, id: crypto.randomUUID(), timestamp: new Date().toISOString() });
+  localStorage.setItem(`casino_history_${uid}`, JSON.stringify(histories.slice(0, 50)));
+}
+
+export function getQuests(): any[] {
+  const uid = getCurrentUID();
+  if (!uid) return [];
+  const stored = localStorage.getItem(`casino_quests_${uid}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
+export function saveQuests(quests: any[]): void {
+  const uid = getCurrentUID();
+  if (!uid) return;
+  localStorage.setItem(`casino_quests_${uid}`, JSON.stringify(quests));
 }
 
 export function resetAllData(): void {
-  const keysToRemove = [
-    STORAGE_KEYS.USER,
-    STORAGE_KEYS.TRANSACTIONS,
-    STORAGE_KEYS.GAME_HISTORY,
-    STORAGE_KEYS.QUESTS,
-    STORAGE_KEYS.PROMO_CODES,
-    STORAGE_KEYS.USED_PROMO_CODES,
-    'admin_cheats',
-    'crypto_portfolio',
-    'app_language',
-    'vip_progress'
-  ];
-  
-  keysToRemove.forEach(key => localStorage.removeItem(key));
-  
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && (key.startsWith('casino_') || key.includes('cheats') || key.includes('portfolio'))) {
-      localStorage.removeItem(key);
-    }
-  }
+  localStorage.clear();
 }
