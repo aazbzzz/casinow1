@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings, Volume2, Vibrate, Trash2, Globe, AlertTriangle, Ticket, CheckCircle2, XCircle, Gift, X } from 'lucide-react';
-import { resetAllData, getPromoCodes, savePromoCodes, getUser, saveUser, addTransaction } from '@/lib/storage';
+import { resetAllData, getPromoCodes, savePromoCodes, getUser, saveUser, addTransaction, syncPromoCodeToCloud } from '@/lib/storage';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent } from '@aippy/runtime/leaderboard';
@@ -134,7 +134,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     if (enableHaptics) vibrate(50);
   };
 
-  const handleRedeemPromo = () => {
+  const handleRedeemPromo = async () => {
     const code = promoInput.toUpperCase().trim();
     if (!code) return;
 
@@ -178,7 +178,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     // Apply reward
     if (promo.type === 'currency') {
       user.balance += promo.value;
-      addTransaction({
+      await addTransaction({
         userId: user.id,
         type: 'win',
         amount: promo.value,
@@ -209,18 +209,21 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
 
     // Mark as used by this user and save
     user.usedPromoCodes = [...userUsedCodes, code];
-    saveUser(user);
+    await saveUser(user);
     
     if (onRewardClaimed) onRewardClaimed();
 
-    // Update code usage globally
-    const updatedPromoCodes = promoCodes.map(p => {
-      if (p.code === code) {
-        return { ...p, usedCount: p.usedCount + 1 };
-      }
-      return p;
-    });
-    onUpdatePromoCodes(updatedPromoCodes);
+    // Update global usage count (Centralized)
+    const updatedCodes = promoCodes.map(p => 
+      p.code === code ? { ...p, usedCount: p.usedCount + 1 } : p
+    );
+    onUpdatePromoCodes(updatedCodes);
+
+    // Cloud Sync usage count
+    const targetCode = updatedCodes.find(p => p.code === code);
+    if (targetCode) {
+      await syncPromoCodeToCloud(targetCode);
+    }
     
     // Synchroniser avec le système global @aippy
     sendEvent('promo_code_used', {

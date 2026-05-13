@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe } from 'lucide-react';
-import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode } from '@/lib/storage';
+import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode, syncPromoCodeToCloud } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats, saveCheats, type CheatSettings } from '@/lib/cheats';
+import { type User } from '@/types';
 
 // Import all files as strings to display them in the admin panel
 // Components
@@ -209,6 +210,26 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const [cheats, setCheats] = useState<CheatSettings>(getCheats);
   const [cheatCategory, setCheatCategory] = useState<'global' | 'roulette' | 'slots' | 'coinflip' | 'dice' | 'mines' | 'crash' | 'plinko'>('global');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [dbUsers, setDbUsers] = useState<User[]>([]);
+  const [dbTransactions, setDbTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const users = await getAllUsers();
+      setDbUsers(users);
+    };
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'transactions') {
+      const fetchTransactions = async () => {
+        const txs = await getTransactions();
+        setDbTransactions(txs);
+      };
+      fetchTransactions();
+    }
+  }, [activeTab]);
   
   const [newPromo, setNewPromo] = useState<{
     code: string;
@@ -232,7 +253,6 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const enableHaptics = tweaks.enableHaptics.useState();
   
   const user = getUser();
-  const transactions = getTransactions();
   
   const handleCopyFile = (fileName: string, content: string) => {
     navigator.clipboard.writeText(content);
@@ -271,13 +291,13 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     setExpandedFolders(newExpanded);
   };
   
-  const handleAddMoney = () => {
+  const handleAddMoney = async () => {
     if (onUpdateBalance) {
       onUpdateBalance(addMoneyAmount, 'deposit', 'Admin Manual Deposit');
     } else {
       const currentUser = getUser();
       currentUser.balance += addMoneyAmount;
-      saveUser(currentUser);
+      await saveUser(currentUser);
       window.location.reload();
     }
     if (enableHaptics) vibrate(200);
@@ -438,9 +458,9 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           
           {activeTab === 'users' && (
             <div className="space-y-6">
-              <h3 className="text-xl font-black text-white mb-4">Users Database ({getAllUsers().length})</h3>
+              <h3 className="text-xl font-black text-white mb-4">Users Database ({dbUsers.length})</h3>
               <div className="grid grid-cols-1 gap-3">
-                {getAllUsers().map((u) => (
+                {dbUsers.map((u) => (
                   <div 
                     key={u.id} 
                     className={`p-6 rounded-2xl border-2 transition-all ${u.id === user.id ? 'border-white/30 bg-white/5' : 'border-white/5 bg-[#0a0a0a]'}`}
@@ -478,25 +498,31 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           
           {activeTab === 'transactions' && (
             <div className="space-y-3">
-              {transactions.slice(0, 20).map((tx) => (
-                <div
-                  key={tx.id}
-                  className="p-4 rounded-xl border-2 flex items-center justify-between"
-                  style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}
-                >
-                  <div>
-                    <div className="font-bold text-white">{tx.type}</div>
-                    <div className="text-xs text-gray-400">{new Date(tx.timestamp).toLocaleString()}</div>
-                  </div>
-                  <div className={`font-black text-lg ${tx.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {tx.amount >= 0 ? '+' : ''}{tx.amount.toFixed(2)}
-                  </div>
+              {dbTransactions.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 bg-black/30 rounded-2xl border-2 border-dashed border-gray-800">
+                  No transactions found.
                 </div>
-              ))}
+              ) : (
+                dbTransactions.slice(0, 50).map((tx) => (
+                  <div
+                    key={tx.id || Math.random()}
+                    className="p-4 rounded-xl border-2 flex items-center justify-between"
+                    style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}
+                  >
+                    <div>
+                      <div className="font-bold text-white">{tx.type}</div>
+                      <div className="text-xs text-gray-400">{new Date(tx.timestamp).toLocaleString()}</div>
+                    </div>
+                    <div className={`font-black text-lg ${tx.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {tx.amount >= 0 ? '+' : ''}{tx.amount.toFixed(2)}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
-          {activeTab === 'manage' && (
+          {activeSection === 'manage' && (
             <div className="space-y-6">
               <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}>
                 <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2">
@@ -642,22 +668,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     const updated = [...promoCodes, codeObj];
                     onUpdatePromoCodes(updated);
                     
-                    // Global Sync to Supabase
-                    const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
-                    if (isSupabaseConfigured) {
-                      await supabase.from('promo_codes').upsert({
-                        code: codeObj.code,
-                        type: codeObj.type,
-                        value: codeObj.value,
-                        duration: codeObj.duration,
-                        reward_text: codeObj.rewardText,
-                        max_uses: codeObj.maxUses,
-                        used_count: codeObj.usedCount,
-                        crypto_symbol: codeObj.cryptoSymbol,
-                        is_active: codeObj.isActive,
-                        is_unlimited: codeObj.isUnlimited,
-                      });
-                    }
+                    // Global Sync to Supabase (via centralized helper)
+                    await syncPromoCodeToCloud(codeObj);
                     
                     setNewPromo({ code: '', type: 'currency', value: 100, maxUses: 10, cryptoSymbol: 'BTC', isUnlimited: false, duration: 3600 });
                     if (enableHaptics) vibrate(100);

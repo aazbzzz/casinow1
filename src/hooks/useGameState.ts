@@ -8,16 +8,20 @@ import { getCheats } from '@/lib/cheats';
 
 export function useGameState() {
   const [user, setUser] = useState<User>(() => getUser());
-  const [quests, setQuests] = useState<Quest[]>(getQuests());
+  const [quests, setQuests] = useState<Quest[]>([]);
   const isInitialMount = useRef(true);
 
   // Sync with backend on mount
   useEffect(() => {
-    const syncUser = async () => {
-      const remoteUser = await fetchUser();
+    const syncData = async () => {
+      const [remoteUser, remoteQuests] = await Promise.all([
+        fetchUser(),
+        getQuests()
+      ]);
       setUser(remoteUser);
+      setQuests(remoteQuests);
     };
-    syncUser();
+    syncData();
   }, []);
   
   // Persist changes to backend
@@ -30,12 +34,16 @@ export function useGameState() {
   }, [user]);
   
   useEffect(() => {
-    saveQuests(quests);
+    if (!isInitialMount.current) {
+      saveQuests(quests);
+    }
   }, [quests]);
   
-  const refreshUser = useCallback(() => {
-    setUser(getUser());
-    setQuests(getQuests());
+  const refreshUser = useCallback(async () => {
+    const remoteUser = await fetchUser();
+    const remoteQuests = await getQuests();
+    setUser(remoteUser);
+    setQuests(remoteQuests);
   }, []);
 
   const updateBalance = useCallback(async (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {

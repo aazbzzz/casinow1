@@ -24,6 +24,8 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
   const [selectedCrypto, setSelectedCrypto] = useState<string | null>(null);
   const [tradeAmount, setTradeAmount] = useState(100);
   const [maxContext, setMaxContext] = useState<'wallet' | 'bank'>('wallet');
+  const [dbTransactions, setDbTransactions] = useState<any[]>([]);
+  const [dbHistory, setDbHistory] = useState<any[]>([]);
   
   const balanceMax = user.balance;
   const bankMax = user.bankBalance;
@@ -32,11 +34,16 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
   
-  const transactions = getTransactions();
-  const history = getGameHistory();
-  
   const walletUnlocked = user.vipLevel >= 7;
   const tradingUnlocked = walletUnlocked && user.hasDeposited;
+  
+  useEffect(() => {
+    if (activeTab === 'transactions') {
+      getTransactions().then(setDbTransactions);
+    } else if (activeTab === 'history') {
+      getGameHistory().then(setDbHistory);
+    }
+  }, [activeTab]);
   
   useEffect(() => {
     const storedPortfolio = localStorage.getItem('crypto_portfolio');
@@ -425,9 +432,9 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
           
           {activeTab === 'transactions' && (
             <div className="space-y-3">
-              {transactions.slice(0, 20).map((tx) => (
+              {dbTransactions.slice(0, 50).map((tx, idx) => (
                 <div
-                  key={tx.id}
+                  key={tx.id || idx}
                   className="p-5 rounded-xl flex items-center justify-between border-2"
                   style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}20`, boxShadow: `0 0 15px ${primaryAccent}10` }}
                 >
@@ -446,23 +453,23 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
           
           {activeTab === 'history' && (
             <div className="space-y-3">
-              {history.slice(0, 20).map((h) => (
+              {dbHistory.slice(0, 50).map((h, idx) => (
                 <div
-                  key={h.id}
+                  key={h.id || idx}
                   className="p-5 rounded-xl border-2"
                   style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}20`, boxShadow: `0 0 15px ${primaryAccent}10` }}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="font-black text-white text-lg">{h.game}</div>
-                    <div className={`font-black text-lg px-3 py-1 rounded-lg ${h.result === 'win' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                      {h.result === 'win' ? 'Win' : 'Loss'}
+                    <div className={`font-black text-lg px-3 py-1 rounded-lg ${h.outcome === 'win' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      {h.outcome === 'win' ? 'Win' : 'Loss'}
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400 font-semibold">Bet: <span className="text-white font-bold">{h.betAmount.toFixed(2)}</span></span>
-                    {h.result === 'win' && (
+                    <span className="text-gray-400 font-semibold">Bet: <span className="text-white font-bold">{(h.bet || 0).toFixed(2)}</span></span>
+                    {h.outcome === 'win' && (
                       <span className="font-bold" style={{ color: primaryAccent }}>
-                        Win: {h.payout.toFixed(2)} ({h.multiplier.toFixed(2)}x)
+                        Win: {(h.payout || 0).toFixed(2)} ({(h.multiplier || 0).toFixed(2)}x)
                       </span>
                     )}
                   </div>

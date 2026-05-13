@@ -1,11 +1,12 @@
-import { type User } from '@/types';
+import { type User, type Quest } from '@/types';
 import { supabase } from './supabase';
 
 const STORAGE_KEYS = {
   USER_DATA_PREFIX: 'casino_user_data_',
   CURRENT_UID: 'casino_current_uid',
-  USERS_DB: 'casino_users_db',
-  PROMO_CODES: 'casino_promo_codes',
+  // On garde ces clés uniquement pour le cache local (performance)
+  CACHE_USERS: 'casino_cache_users',
+  CACHE_PROMO: 'casino_cache_promo',
 } as const;
 
 // Helper to check if Supabase is configured
@@ -18,6 +19,9 @@ const isSupabaseConfigured = () => {
   }
 };
 
+/**
+ * AUTH & UID
+ */
 export function getCurrentUID(): string | null {
   return localStorage.getItem(STORAGE_KEYS.CURRENT_UID);
 }
@@ -26,14 +30,346 @@ export function setCurrentUID(uid: string): void {
   localStorage.setItem(STORAGE_KEYS.CURRENT_UID, uid);
 }
 
+export function logout(): void {
+  localStorage.removeItem(STORAGE_KEYS.CURRENT_UID);
+}
+
+/**
+ * USER MANAGEMENT (CLOUD FIRST)
+ */
+export async function fetchUser(uid?: string): Promise<User> {
+  const targetUid = uid || getCurrentUID();
+  if (!targetUid) return getDefaultUser();
+
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', targetUid)
+      .single();
+    
+    if (!error && data) {
+      const user: User = {
+        id: data.id,
+        username: data.username,
+        balance: data.balance,
+        bankBalance: data.bank_balance,
+        vipLevel: data.vip_level,
+        totalWagered: data.total_wagered,
+        createdAt: data.created_at,
+        hasDeposited: data.has_deposited,
+        usedPromoCodes: data.used_promo_codes || [],
+      };
+      // Sync local cache
+      localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
+      return user;
+    }
+  }
+
+  // Fallback cache local
+  const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
+  return stored ? JSON.parse(stored) : getDefaultUser(targetUid);
+}
+
+export async function saveUser(user: User): Promise<void> {
+  if (!user.id) return;
+
+  // 1. Mise à jour Cloud (Source de vérité)
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase.from('users').upsert({
+      id: user.id,
+      username: user.username,
+      balance: user.balance,
+      bank_balance: user.bankBalance,
+      vip_level: user.vipLevel,
+      total_wagered: user.totalWagered,
+      has_deposited: user.hasDeposited,
+      used_promo_codes: user.usedPromoCodes || [],
+    });
+    if (error) console.error("[Supabase] Error saving user:", error);
+  }
+
+  // 2. Mise à jour Cache Local (Offline / Fast UI)
+  localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
+}
+
+export async function getAllUsers(): Promise<User[]> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('balance', { ascending: false });
+    
+    if (!error && data) {
+      const users = data.map(d => ({
+        id: d.id,
+        username: d.username,
+        balance: d.balance,
+        bankBalance: d.bank_balance,
+        vipLevel: d.vip_level,
+        totalWagered: d.total_wagered,
+        createdAt: d.created_at,
+        hasDeposited: d.has_deposited,
+        usedPromoCodes: d.used_promo_codes || [],
+      }));
+      localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
+      return users;
+    }
+  }
+  
+  const stored = localStorage.getItem(STORAGE_KEYS.CACHE_USERS);
+  return stored ? JSON.parse(stored) : [];
+}
+
+/**
+ * PROMO CODES (CLOUD ONLY)
+ */
+export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('promo_codes')
+      .select('*');
+    
+    if (!error && data) {
+      const codes = data.map(p => ({
+        code: p.code,
+        type: p.type as any,
+        value: p.value,
+        duration: p.duration,
+        rewardText: p.reward_text,
+        maxUses: p.max_uses,
+        usedCount: p.used_count,
+        cryptoSymbol: p.crypto_symbol,
+        isActive: p.is_active,
+        isUnlimited: p.is_unlimited,
+      }));
+      localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));
+      return codes;
+    }
+  }
+
+  const stored = localStorage.getItem(STORAGE_KEYS.CACHE_PROMO);
+  return stored ? JSON.parse(stored) : [];
+}
+
+export async function savePromoCodes(codes: PromoCode[]): Promise<void> {
+  // 1. Source de vérité : Supabase (upsert groupé)
+  if (isSupabaseConfigured()) {
+    const dbCodes = codes.map(p => ({
+      code: p.code,
+      type: p.type,
+      value: p.value,
+      duration: p.duration,
+      reward_text: p.rewardText,
+      max_uses: p.maxUses,
+      used_count: p.usedCount,
+      crypto_symbol: p.cryptoSymbol,
+      is_active: p.isActive,
+      is_unlimited: p.isUnlimited,
+    }));
+    const { error } = await supabase.from('promo_codes').upsert(dbCodes);
+    if (error) console.error("[Supabase] Error saving promo codes:", error);
+  }
+
+  // 2. Mise à jour Cache local
+  localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));
+}
+
+// Fonction utilitaire pour le panel admin
+export async function syncPromoCodeToCloud(code: PromoCode): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await supabase.from('promo_codes').upsert({
+      code: code.code,
+      type: code.type,
+      value: code.value,
+      duration: code.duration,
+      reward_text: code.rewardText,
+      max_uses: code.maxUses,
+      used_count: code.usedCount,
+      crypto_symbol: code.cryptoSymbol,
+      is_active: code.isActive,
+      is_unlimited: code.isUnlimited,
+    });
+  }
+}
+
+/**
+ * LEADERBOARD
+ */
+export async function getGlobalLeaderboard(): Promise<any[]> {
+  // Déjà cloud-first via Supabase
+  return getAllUsers();
+}
+
+/**
+ * QUESTS (PER USER - CLOUD SYNC)
+ */
+export async function getQuests(): Promise<Quest[]> {
+  const uid = getCurrentUID();
+  if (!uid) return [];
+
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('quests')
+      .select('*')
+      .eq('user_id', uid);
+    
+    if (!error && data && data.length > 0) {
+      return data.map(q => ({
+        id: q.quest_id,
+        title: q.title,
+        description: q.description,
+        reward: q.reward,
+        target: q.requirement,
+        type: q.type,
+        progress: q.progress,
+        completed: q.completed,
+        claimed: q.claimed
+      }));
+    }
+  }
+
+  const stored = localStorage.getItem(`casino_quests_${uid}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
+export async function saveQuests(quests: Quest[]): Promise<void> {
+  const uid = getCurrentUID();
+  if (!uid) return;
+
+  if (isSupabaseConfigured()) {
+    // Upsert multiple quests
+    const dbQuests = quests.map(q => ({
+      user_id: uid,
+      quest_id: q.id,
+      title: q.title,
+      description: q.description,
+      reward: q.reward,
+      requirement: q.target,
+      type: q.type,
+      progress: q.progress,
+      completed: q.completed,
+      claimed: q.claimed
+    }));
+    await supabase.from('quests').upsert(dbQuests, { onConflict: 'user_id,quest_id' });
+  }
+
+  localStorage.setItem(`casino_quests_${uid}`, JSON.stringify(quests));
+}
+
+/**
+ * TRANSACTIONS & HISTORY (CLOUD SYNC)
+ */
+export async function addTransaction(transaction: any): Promise<void> {
+  const uid = getCurrentUID();
+  if (!uid) return;
+
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase.from('transactions').insert({
+      user_id: uid,
+      type: transaction.type,
+      amount: transaction.amount,
+      game: transaction.game,
+      balance_after: transaction.balanceAfter,
+    });
+    if (error) console.error("[Supabase] Error adding transaction:", error);
+  }
+
+  // Cache local pour affichage immédiat
+  const local = await getTransactions();
+  local.unshift({ ...transaction, id: crypto.randomUUID(), timestamp: new Date().toISOString() });
+  localStorage.setItem(`casino_transactions_${uid}`, JSON.stringify(local.slice(0, 50)));
+}
+
+export async function getTransactions(): Promise<any[]> {
+  const uid = getCurrentUID();
+  if (!uid) return [];
+
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', uid)
+      .order('timestamp', { ascending: false })
+      .limit(50);
+    
+    if (!error && data) {
+      const formatted = data.map(t => ({
+        type: t.type,
+        amount: t.amount,
+        game: t.game,
+        balanceAfter: t.balance_after,
+        timestamp: t.timestamp
+      }));
+      localStorage.setItem(`casino_transactions_${uid}`, JSON.stringify(formatted));
+      return formatted;
+    }
+  }
+
+  const stored = localStorage.getItem(`casino_transactions_${uid}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
+export async function addGameHistory(history: any): Promise<void> {
+  const uid = getCurrentUID();
+  if (!uid) return;
+
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase.from('game_history').insert({
+      user_id: uid,
+      game: history.game,
+      bet: history.bet,
+      multiplier: history.multiplier,
+      payout: history.payout,
+      outcome: history.outcome,
+    });
+    if (error) console.error("[Supabase] Error adding history:", error);
+  }
+
+  const local = await getGameHistory();
+  local.unshift({ ...history, id: crypto.randomUUID(), timestamp: new Date().toISOString() });
+  localStorage.setItem(`casino_history_${uid}`, JSON.stringify(local.slice(0, 50)));
+}
+
+export async function getGameHistory(): Promise<any[]> {
+  const uid = getCurrentUID();
+  if (!uid) return [];
+
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('game_history')
+      .select('*')
+      .eq('user_id', uid)
+      .order('timestamp', { ascending: false })
+      .limit(50);
+    
+    if (!error && data) {
+      const formatted = data.map(h => ({
+        game: h.game,
+        bet: h.bet,
+        multiplier: h.multiplier,
+        payout: h.payout,
+        outcome: h.outcome,
+        timestamp: h.timestamp
+      }));
+      localStorage.setItem(`casino_history_${uid}`, JSON.stringify(formatted));
+      return formatted;
+    }
+  }
+
+  const stored = localStorage.getItem(`casino_history_${uid}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
+/**
+ * HELPERS
+ */
 export function getUser(uid?: string): User {
   const targetUid = uid || getCurrentUID();
-  
   if (targetUid) {
     const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
     if (stored) return JSON.parse(stored);
   }
-  
   return getDefaultUser(targetUid || undefined);
 }
 
@@ -51,194 +387,6 @@ export function getDefaultUser(uid?: string): User {
   };
 }
 
-export async function fetchUser(uid?: string): Promise<User> {
-  const targetUid = uid || getCurrentUID();
-  if (!targetUid) return getDefaultUser();
-
-  if (isSupabaseConfigured()) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', targetUid)
-      .single();
-    
-    if (!error && data) {
-      // Map DB fields to User type
-      const user = {
-        id: data.id,
-        username: data.username,
-        balance: data.balance,
-        bankBalance: data.bank_balance,
-        vipLevel: data.vip_level,
-        totalWagered: data.total_wagered,
-        createdAt: data.created_at,
-        hasDeposited: data.has_deposited,
-        usedPromoCodes: data.used_promo_codes || [],
-      };
-      // Cache locally
-      localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
-      return user;
-    }
-  }
-
-  return getUser(targetUid);
-}
-
-export async function saveUser(user: User): Promise<void> {
-  if (!user.id) return;
-
-  if (isSupabaseConfigured()) {
-    await supabase.from('users').upsert({
-      id: user.id,
-      username: user.username,
-      balance: user.balance,
-      bank_balance: user.bankBalance,
-      vip_level: user.vipLevel,
-      total_wagered: user.totalWagered,
-      has_deposited: user.hasDeposited,
-      used_promo_codes: user.usedPromoCodes || [],
-    });
-  }
-
-  // Always keep a local copy for offline/fast access
-  localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
-  
-  // Update local DB for leaderboard fallback
-  const users = getAllUsers();
-  const index = users.findIndex(u => u.id === user.id);
-  if (index >= 0) {
-    users[index] = user;
-  } else {
-    users.push(user);
-  }
-  localStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(users.slice(0, 100)));
-}
-
-export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
-  if (isSupabaseConfigured()) {
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('*')
-      .eq('is_active', true);
-    
-    if (!error && data) {
-      return data.map(p => ({
-        code: p.code,
-        type: p.type as any,
-        value: p.value,
-        duration: p.duration,
-        rewardText: p.reward_text,
-        maxUses: p.max_uses,
-        usedCount: p.used_count,
-        cryptoSymbol: p.crypto_symbol,
-        isActive: p.is_active,
-        isUnlimited: p.is_unlimited,
-      }));
-    }
-  }
-
-  const stored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
-  return stored ? JSON.parse(stored) : [];
-}
-
-export function savePromoCodes(codes: PromoCode[]): void {
-  localStorage.setItem(STORAGE_KEYS.PROMO_CODES, JSON.stringify(codes));
-}
-
-export function getPromoCodes(): PromoCode[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
-  return stored ? JSON.parse(stored) : [];
-}
-
-export async function getGlobalLeaderboard(): Promise<any[]> {
-  if (isSupabaseConfigured()) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, username, balance, vip_level')
-      .order('balance', { ascending: false })
-      .limit(50);
-    
-    if (!error && data) return data;
-  }
-  
-  return getAllUsers().sort((a, b) => b.balance - a.balance).slice(0, 50);
-}
-
-export function getAllUsers(): User[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.USERS_DB);
-  return stored ? JSON.parse(stored) : [];
-}
-
-export function logout(): void {
-  localStorage.removeItem(STORAGE_KEYS.CURRENT_UID);
-}
-
-export function getTransactions(): any[] {
-  const uid = getCurrentUID();
-  if (!uid) return [];
-  const stored = localStorage.getItem(`casino_transactions_${uid}`);
-  return stored ? JSON.parse(stored) : [];
-}
-
-export async function addTransaction(transaction: any): Promise<void> {
-  const uid = getCurrentUID();
-  if (!uid) return;
-
-  if (isSupabaseConfigured()) {
-    await supabase.from('transactions').insert({
-      user_id: uid,
-      type: transaction.type,
-      amount: transaction.amount,
-      game: transaction.game,
-      balance_after: transaction.balanceAfter,
-    });
-  }
-
-  const transactions = getTransactions();
-  transactions.unshift({ ...transaction, id: crypto.randomUUID(), timestamp: new Date().toISOString() });
-  localStorage.setItem(`casino_transactions_${uid}`, JSON.stringify(transactions.slice(0, 50)));
-}
-
-export function getGameHistory(): any[] {
-  const uid = getCurrentUID();
-  if (!uid) return [];
-  const stored = localStorage.getItem(`casino_history_${uid}`);
-  return stored ? JSON.parse(stored) : [];
-}
-
-export async function addGameHistory(history: any): Promise<void> {
-  const uid = getCurrentUID();
-  if (!uid) return;
-
-  if (isSupabaseConfigured()) {
-    await supabase.from('game_history').insert({
-      user_id: uid,
-      game: history.game,
-      bet: history.bet,
-      multiplier: history.multiplier,
-      payout: history.payout,
-      outcome: history.outcome,
-    });
-  }
-
-  const histories = getGameHistory();
-  histories.unshift({ ...history, id: crypto.randomUUID(), timestamp: new Date().toISOString() });
-  localStorage.setItem(`casino_history_${uid}`, JSON.stringify(histories.slice(0, 50)));
-}
-
-export function getQuests(): any[] {
-  const uid = getCurrentUID();
-  if (!uid) return [];
-  const stored = localStorage.getItem(`casino_quests_${uid}`);
-  return stored ? JSON.parse(stored) : [];
-}
-
-export function saveQuests(quests: any[]): void {
-  const uid = getCurrentUID();
-  if (!uid) return;
-  localStorage.setItem(`casino_quests_${uid}`, JSON.stringify(quests));
-}
-
 export function resetAllData(): void {
   localStorage.clear();
 }
@@ -254,4 +402,16 @@ export interface PromoCode {
   cryptoSymbol?: string;
   isActive: boolean;
   isUnlimited: boolean;
+}
+
+export function getPromoCodes(): PromoCode[] {
+  // Cette fonction est synchrone et lit uniquement le cache.
+  // Elle est utilisée pour le rendu immédiat de l'UI.
+  const stored = localStorage.getItem(STORAGE_KEYS.CACHE_PROMO);
+  return stored ? JSON.parse(stored) : [];
+}
+
+// Version asynchrone recommandée pour obtenir les données les plus fraîches
+export async function fetchPromoCodes(): Promise<PromoCode[]> {
+  return getGlobalPromoCodes();
 }

@@ -23,10 +23,11 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
 
-  const handlePlatformAuth = () => {
+  const handlePlatformAuth = async () => {
     if (isLoading || !uid) return;
     
-    const existingUser = getAllUsers().find(u => u.id === uid);
+    const users = await getAllUsers();
+    const existingUser = users.find(u => u.id === uid);
     if (existingUser) {
       setCurrentUID(uid);
       onAuthComplete(existingUser);
@@ -41,19 +42,20 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
         totalWagered: 0,
         createdAt: new Date().toISOString(),
         hasDeposited: false,
+        usedPromoCodes: [],
       };
       setCurrentUID(uid);
-      saveUser(newUser);
+      await saveUser(newUser);
       onAuthComplete(newUser);
     }
     if (enableHaptics) vibrate(100);
   };
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    const users = getAllUsers();
+    const users = await getAllUsers();
 
     if (mode === 'signup') {
       if (!username || !password) {
@@ -76,10 +78,11 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
         totalWagered: 0,
         createdAt: new Date().toISOString(),
         hasDeposited: false,
+        usedPromoCodes: [],
       };
 
       setCurrentUID(newUser.id);
-      saveUser(newUser);
+      await saveUser(newUser);
       if (enableHaptics) vibrate(100);
       onAuthComplete(newUser);
     } else if (mode === 'login') {

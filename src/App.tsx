@@ -31,7 +31,7 @@ function App() {
     }
   }, [user?.balance, user?.id, user?.username]);
 
-  // Periodic Leaderboard Refresh
+  // Periodic Leaderboard Refresh & Real-time Sync
   useEffect(() => {
     const fetchGlobalLeaderboard = async () => {
       const data = await getGlobalLeaderboard();
@@ -39,8 +39,28 @@ function App() {
     };
     
     fetchGlobalLeaderboard();
-    const interval = setInterval(fetchGlobalLeaderboard, 10000); // Every 10s
-    return () => clearInterval(interval);
+
+    // Real-time subscription for Leaderboard (users table)
+    const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
+    if (isSupabaseConfigured) {
+      const channel = supabase
+        .channel('leaderboard_changes')
+        .on(
+          'postgres_changes' as any, 
+          { event: '*', table: 'users', schema: 'public' }, 
+          (_payload: any) => {
+            fetchGlobalLeaderboard();
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } else {
+      const interval = setInterval(fetchGlobalLeaderboard, 15000); // Fallback to polling
+      return () => clearInterval(interval);
+    }
   }, []);
 
   const handleAuthComplete = (newUser: any) => {
@@ -107,7 +127,6 @@ function App() {
       const remoteCodes = await getGlobalPromoCodes();
       if (remoteCodes.length > 0) {
         setSyncedPromoCodes(remoteCodes);
-        savePromoCodes(remoteCodes);
       }
     };
     fetchGlobalCodes();
