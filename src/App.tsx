@@ -117,9 +117,13 @@ function App() {
     if (isSupabaseConfigured) {
       const channel = supabase
         .channel('promo_codes_changes')
-        .on('postgres_changes' as any, { event: '*', table: 'promo_codes' }, (_payload: any) => {
-          fetchGlobalCodes();
-        })
+        .on(
+          'postgres_changes' as any, 
+          { event: '*', table: 'promo_codes', schema: 'public' }, 
+          (_payload: any) => {
+            fetchGlobalCodes();
+          }
+        )
         .subscribe();
       
       return () => {
@@ -134,7 +138,6 @@ function App() {
   const handleUpdatePromoCodes = (newCodes: any[]) => {
     setSyncedPromoCodes(newCodes);
     savePromoCodes(newCodes);
-    // Sync function will be called from AdminPanel directly or here
   };
 
   const handleSectionChange = (section: typeof activeSection) => {
@@ -160,268 +163,221 @@ function App() {
       setShowAdminPanel(true);
       setShowAdminCode(false);
       setAdminInput('');
-      if (enableHaptics) vibrate([50, 30, 50]);
+      if (enableHaptics) vibrate(100);
     } else {
-      if (enableHaptics) vibrate(200);
       setAdminInput('');
+      if (enableHaptics) vibrate([50, 50]);
     }
   };
 
-  const handleAdminTrigger = () => {
-    // If we are in a game, this button acts as a "back" button
-    if (isInGame) {
-      if (enableHaptics) vibrate(10);
-      gameCloseCallbackRef.current?.();
-      return;
-    }
-
-    // Otherwise, handle admin trigger (triple click)
-    const newCount = clickCount + 1;
-    setClickCount(newCount);
+  const handleSecretClick = () => {
+    setClickCount(prev => prev + 1);
+    if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
     
-    if (enableHaptics) vibrate(10);
-
-    if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current);
-    }
-
-    if (newCount === 3) {
-      setShowAdminCode(true);
+    clickTimeoutRef.current = setTimeout(() => {
+      if (clickCount >= 2) {
+        setShowAdminCode(true);
+        if (enableHaptics) vibrate(50);
+      }
       setClickCount(0);
-      if (enableHaptics) vibrate([20, 20, 50]);
-    } else {
-      clickTimeoutRef.current = setTimeout(() => {
-        setClickCount(0);
-      }, 500);
-    }
+    }, 500);
   };
 
-  const handleGameStatusChange = useCallback((status: boolean) => {
-    setIsInGame(status);
-  }, []);
+  const handleGameStatusChange = (inGame: boolean) => {
+    setIsInGame(inGame);
+  };
 
-  const setGameCloseCallback = useCallback((callback: () => void) => {
+  const setGameCloseCallback = (callback: () => void) => {
     gameCloseCallbackRef.current = callback;
-  }, []);
+  };
 
   return (
-    <div 
-      className="fixed inset-0 flex flex-col overflow-hidden font-sans selection:bg-cyan-500/30 bg-[#0a0a0c]"
-      style={{ 
-        backgroundImage: 'url(https://cdn.aippy.ai/asset/d55bbb5a4b5f44f09a6f5a64f5045de5.jpg?x-oss-process=image/format,webp)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-    >
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-[1px]" />
+    <div className="h-screen w-screen bg-[#050505] text-white overflow-hidden font-sans select-none flex flex-col relative">
+      <TopBar user={user} onAdminClick={handleSecretClick} />
       
-      {/* Main Content */}
-      <div className="relative z-10 flex flex-col h-full max-w-md mx-auto w-full border-x border-white/5 bg-black/20 shadow-2xl">
-        <TopBar user={user} onAdminClick={() => setShowAdminPanel(true)} />
-        
-        <main 
-          ref={containerRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pb-32 px-4"
-        >
-          <div className="py-4">
-            {activeSection === 'casino' && (
-              <CasinoSection 
-                balance={user.balance} 
-                onBet={placeBet} 
-                onWin={recordWin} 
-                onLoss={recordLoss} 
-                onGameStatusChange={handleGameStatusChange}
-                onSetCloseCallback={setGameCloseCallback}
-              />
-            )}
-            {activeSection === 'wallet' && (
-              <WalletSection user={user} onDeposit={depositToBank} onWithdraw={withdrawFromBank} />
-            )}
-            {activeSection === 'vip' && <VIPSection user={user} />}
-            {activeSection === 'quests' && <QuestsSection quests={quests} onClaimQuest={claimQuest} />}
-            
-            {activeSection === 'leaderboard' && (
-              <div className="p-4 space-y-6 animate-in fade-in duration-500">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex flex-col">
-                    <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Leaderboard</h2>
-                    <div className="h-1 w-12 mt-1 rounded-full" style={{ backgroundColor: primaryAccent }} />
-                  </div>
-                  <Globe className="size-6 text-white/20" />
+      <main ref={containerRef} className="flex-1 overflow-y-auto pb-32 px-4 pt-4 scroll-smooth">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {activeSection === 'casino' && (
+            <CasinoSection 
+              balance={user.balance} 
+              onBet={placeBet} 
+              onWin={recordWin} 
+              onLoss={recordLoss} 
+              onGameStatusChange={handleGameStatusChange}
+              onSetCloseCallback={setGameCloseCallback}
+            />
+          )}
+          {activeSection === 'wallet' && (
+            <WalletSection user={user} onDeposit={depositToBank} onWithdraw={withdrawFromBank} />
+          )}
+          {activeSection === 'vip' && (
+            <VIPSection user={user} />
+          )}
+          {activeSection === 'quests' && (
+            <QuestsSection quests={quests} onClaimQuest={claimQuest} />
+          )}
+          {activeSection === 'leaderboard' && (
+            <div className="p-6 rounded-3xl bg-[#0a0a0a] border-2 border-white/5 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-3xl font-black italic uppercase tracking-tighter">Ranking</h2>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Top players worldwide</p>
                 </div>
-                
-                <div className="space-y-3">
-                  {leaderboard.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500 italic">No rankings available. Be the first!</div>
-                  ) : (
-                    leaderboard.map((entry, idx) => (
-                      <div 
-                        key={entry.userId} 
-                        className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${entry.userId === user.id ? 'border-white/20 bg-white/5 scale-105' : 'border-white/5 bg-black/40'}`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className={`size-10 rounded-xl flex items-center justify-center font-black ${idx === 0 ? 'bg-yellow-500 text-black shadow-[0_0_20px_rgba(234,179,8,0.3)]' : idx === 1 ? 'bg-gray-300 text-black' : idx === 2 ? 'bg-amber-600 text-black' : 'bg-white/5 text-white/40'}`}>
-                            {idx + 1}
-                          </div>
-                          <div>
-                            <div className="font-black text-white uppercase tracking-tight">{entry.username || 'Anonyme'}</div>
-                            <div className="text-[10px] text-gray-500 font-bold uppercase">Rank {idx + 1}</div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-black text-lg italic" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>{entry.balance.toLocaleString()}</div>
-                          <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Credits</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                <div className="size-14 rounded-2xl bg-white/5 flex items-center justify-center border-2 border-white/5">
+                  <Globe className="size-8" style={{ color: primaryAccent }} />
                 </div>
               </div>
-            )}
 
-            {activeSection === 'settings' && (
-              <SettingsSection 
-                onRewardClaimed={refreshUser} 
-                promoCodes={syncedPromoCodes}
-                onUpdatePromoCodes={handleUpdatePromoCodes}
-                onLogout={handleLogout}
-              />
-            )}
-          </div>
-        </main>
-
-        {/* Bottom Navigation */}
-        <nav className="absolute bottom-0 left-0 right-0 bg-black/90 backdrop-blur-3xl border-t border-white/10 px-2 pt-3 pb-safe flex items-center justify-around z-50">
-          {/* Multiplier Boost Indicator */}
-          {multiplierTimeLeft !== null && (
-            <div className="absolute -top-16 right-4 z-[60] animate-in slide-in-from-bottom-4 duration-300">
-              <div 
-                className={`flex items-center gap-2 px-4 py-2 rounded-2xl border-2 shadow-2xl transition-all duration-300 ${
-                  multiplierTimeLeft < 10 ? 'animate-pulse scale-105' : ''
-                }`}
-                style={{ 
-                  backgroundColor: `${primaryAccent}15`, 
-                  borderColor: multiplierTimeLeft < 10 ? '#ef4444' : primaryAccent,
-                  boxShadow: `0 0 20px ${multiplierTimeLeft < 10 ? '#ef444430' : `${primaryAccent}30`}`
-                }}
-              >
-                <Zap className="size-4" style={{ color: multiplierTimeLeft < 10 ? '#ef4444' : primaryAccent }} />
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-tighter text-white leading-none">Boost {user.activeMultiplier?.value}x</span>
-                  <span className="text-xs font-mono font-black text-white leading-none mt-0.5">{formatTime(multiplierTimeLeft)}</span>
-                </div>
+              <div className="space-y-3">
+                {leaderboard.map((entry, idx) => (
+                  <div 
+                    key={entry.id} 
+                    className={`p-4 rounded-2xl border-2 flex items-center justify-between gap-4 transition-all ${
+                      entry.id === user.id ? 'bg-white/10 scale-102 shadow-xl' : 'bg-white/5'
+                    }`}
+                    style={{ 
+                      borderColor: entry.id === user.id ? primaryAccent : 'rgba(255,255,255,0.05)',
+                      backgroundColor: entry.id === user.id ? `${primaryAccent}15` : undefined
+                    }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`size-10 rounded-xl flex items-center justify-center font-black text-lg ${
+                        idx === 0 ? 'bg-yellow-500 text-black' : 
+                        idx === 1 ? 'bg-gray-300 text-black' : 
+                        idx === 2 ? 'bg-amber-600 text-black' : 'bg-white/5 text-white'
+                      }`}>
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <div className="font-black text-white uppercase tracking-tight">{entry.username || 'Anonyme'}</div>
+                        <div className="text-[10px] text-gray-500 font-bold uppercase">Rank {idx + 1}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-black text-lg italic" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>{entry.balance.toLocaleString()}</div>
+                      <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Credits</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
-          
-          <div className="flex items-center justify-around w-full mb-6">
-            {navItems.map(({ id, icon: Icon, label }) => (
-              <button
-                key={id}
-                onClick={() => handleSectionChange(id as any)}
-                className="flex flex-col items-center gap-1 min-w-[56px] relative group py-1"
-              >
-                <div className={`p-2 rounded-xl transition-all duration-300 ${
-                  activeSection === id 
-                    ? 'bg-white/10 scale-110 shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
-                    : 'text-gray-500'
-                }`}>
-                  <Icon 
-                    className="size-6 transition-all duration-300"
-                    style={{ color: activeSection === id ? primaryAccent : undefined }}
-                  />
-                </div>
-                <span className={`text-[9px] font-black uppercase tracking-tight transition-all duration-300 ${
-                  activeSection === id ? 'text-white scale-100 opacity-100' : 'text-gray-600 scale-90 opacity-0'
-                }`}>
-                  {label}
-                </span>
-                {activeSection === id && (
-                  <div 
-                    className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full"
-                    style={{ backgroundColor: primaryAccent, boxShadow: `0 0 10px ${primaryAccent}` }}
-                  />
-                )}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        {/* Auth Modal */}
-        {showAuth && (
-          <AuthModal onAuthComplete={handleAuthComplete} />
-        )}
-
-        {/* Triple Click Hidden Trigger (Top-Left Corner) */}
-        <div className="absolute top-0 left-0 w-20 h-20 z-[200]">
-          <button
-            onClick={handleAdminTrigger}
-            className="w-full h-full opacity-0 cursor-default"
-            aria-hidden="true"
-          />
+          {activeSection === 'settings' && (
+            <SettingsSection 
+              onRewardClaimed={refreshUser} 
+              promoCodes={syncedPromoCodes}
+              onUpdatePromoCodes={handleUpdatePromoCodes}
+              onLogout={handleLogout}
+            />
+          )}
         </div>
+      </main>
 
-        {/* Admin Code Modal */}
-        {showAdminCode && (
-          <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
+      {/* Bottom Navigation */}
+      <nav className="absolute bottom-0 left-0 right-0 bg-black/90 backdrop-blur-3xl border-t border-white/10 px-2 pt-3 pb-safe flex items-center justify-around z-50">
+        {/* Multiplier Boost Indicator */}
+        {multiplierTimeLeft !== null && (
+          <div className="absolute -top-16 right-4 z-[60] animate-in slide-in-from-bottom-4 duration-300">
             <div 
-              className="w-full max-w-xs bg-[#0a0a0c] border-2 rounded-[2rem] p-8 shadow-2xl"
-              style={{ borderColor: primaryAccent }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-2xl border-2 shadow-2xl transition-all duration-300 ${
+                multiplierTimeLeft < 10 ? 'animate-pulse scale-105' : ''
+              }`}
+              style={{ 
+                backgroundColor: `${primaryAccent}15`, 
+                borderColor: multiplierTimeLeft < 10 ? '#ef4444' : primaryAccent,
+                boxShadow: `0 0 20px ${multiplierTimeLeft < 10 ? '#ef444430' : `${primaryAccent}30`}`
+              }}
             >
-              <div className="flex justify-center mb-6">
-                <div 
-                  className="size-16 rounded-2xl flex items-center justify-center border-2"
-                  style={{ borderColor: primaryAccent, backgroundColor: `${primaryAccent}10` }}
-                >
-                  <ShieldAlert className="size-8" style={{ color: primaryAccent }} />
-                </div>
+              <Zap className="size-4" style={{ color: multiplierTimeLeft < 10 ? '#ef4444' : primaryAccent }} />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-tighter text-white leading-none">Boost {user.activeMultiplier?.value}x</span>
+                <span className="text-xs font-mono font-black text-white leading-none mt-0.5">{formatTime(multiplierTimeLeft)}</span>
               </div>
-              <h3 className="text-xl font-black text-white text-center mb-2 uppercase tracking-tight">Accès Restreint</h3>
-              <p className="text-xs text-gray-500 text-center mb-6 uppercase tracking-widest font-bold">Code d'administration requis</p>
-              
-              <form onSubmit={handleAdminAuth} className="space-y-4">
-                <input
-                  autoFocus
-                  type="password"
-                  value={adminInput}
-                  onChange={(e) => setAdminInput(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full bg-white/5 border-2 border-white/10 rounded-xl px-4 py-3 text-center text-white font-black tracking-[0.5em] focus:outline-none focus:border-white/30 transition-all"
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="submit"
-                    className="py-3 rounded-xl font-black text-black transition-all active:scale-95"
-                    style={{ backgroundColor: primaryAccent }}
-                  >
-                    OK
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAdminCode(false);
-                      setAdminInput('');
-                    }}
-                    className="py-3 rounded-xl font-black text-white bg-white/5 border border-white/10 transition-all active:scale-95"
-                  >
-                    FERMER
-                  </button>
-                </div>
-              </form>
             </div>
           </div>
         )}
+        
+        <div className="flex items-center justify-around w-full mb-6">
+          {navItems.map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => handleSectionChange(id as any)}
+              className="flex flex-col items-center gap-1 min-w-[56px] relative group py-1"
+            >
+              <div className={`p-2 rounded-xl transition-all duration-300 ${
+                activeSection === id 
+                  ? 'bg-white/10 scale-110 shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
+                  : 'text-gray-500'
+              }`}>
+                <Icon 
+                  className="size-6 transition-all duration-300"
+                  style={{ color: activeSection === id ? primaryAccent : undefined }}
+                />
+              </div>
+              <span className={`text-[9px] font-black uppercase tracking-tight transition-all duration-300 ${
+                activeSection === id ? 'text-white scale-100 opacity-100' : 'text-gray-600 scale-90 opacity-0'
+              }`}>
+                {label}
+              </span>
+              {activeSection === id && (
+                <div 
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full"
+                  style={{ backgroundColor: primaryAccent, boxShadow: `0 0 10px ${primaryAccent}` }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
 
-        {showAdminPanel && (
-          <AdminPanel 
-            onClose={() => setShowAdminPanel(false)} 
-            onUpdateBalance={updateBalance}
-            promoCodes={syncedPromoCodes}
-            onUpdatePromoCodes={handleUpdatePromoCodes}
-          />
-        )}
-      </div>
+      {/* Admin Code Modal */}
+      {showAdminCode && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-xs bg-[#0a0a0a] border-2 border-white/10 rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-black uppercase tracking-tighter mb-4 text-center">Admin Access</h3>
+            <form onSubmit={handleAdminAuth} className="space-y-4">
+              <input
+                type="password"
+                value={adminInput}
+                onChange={(e) => setAdminInput(e.target.value)}
+                autoFocus
+                className="w-full bg-white/5 border-2 border-white/10 rounded-xl px-4 py-3 text-center text-xl font-black tracking-[0.5em] focus:outline-none focus:border-white/20"
+                placeholder="••••••"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAdminCode(false)}
+                  className="flex-1 py-3 rounded-xl font-black text-xs uppercase bg-white/5 hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl font-black text-xs uppercase text-black"
+                  style={{ backgroundColor: primaryAccent }}
+                >
+                  Confirm
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Panel */}
+      {showAdminPanel && (
+        <AdminPanel 
+          onClose={() => setShowAdminPanel(false)} 
+          onUpdatePromoCodes={handleUpdatePromoCodes}
+          promoCodes={syncedPromoCodes}
+        />
+      )}
+
+      {/* Auth Modal */}
+      {showAuth && (
+        <AuthModal onAuthComplete={handleAuthComplete} />
+      )}
     </div>
   );
 }

@@ -18,6 +18,14 @@ const isSupabaseConfigured = () => {
   }
 };
 
+export function getCurrentUID(): string | null {
+  return localStorage.getItem(STORAGE_KEYS.CURRENT_UID);
+}
+
+export function setCurrentUID(uid: string): void {
+  localStorage.setItem(STORAGE_KEYS.CURRENT_UID, uid);
+}
+
 export function getUser(uid?: string): User {
   const targetUid = uid || getCurrentUID();
   
@@ -27,6 +35,20 @@ export function getUser(uid?: string): User {
   }
   
   return getDefaultUser(targetUid || undefined);
+}
+
+export function getDefaultUser(uid?: string): User {
+  return {
+    id: uid || 'guest',
+    username: 'Player',
+    balance: 1000,
+    bankBalance: 0,
+    vipLevel: 1,
+    totalWagered: 0,
+    createdAt: new Date().toISOString(),
+    hasDeposited: false,
+    usedPromoCodes: [],
+  };
 }
 
 export async function fetchUser(uid?: string): Promise<User> {
@@ -42,7 +64,7 @@ export async function fetchUser(uid?: string): Promise<User> {
     
     if (!error && data) {
       // Map DB fields to User type
-      return {
+      const user = {
         id: data.id,
         username: data.username,
         balance: data.balance,
@@ -53,26 +75,13 @@ export async function fetchUser(uid?: string): Promise<User> {
         hasDeposited: data.has_deposited,
         usedPromoCodes: data.used_promo_codes || [],
       };
+      // Cache locally
+      localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
+      return user;
     }
   }
 
-  // Fallback to LocalStorage
-  const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
-  return stored ? JSON.parse(stored) : getDefaultUser(targetUid);
-}
-
-function getDefaultUser(uid?: string): User {
-  return {
-    id: uid || 'guest',
-    username: 'Player',
-    balance: 1000,
-    bankBalance: 0,
-    vipLevel: 1,
-    totalWagered: 0,
-    createdAt: new Date().toISOString(),
-    hasDeposited: false,
-    usedPromoCodes: [],
-  };
+  return getUser(targetUid);
 }
 
 export async function saveUser(user: User): Promise<void> {
@@ -132,18 +141,13 @@ export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
   return stored ? JSON.parse(stored) : [];
 }
 
-export async function updatePromoCodeUsage(code: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    // RPC or update with increment
-    const { data: promo } = await supabase.from('promo_codes').select('used_count').eq('code', code).single();
-    if (promo) {
-      await supabase.from('promo_codes').update({ used_count: promo.used_count + 1 }).eq('code', code);
-    }
-  }
-  
-  const codes = await getPromoCodes();
-  const updated = codes.map(p => p.code === code ? { ...p, usedCount: p.usedCount + 1 } : p);
-  savePromoCodes(updated);
+export function savePromoCodes(codes: PromoCode[]): void {
+  localStorage.setItem(STORAGE_KEYS.PROMO_CODES, JSON.stringify(codes));
+}
+
+export function getPromoCodes(): PromoCode[] {
+  const stored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
+  return stored ? JSON.parse(stored) : [];
 }
 
 export async function getGlobalLeaderboard(): Promise<any[]> {
@@ -157,17 +161,7 @@ export async function getGlobalLeaderboard(): Promise<any[]> {
     if (!error && data) return data;
   }
   
-  // Fallback to local sync or local DB
   return getAllUsers().sort((a, b) => b.balance - a.balance).slice(0, 50);
-}
-
-// ... existing helpers below ...
-export function getCurrentUID(): string | null {
-  return localStorage.getItem(STORAGE_KEYS.CURRENT_UID);
-}
-
-export function setCurrentUID(uid: string): void {
-  localStorage.setItem(STORAGE_KEYS.CURRENT_UID, uid);
 }
 
 export function getAllUsers(): User[] {
@@ -175,20 +169,17 @@ export function getAllUsers(): User[] {
   return stored ? JSON.parse(stored) : [];
 }
 
-export function savePromoCodes(codes: PromoCode[]): void {
-  localStorage.setItem(STORAGE_KEYS.PROMO_CODES, JSON.stringify(codes));
-}
-
-export function getPromoCodes(): PromoCode[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
-  return stored ? JSON.parse(stored) : [];
-}
-
 export function logout(): void {
   localStorage.removeItem(STORAGE_KEYS.CURRENT_UID);
 }
 
-// Transaction & History storage
+export function getTransactions(): any[] {
+  const uid = getCurrentUID();
+  if (!uid) return [];
+  const stored = localStorage.getItem(`casino_transactions_${uid}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
 export async function addTransaction(transaction: any): Promise<void> {
   const uid = getCurrentUID();
   if (!uid) return;
@@ -206,13 +197,6 @@ export async function addTransaction(transaction: any): Promise<void> {
   const transactions = getTransactions();
   transactions.unshift({ ...transaction, id: crypto.randomUUID(), timestamp: new Date().toISOString() });
   localStorage.setItem(`casino_transactions_${uid}`, JSON.stringify(transactions.slice(0, 50)));
-}
-
-export function getTransactions(): any[] {
-  const uid = getCurrentUID();
-  if (!uid) return [];
-  const stored = localStorage.getItem(`casino_transactions_${uid}`);
-  return stored ? JSON.parse(stored) : [];
 }
 
 export function getGameHistory(): any[] {

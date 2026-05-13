@@ -7,7 +7,7 @@ import { reportScore } from '@aippy/runtime/leaderboard';
 import { getCheats } from '@/lib/cheats';
 
 export function useGameState() {
-  const [user, setUser] = useState<User>(() => fetchUserSync());
+  const [user, setUser] = useState<User>(() => getUser());
   const [quests, setQuests] = useState<Quest[]>(getQuests());
   const isInitialMount = useRef(true);
 
@@ -33,6 +33,11 @@ export function useGameState() {
     saveQuests(quests);
   }, [quests]);
   
+  const refreshUser = useCallback(() => {
+    setUser(getUser());
+    setQuests(getQuests());
+  }, []);
+
   const updateBalance = useCallback(async (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
     setUser(prev => {
       const newBalance = prev.balance + amount;
@@ -50,7 +55,7 @@ export function useGameState() {
   const placeBet = useCallback((amount: number, game: string): boolean => {
     const cheats = getCheats();
     
-    // We use the current state 'user' which is already synced
+    // Use the current state 'user' which is already synced
     if (!cheats.infiniteBalance && user.balance < amount) return false;
     
     setUser(prev => {
@@ -82,137 +87,74 @@ export function useGameState() {
     return true;
   }, [user.balance]);
 
-  // Helper for synchronous initial state (from LocalStorage)
-  function fetchUserSync(): User {
-    const uid = getCurrentUID();
-    if (uid) {
-      const stored = localStorage.getItem(`casino_user_data_${uid}`);
-      if (stored) return JSON.parse(stored);
-    }
-    return {
-      id: uid || 'guest',
-      username: 'Player',
-      balance: 1000,
-      bankBalance: 0,
-      vipLevel: 1,
-      totalWagered: 0,
-      createdAt: new Date().toISOString(),
-      hasDeposited: false,
-      usedPromoCodes: [],
-    };
-  }
-  
-  const recordWin = useCallback((betAmount: number, totalPayout: number, multiplier: number, game: string) => {
-    const vipMultiplier = getVIPLevel(user.totalWagered).multiplier;
-    const activeBoost = user.activeMultiplier?.expiresAt && user.activeMultiplier.expiresAt > Date.now() 
-      ? user.activeMultiplier.value 
-      : 1;
+  const recordWin = useCallback((betAmount: number, payout: number, multiplier: number, game: string) => {
+    const cheats = getCheats();
+    const finalAmount = cheats.infiniteBalance ? 0 : payout;
     
-    const combinedMultiplier = multiplier * vipMultiplier * activeBoost;
-    const finalPayout = Math.floor(betAmount * combinedMultiplier);
-    const profit = finalPayout - betAmount;
-    
-    setUser(prev => {
-      const newBalance = prev.balance + finalPayout;
-      addTransaction({
-        userId: prev.id,
-        type: 'win',
-        amount: finalPayout,
-        game,
-        balanceAfter: newBalance,
-      });
-      
-      addGameHistory({
-        userId: prev.id,
-        game,
-        betAmount,
-        result: 'win',
-        payout: finalPayout,
-        multiplier: combinedMultiplier,
-      });
-      
-      return { ...prev, balance: newBalance };
-    });
-    
-    setQuests(prev => updateQuestProgress(prev, 'win', 1));
-    
-    return profit;
-  }, [user.totalWagered, user.activeMultiplier]);
-  
-  const recordLoss = useCallback((betAmount: number, game: string) => {
+    updateBalance(finalAmount, 'win', game);
     addGameHistory({
-      userId: user.id,
       game,
-      betAmount,
-      result: 'loss',
-      payout: 0,
+      bet: betAmount,
+      multiplier,
+      payout: finalAmount,
+      outcome: 'win',
+    });
+    return finalAmount;
+  }, [updateBalance]);
+
+  const recordLoss = useCallback((amount: number, game: string) => {
+    const cheats = getCheats();
+    if (cheats.infiniteBalance) return;
+    
+    addGameHistory({
+      game,
+      bet: amount,
       multiplier: 0,
+      payout: 0,
+      outcome: 'loss',
     });
-  }, [user.id]);
-  
+  }, []);
+
   const claimQuest = useCallback((questId: string) => {
-    const result = claimQuestReward(quests, questId);
-    if (result.reward > 0) {
-      setQuests(result.quests);
-      updateBalance(result.reward, 'win', 'Quest Reward');
-      return result.reward;
-    }
-    return 0;
+    const quest = quests.find(q => q.id === questId);
+    if (!quest || !quest.completed || quest.claimed) return;
+
+    setQuests(prev => prev.map(q => q.id === questId ? { ...q, claimed: true } : q));
+    updateBalance(quest.reward, 'deposit', `Quest: ${quest.title}`);
+    if (onRewardClaimed) onRewardClaimed();
   }, [quests, updateBalance]);
-  
-  useEffect(() => {
-    reportScore(user.balance);
-  }, [user.balance]);
-  
+
   const depositToBank = useCallback((amount: number) => {
-    setUser(prev => {
-      if (prev.balance < amount) return prev;
-      
-      const newBalance = prev.balance - amount;
-      const newBankBalance = prev.bankBalance + amount;
-      
-      addTransaction({
-        userId: prev.id,
-        type: 'deposit',
-        amount: -amount,
-        balanceAfter: newBalance,
-      });
-      
-      return {
-        ...prev,
-        balance: newBalance,
-        bankBalance: newBankBalance,
-        hasDeposited: true,
-      };
+    if (user.balance < amount) return;
+    setUser(prev => ({
+      ...prev,
+      balance: prev.balance - amount,
+      bankBalance: prev.bankBalance + amount,
+    }));
+    addTransaction({
+      userId: user.id,
+      type: 'withdraw',
+      amount: -amount,
+      game: 'Bank Deposit',
+      balanceAfter: user.balance - amount,
     });
-  }, []);
-  
+  }, [user.balance, user.id]);
+
   const withdrawFromBank = useCallback((amount: number) => {
-    setUser(prev => {
-      if (prev.bankBalance < amount) return prev;
-      
-      const newBalance = prev.balance + amount;
-      const newBankBalance = prev.bankBalance - amount;
-      
-      addTransaction({
-        userId: prev.id,
-        type: 'withdraw',
-        amount,
-        balanceAfter: newBalance,
-      });
-      
-      return {
-        ...prev,
-        balance: newBalance,
-        bankBalance: newBankBalance,
-      };
+    if (user.bankBalance < amount) return;
+    setUser(prev => ({
+      ...prev,
+      balance: prev.balance + amount,
+      bankBalance: prev.bankBalance - amount,
+    }));
+    addTransaction({
+      userId: user.id,
+      type: 'deposit',
+      amount,
+      game: 'Bank Withdrawal',
+      balanceAfter: user.balance + amount,
     });
-  }, []);
-  
-  const refreshUser = useCallback(() => {
-    setUser(getUser());
-    setQuests(getQuests());
-  }, []);
+  }, [user.bankBalance, user.id]);
 
   return {
     user,
@@ -226,4 +168,9 @@ export function useGameState() {
     withdrawFromBank,
     refreshUser,
   };
+}
+
+let onRewardClaimed: (() => void) | undefined;
+export function setOnRewardClaimed(callback: () => void) {
+  onRewardClaimed = callback;
 }
