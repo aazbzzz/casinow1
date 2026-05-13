@@ -74,23 +74,39 @@ export async function fetchUser(uid?: string): Promise<User> {
 export async function saveUser(user: User): Promise<void> {
   if (!user.id) return;
 
+  const cleanNum = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') {
+      return parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
+    }
+    return 0;
+  };
+
+  const cleanUser = {
+    ...user,
+    balance: cleanNum(user.balance),
+    bankBalance: cleanNum(user.bankBalance),
+    totalWagered: cleanNum(user.totalWagered),
+    vipLevel: Math.floor(cleanNum(user.vipLevel)) || 1
+  };
+
   // 1. Mise à jour Cloud (Source de vérité)
   if (isSupabaseConfigured()) {
     const { error } = await supabase.from('users').upsert({
-      id: user.id,
-      username: user.username,
-      balance: user.balance,
-      bank_balance: user.bankBalance,
-      vip_level: user.vipLevel,
-      total_wagered: user.totalWagered,
-      has_deposited: user.hasDeposited,
-      used_promo_codes: user.usedPromoCodes || [],
+      id: cleanUser.id,
+      username: cleanUser.username,
+      balance: cleanUser.balance,
+      bank_balance: cleanUser.bankBalance,
+      vip_level: cleanUser.vipLevel,
+      total_wagered: cleanUser.totalWagered,
+      has_deposited: cleanUser.hasDeposited,
+      used_promo_codes: cleanUser.usedPromoCodes || [],
     });
     if (error) console.error("[Supabase] Error saving user:", error);
   }
 
   // 2. Mise à jour Cache Local (Offline / Fast UI)
-  localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
+  localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
 }
 
 export async function getAllUsers(): Promise<User[]> {
