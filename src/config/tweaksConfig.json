@@ -96,5 +96,14 @@
     "name": "VIP Base",
     "value": 1.05,
     "min": 1
+  },
+  "globalPromoCodes": {
+    "id": "globalPromoCodes",
+    "type": "string",
+    "name": "Codes Promo Globaux",
+    "value": "[]",
+    "description": "Stockage JSON des codes promo pour tous les utilisateurs",
+    "index": 11,
+    "group": "game"
   }
 }

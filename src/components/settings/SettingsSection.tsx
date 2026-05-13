@@ -86,7 +86,11 @@ const translations = {
   },
 };
 
-export function SettingsSection({ onRewardClaimed }: { onRewardClaimed?: () => void }) {
+export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCodes }: { 
+  onRewardClaimed?: () => void,
+  promoCodes: any[],
+  onUpdatePromoCodes: (codes: any[]) => void
+}) {
   const [language, setLanguage] = useState(() => localStorage.getItem('app_language') || 'en');
   const [t, setT] = useState(translations[language as keyof typeof translations]);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -130,7 +134,6 @@ export function SettingsSection({ onRewardClaimed }: { onRewardClaimed?: () => v
     const code = promoInput.toUpperCase().trim();
     if (!code) return;
 
-    const promoCodes = getPromoCodes();
     const usedCodes = getUsedPromoCodes();
 
     // Check if user already used it
@@ -210,7 +213,7 @@ export function SettingsSection({ onRewardClaimed }: { onRewardClaimed?: () => v
       }
       return p;
     });
-    savePromoCodes(updatedPromoCodes);
+    onUpdatePromoCodes(updatedPromoCodes);
     
     // Mark as used by this user locally
     usedCodes.push(code);

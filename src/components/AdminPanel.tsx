@@ -50,6 +50,8 @@ const tweaks = aippyTweaks(tweaksConfig as any);
 interface AdminPanelProps {
   onClose: () => void;
   onUpdateBalance?: (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => void;
+  promoCodes: PromoCode[];
+  onUpdatePromoCodes: (codes: PromoCode[]) => void;
 }
 
 interface FileNode {
@@ -205,7 +207,7 @@ const projectFiles: FileNode[] = [
   { name: '.env', type: 'file', content: '// .env - Environment variables' },
 ];
 
-export function AdminPanel({ onClose, onUpdateBalance }: AdminPanelProps) {
+export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'master' | 'reset'>('promo');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src/components', 'src/components/casino', 'src/components/casino/games']));
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
@@ -214,7 +216,6 @@ export function AdminPanel({ onClose, onUpdateBalance }: AdminPanelProps) {
   const [cheats, setCheats] = useState<CheatSettings>(getCheats);
   const [cheatCategory, setCheatCategory] = useState<'global' | 'roulette' | 'slots' | 'coinflip' | 'dice' | 'mines' | 'crash' | 'plinko'>('global');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [promoCodes, setPromoCodes] = useState<PromoCode[]>(getPromoCodes());
   
   const [newPromo, setNewPromo] = useState<{
     code: string;
@@ -625,9 +626,7 @@ export function AdminPanel({ onClose, onUpdateBalance }: AdminPanelProps) {
                       usedCount: 0,
                       isActive: true
                     };
-                    const updated = [...promoCodes, codeObj];
-                    setPromoCodes(updated);
-                    savePromoCodes(updated);
+                    onUpdatePromoCodes([...promoCodes, codeObj]);
                     setNewPromo({ code: '', type: 'currency', value: 100, maxUses: 10, cryptoSymbol: 'BTC', isUnlimited: false, duration: 3600 });
                     if (enableHaptics) vibrate(100);
                   }}
@@ -667,8 +666,7 @@ export function AdminPanel({ onClose, onUpdateBalance }: AdminPanelProps) {
                         <button
                           onClick={() => {
                             const updated = promoCodes.map(c => c.code === code.code ? { ...c, isActive: !c.isActive } : c);
-                            setPromoCodes(updated);
-                            savePromoCodes(updated);
+                            onUpdatePromoCodes(updated);
                             if (enableHaptics) vibrate(50);
                           }}
                           className="size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2"
@@ -683,8 +681,7 @@ export function AdminPanel({ onClose, onUpdateBalance }: AdminPanelProps) {
                         <button 
                           onClick={() => {
                             const updated = promoCodes.filter(c => c.code !== code.code);
-                            setPromoCodes(updated);
-                            savePromoCodes(updated);
+                            onUpdatePromoCodes(updated);
                             if (enableHaptics) vibrate(100);
                           }}
                           className="size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2 border-red-500/30 text-red-500/70 hover:text-red-500 hover:border-red-500"

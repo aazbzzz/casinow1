@@ -11,6 +11,8 @@ import { AdminPanel } from '@/components/AdminPanel';
 import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAlert, Zap } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
+import { sendEvent } from '@aippy/runtime/leaderboard';
+import { savePromoCodes } from '@/lib/storage';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -54,6 +56,14 @@ function App() {
 
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
+  const globalPromoCodesStr = tweaks.globalPromoCodes.useState();
+
+  const handleUpdatePromoCodes = (newCodes: any[]) => {
+    // Synchroniser via un événement global puisque les tweaks sont en lecture seule ici
+    sendEvent('global_promo_codes_update', { codes: JSON.stringify(newCodes) });
+    // Optionnel: sauvegarder localement aussi pour cette session
+    savePromoCodes(newCodes);
+  };
 
   const handleSectionChange = (section: typeof activeSection) => {
     setActiveSection(section);
@@ -161,7 +171,13 @@ function App() {
             )}
             {activeSection === 'vip' && <VIPSection user={user} />}
             {activeSection === 'quests' && <QuestsSection quests={quests} onClaimQuest={claimQuest} />}
-            {activeSection === 'settings' && <SettingsSection onRewardClaimed={refreshUser} />}
+            {activeSection === 'settings' && (
+              <SettingsSection 
+                onRewardClaimed={refreshUser} 
+                promoCodes={JSON.parse(globalPromoCodesStr || '[]')}
+                onUpdatePromoCodes={handleUpdatePromoCodes}
+              />
+            )}
           </div>
         </main>
 
@@ -286,6 +302,8 @@ function App() {
           <AdminPanel 
             onClose={() => setShowAdminPanel(false)} 
             onUpdateBalance={updateBalance}
+            promoCodes={JSON.parse(globalPromoCodesStr || '[]')}
+            onUpdatePromoCodes={handleUpdatePromoCodes}
           />
         )}
       </div>
