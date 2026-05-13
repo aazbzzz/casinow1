@@ -71,7 +71,7 @@
     "group": "game",
     "min": 1,
     "value": 100,
-    "max": 1000000,
+    "max": 1000000000000000000,
     "description": "Montant de mise par défaut",
     "type": "number"
   },
