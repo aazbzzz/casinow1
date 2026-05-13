@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe } from 'lucide-react';
-import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode } from '@/lib/storage';
-import { syncPromoCodes } from '@/lib/sync';
+import { fetchUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
@@ -641,7 +641,24 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     };
                     const updated = [...promoCodes, codeObj];
                     onUpdatePromoCodes(updated);
-                    syncPromoCodes(updated);
+                    
+                    // Global Sync to Supabase
+                    const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
+                    if (isSupabaseConfigured) {
+                      await supabase.from('promo_codes').upsert({
+                        code: codeObj.code,
+                        type: codeObj.type,
+                        value: codeObj.value,
+                        duration: codeObj.duration,
+                        reward_text: codeObj.rewardText,
+                        max_uses: codeObj.maxUses,
+                        used_count: codeObj.usedCount,
+                        crypto_symbol: codeObj.cryptoSymbol,
+                        is_active: codeObj.isActive,
+                        is_unlimited: codeObj.isUnlimited,
+                      });
+                    }
+                    
                     setNewPromo({ code: '', type: 'currency', value: 100, maxUses: 10, cryptoSymbol: 'BTC', isUnlimited: false, duration: 3600 });
                     if (enableHaptics) vibrate(100);
                   }}
@@ -691,10 +708,15 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
 
                         <div className="flex items-center gap-2 shrink-0">
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               const updated = promoCodes.map(c => c.code === code.code ? { ...c, isActive: !c.isActive } : c);
                               onUpdatePromoCodes(updated);
-                              syncPromoCodes(updated);
+                              
+                              const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
+                              if (isSupabaseConfigured) {
+                                await supabase.from('promo_codes').update({ is_active: !code.isActive }).eq('code', code.code);
+                              }
+                              
                               if (enableHaptics) vibrate(50);
                             }}
                             title={code.isActive ? "Deactivate" : "Activate"}
@@ -703,11 +725,16 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             {code.isActive ? '✓' : '✗'}
                           </button>
                           <button 
-                            onClick={() => {
+                            onClick={async () => {
                               if (confirm(`Delete code ${code.code}?`)) {
                                 const updated = promoCodes.filter(c => c.code !== code.code);
                                 onUpdatePromoCodes(updated);
-                                syncPromoCodes(updated);
+                                
+                                const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
+                                if (isSupabaseConfigured) {
+                                  await supabase.from('promo_codes').delete().eq('code', code.code);
+                                }
+                                
                                 if (enableHaptics) vibrate(100);
                               }
                             }}

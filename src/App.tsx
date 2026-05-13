@@ -12,8 +12,8 @@ import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAler
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent, reportScore } from '@aippy/runtime/leaderboard';
-import { savePromoCodes, getPromoCodes, saveUser, getUser, logout, getAllUsers, getCurrentUID } from '@/lib/storage';
-import { syncLeaderboard, getGlobalPromoCodes, globalSyncRead } from '@/lib/sync';
+import { savePromoCodes, getPromoCodes, saveUser, logout, getAllUsers, getCurrentUID, getGlobalLeaderboard, getGlobalPromoCodes, fetchUser } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -28,14 +28,13 @@ function App() {
   useEffect(() => {
     if (user && user.id && user.id !== 'guest') {
       reportScore(user.balance);
-      syncLeaderboard({ id: user.id, username: user.username, balance: user.balance });
     }
   }, [user?.balance, user?.id, user?.username]);
 
   // Periodic Leaderboard Refresh
   useEffect(() => {
     const fetchGlobalLeaderboard = async () => {
-      const data = await globalSyncRead<any[]>('leaderboard');
+      const data = await getGlobalLeaderboard();
       if (data) setLeaderboard(data);
     };
     
@@ -102,7 +101,7 @@ function App() {
   // "Base de données" synchronisée des codes promo
   const [syncedPromoCodes, setSyncedPromoCodes] = useState<any[]>([]);
 
-  // Sync Promo Codes from Global Storage
+  // Sync Promo Codes from Global Storage & Real-time
   useEffect(() => {
     const fetchGlobalCodes = async () => {
       const remoteCodes = await getGlobalPromoCodes();
@@ -112,8 +111,24 @@ function App() {
       }
     };
     fetchGlobalCodes();
-    const interval = setInterval(fetchGlobalCodes, 15000); // Every 15s
-    return () => clearInterval(interval);
+
+    // Real-time subscription for Promo Codes
+    const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
+    if (isSupabaseConfigured) {
+      const channel = supabase
+        .channel('promo_codes_changes')
+        .on('postgres_changes', { event: '*', table: 'promo_codes' }, (payload) => {
+          fetchGlobalCodes();
+        })
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } else {
+      const interval = setInterval(fetchGlobalCodes, 15000); // Fallback to polling
+      return () => clearInterval(interval);
+    }
   }, []);
 
   const handleUpdatePromoCodes = (newCodes: any[]) => {

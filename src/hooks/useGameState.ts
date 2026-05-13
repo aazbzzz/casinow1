@@ -1,16 +1,31 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { User, Quest } from '@/types';
-import { getUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory } from '@/lib/storage';
+import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID } from '@/lib/storage';
 import { getVIPLevel } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
 import { getCheats } from '@/lib/cheats';
 
 export function useGameState() {
-  const [user, setUser] = useState<User>(getUser());
+  const [user, setUser] = useState<User>(() => fetchUserSync());
   const [quests, setQuests] = useState<Quest[]>(getQuests());
-  
+  const isInitialMount = useRef(true);
+
+  // Sync with backend on mount
   useEffect(() => {
+    const syncUser = async () => {
+      const remoteUser = await fetchUser();
+      setUser(remoteUser);
+    };
+    syncUser();
+  }, []);
+  
+  // Persist changes to backend
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     saveUser(user);
   }, [user]);
   
@@ -18,7 +33,7 @@ export function useGameState() {
     saveQuests(quests);
   }, [quests]);
   
-  const updateBalance = useCallback((amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
+  const updateBalance = useCallback(async (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
     setUser(prev => {
       const newBalance = prev.balance + amount;
       addTransaction({
@@ -35,12 +50,10 @@ export function useGameState() {
   const placeBet = useCallback((amount: number, game: string): boolean => {
     const cheats = getCheats();
     
-    // Re-check current state to avoid stale balance issues
-    const currentUser = getUser();
-    if (!cheats.infiniteBalance && currentUser.balance < amount) return false;
+    // We use the current state 'user' which is already synced
+    if (!cheats.infiniteBalance && user.balance < amount) return false;
     
     setUser(prev => {
-      // Re-verify in the functional update too
       if (!cheats.infiniteBalance && prev.balance < amount) return prev;
 
       const newBalance = cheats.infiniteBalance ? prev.balance : prev.balance - amount;
@@ -67,7 +80,27 @@ export function useGameState() {
     setQuests(prev => updateQuestProgress(prev, 'wager', amount));
     
     return true;
-  }, []);
+  }, [user.balance]);
+
+  // Helper for synchronous initial state (from LocalStorage)
+  function fetchUserSync(): User {
+    const uid = getCurrentUID();
+    if (uid) {
+      const stored = localStorage.getItem(`casino_user_data_${uid}`);
+      if (stored) return JSON.parse(stored);
+    }
+    return {
+      id: uid || 'guest',
+      username: 'Player',
+      balance: 1000,
+      bankBalance: 0,
+      vipLevel: 1,
+      totalWagered: 0,
+      createdAt: new Date().toISOString(),
+      hasDeposited: false,
+      usedPromoCodes: [],
+    };
+  }
   
   const recordWin = useCallback((betAmount: number, totalPayout: number, multiplier: number, game: string) => {
     const vipMultiplier = getVIPLevel(user.totalWagered).multiplier;
