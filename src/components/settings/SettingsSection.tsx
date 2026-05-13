@@ -141,6 +141,8 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     const user = getUser();
     const userUsedCodes = user.usedPromoCodes || [];
 
+    console.log(`[SettingsSection] handleRedeemPromo start:`, { code, userId: user.id });
+
     // Check if user already used it
     if (userUsedCodes.includes(code)) {
       setPromoStatus('error');
@@ -153,11 +155,14 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     
     // Check if code exists
     if (!promo) {
+      console.warn(`[SettingsSection] Code not found in syncedPromoCodes`, { code, syncedCodesCount: promoCodes.length });
       setPromoStatus('error');
       setPromoErrorMessage(t.promoError as string);
       if (enableHaptics) vibrate([50, 50, 50]);
       return;
     }
+
+    console.log(`[SettingsSection] Found promo:`, promo);
 
     // Check if active
     if (!promo.isActive) {
@@ -168,7 +173,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     }
 
     // Check global limit
-    if (!promo.isUnlimited && promo.usedCount >= promo.maxUses) {
+    if (!promo.isUnlimited && Number(promo.usedCount) >= Number(promo.maxUses)) {
       setPromoStatus('error');
       setPromoErrorMessage(t.promoErrorLimit as string);
       if (enableHaptics) vibrate([50, 50, 50]);
@@ -177,14 +182,18 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
 
     // Apply reward
     const promoValue = Number(promo.value) || 0;
+    console.log(`[SettingsSection] Applying reward:`, { type: promo.type, value: promoValue });
     
     if (promo.type === 'currency') {
       const currentBalance = typeof user.balance === 'string' 
         ? parseFloat(user.balance.replace(/,/g, '')) 
         : Number(user.balance);
       
-      user.balance = (isNaN(currentBalance) ? 0 : currentBalance) + promoValue;
+      const oldBalance = isNaN(currentBalance) ? 0 : currentBalance;
+      user.balance = oldBalance + promoValue;
       
+      console.log(`[SettingsSection] Balance updated:`, { oldBalance, change: promoValue, newBalance: user.balance });
+
       await addTransaction({
         userId: user.id,
         type: 'win',
@@ -216,6 +225,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
 
     // Mark as used by this user and save
     user.usedPromoCodes = [...userUsedCodes, code];
+    console.log(`[SettingsSection] Saving user with updated usedPromoCodes...`);
     await saveUser(user);
     
     // IMPORTANT: On force le rafraîchissement global pour que le solde mis à jour soit visible partout
@@ -225,7 +235,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
 
     // Update global usage count (Centralized)
     const updatedCodes = promoCodes.map(p => 
-      p.code === code ? { ...p, usedCount: p.usedCount + 1 } : p
+      p.code === code ? { ...p, usedCount: (Number(p.usedCount) || 0) + 1 } : p
     );
     onUpdatePromoCodes(updatedCodes);
 

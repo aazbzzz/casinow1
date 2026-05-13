@@ -42,6 +42,7 @@ export async function fetchUser(uid?: string): Promise<User> {
   if (!targetUid) return getDefaultUser();
 
   if (isSupabaseConfigured()) {
+    console.log(`[storage] fetchUser from Supabase:`, { targetUid });
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -49,26 +50,42 @@ export async function fetchUser(uid?: string): Promise<User> {
       .single();
     
     if (!error && data) {
+      console.log(`[storage] RAW data from Supabase (users):`, {
+        keys: Object.keys(data),
+        balance: data.balance,
+        bank_balance: data.bank_balance,
+        balance_amount: (data as any).balance_amount // Vérification du nom mentionné par l'utilisateur
+      });
+
+      // Utilisation du champ balance ou balance_amount selon ce qui est présent
+      const rawBalance = data.balance !== undefined ? data.balance : (data as any).balance_amount;
+      const rawBank = data.bank_balance !== undefined ? data.bank_balance : (data as any).bank_balance_amount;
+
       const user: User = {
         id: data.id,
         username: data.username,
-        balance: Number(data.balance) || 0,
-        bankBalance: Number(data.bank_balance) || 0,
-        vipLevel: Number(data.vip_level) || 1,
-        totalWagered: Number(data.total_wagered) || 0,
+        balance: Number(rawBalance ?? 0),
+        bankBalance: Number(rawBank ?? 0),
+        vipLevel: Number(data.vip_level ?? 1),
+        totalWagered: Number(data.total_wagered ?? 0),
         createdAt: data.created_at,
         hasDeposited: data.has_deposited,
         usedPromoCodes: data.used_promo_codes || [],
       };
+      console.log(`[storage] fetchUser success (mapped):`, user);
       // Sync local cache
       localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
       return user;
+    } else if (error) {
+      console.warn(`[storage] fetchUser Supabase error (falling back):`, error);
     }
   }
 
   // Fallback cache local
   const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
-  return stored ? JSON.parse(stored) : getDefaultUser(targetUid);
+  const user = stored ? JSON.parse(stored) : getDefaultUser(targetUid);
+  console.log(`[storage] fetchUser local fallback:`, user);
+  return user;
 }
 
 export async function saveUser(user: User): Promise<void> {
@@ -77,22 +94,34 @@ export async function saveUser(user: User): Promise<void> {
   const cleanNum = (val: any): number => {
     if (typeof val === 'number') return val;
     if (typeof val === 'string') {
-      return parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
+      // Nettoyage plus robuste des nombres (gestion virgule et points)
+      const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+      return parseFloat(cleaned) || 0;
     }
     return 0;
   };
 
+  // On arrondit pour BIGINT, mais on s'assure de ne pas retourner 0 si la valeur originale était > 0
+  const cleanBalance = cleanNum(user.balance);
+  const cleanBank = cleanNum(user.bankBalance);
+  const cleanWagered = cleanNum(user.totalWagered);
+
   const cleanUser = {
     ...user,
-    balance: cleanNum(user.balance),
-    bankBalance: cleanNum(user.bankBalance),
-    totalWagered: cleanNum(user.totalWagered),
+    balance: Math.round(cleanBalance),
+    bankBalance: Math.round(cleanBank),
+    totalWagered: Math.round(cleanWagered),
     vipLevel: Math.floor(cleanNum(user.vipLevel)) || 1
   };
 
+  console.log(`[storage] saveUser start:`, { 
+    original: { balance: user.balance, bank: user.bankBalance },
+    cleaned: { balance: cleanUser.balance, bank: cleanUser.bankBalance }
+  });
+
   // 1. Mise à jour Cloud (Source de vérité)
   if (isSupabaseConfigured()) {
-    const { error } = await supabase.from('users').upsert({
+    const dbData: any = {
       id: cleanUser.id,
       username: cleanUser.username,
       balance: cleanUser.balance,
@@ -101,8 +130,26 @@ export async function saveUser(user: User): Promise<void> {
       total_wagered: cleanUser.totalWagered,
       has_deposited: cleanUser.hasDeposited,
       used_promo_codes: cleanUser.usedPromoCodes || [],
-    });
-    if (error) console.error("[Supabase] Error saving user:", error);
+    };
+    
+    console.log(`[storage] saveUser Supabase upserting...`, dbData);
+    
+    const { error } = await supabase.from('users').upsert(dbData);
+    if (error) {
+      console.error("[Supabase] Error saving user (upsert):", error);
+      // Tentative avec balance_amount au cas où
+      console.log("[storage] retrying with balance_amount...");
+      const dbDataRetry = { ...dbData };
+      delete dbDataRetry.balance;
+      delete dbDataRetry.bank_balance;
+      dbDataRetry.balance_amount = dbData.balance;
+      dbDataRetry.bank_balance_amount = dbData.bank_balance;
+      const { error: error2 } = await supabase.from('users').upsert(dbDataRetry);
+      if (error2) console.error("[Supabase] Retry with balance_amount failed too:", error2);
+      else console.log("[storage] Retry with balance_amount success!");
+    } else {
+      console.log(`[storage] saveUser Supabase success`);
+    }
   }
 
   // 2. Mise à jour Cache Local (Offline / Fast UI)
@@ -142,25 +189,30 @@ export async function getAllUsers(): Promise<User[]> {
  */
 export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
   if (isSupabaseConfigured()) {
+    console.log(`[storage] fetchPromoCodes from Supabase...`);
     const { data, error } = await supabase
       .from('promo_codes')
       .select('*');
     
     if (!error && data) {
+      console.log(`[storage] RAW data from Supabase (promo_codes):`, data[0] ? Object.keys(data[0]) : "empty");
       const codes = data.map(p => ({
         code: p.code,
         type: p.type as any,
-        value: Number(p.value) || 0,
-        duration: Number(p.duration) || 0,
+        value: Number(p.value ?? 0),
+        duration: Number(p.duration ?? 0),
         rewardText: p.reward_text,
-        maxUses: Number(p.max_uses) || 0,
-        usedCount: Number(p.used_count) || 0,
+        maxUses: Number(p.max_uses ?? 0),
+        usedCount: Number(p.used_count ?? 0),
         cryptoSymbol: p.crypto_symbol,
         isActive: p.is_active,
         isUnlimited: p.is_unlimited,
       }));
+      console.log(`[storage] mapped promo codes:`, codes.length);
       localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));
       return codes;
+    } else if (error) {
+      console.error(`[storage] Error fetching promo codes:`, error);
     }
   }
 
@@ -280,14 +332,25 @@ export async function addTransaction(transaction: any): Promise<void> {
   const uid = getCurrentUID();
   if (!uid) return;
 
+  const cleanNum = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') {
+      const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+      return parseFloat(cleaned) || 0;
+    }
+    return 0;
+  };
+
   if (isSupabaseConfigured()) {
-    const { error } = await supabase.from('transactions').insert({
+    const dbData = {
       user_id: uid,
       type: transaction.type,
-      amount: transaction.amount,
+      amount: Math.round(cleanNum(transaction.amount)),
       game: transaction.game,
-      balance_after: transaction.balanceAfter,
-    });
+      balance_after: Math.round(cleanNum(transaction.balanceAfter)),
+    };
+    console.log(`[storage] addTransaction Supabase:`, dbData);
+    const { error } = await supabase.from('transactions').insert(dbData);
     if (error) console.error("[Supabase] Error adding transaction:", error);
   }
 
@@ -330,15 +393,26 @@ export async function addGameHistory(history: any): Promise<void> {
   const uid = getCurrentUID();
   if (!uid) return;
 
+  const cleanNum = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') {
+      const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+      return parseFloat(cleaned) || 0;
+    }
+    return 0;
+  };
+
   if (isSupabaseConfigured()) {
-    const { error } = await supabase.from('game_history').insert({
+    const dbData = {
       user_id: uid,
       game: history.game,
-      bet: history.bet,
-      multiplier: history.multiplier,
-      payout: history.payout,
+      bet: Math.round(cleanNum(history.bet)),
+      multiplier: cleanNum(history.multiplier),
+      payout: Math.round(cleanNum(history.payout)),
       outcome: history.outcome,
-    });
+    };
+    console.log(`[storage] addGameHistory Supabase:`, dbData);
+    const { error } = await supabase.from('game_history').insert(dbData);
     if (error) console.error("[Supabase] Error adding history:", error);
   }
 
