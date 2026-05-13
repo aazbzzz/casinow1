@@ -292,11 +292,16 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   };
   
   const handleAddMoney = async () => {
+    const numericAmount = Number(addMoneyAmount) || 0;
     if (onUpdateBalance) {
-      onUpdateBalance(addMoneyAmount, 'deposit', 'Admin Manual Deposit');
+      onUpdateBalance(numericAmount, 'deposit', 'Admin Manual Deposit');
     } else {
       const currentUser = getUser();
-      currentUser.balance += addMoneyAmount;
+      const currentBalance = typeof currentUser.balance === 'string' 
+        ? parseFloat(currentUser.balance.replace(/,/g, '')) 
+        : Number(currentUser.balance);
+      
+      currentUser.balance = (isNaN(currentBalance) ? 0 : currentBalance) + numericAmount;
       await saveUser(currentUser);
       window.location.reload();
     }

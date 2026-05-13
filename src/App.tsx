@@ -64,7 +64,14 @@ function App() {
   }, []);
 
   const handleAuthComplete = (newUser: any) => {
-    saveUser(newUser);
+    const cleanUser = {
+      ...newUser,
+      balance: Number(newUser.balance) || 0,
+      bankBalance: Number(newUser.bankBalance) || 0,
+      totalWagered: Number(newUser.totalWagered) || 0,
+      vipLevel: Number(newUser.vipLevel) || 1,
+    };
+    saveUser(cleanUser);
     refreshUser();
     setShowAuth(false);
   };

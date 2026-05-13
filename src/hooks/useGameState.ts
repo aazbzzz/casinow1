@@ -11,87 +11,80 @@ export function useGameState() {
   const [quests, setQuests] = useState<Quest[]>([]);
   const isInitialMount = useRef(true);
 
+  const fetchLatestData = useCallback(async () => {
+    const [remoteUser, remoteQuests] = await Promise.all([
+      fetchUser(),
+      getQuests()
+    ]);
+    if (remoteUser) setUser(remoteUser);
+    if (remoteQuests) setQuests(remoteQuests);
+  }, []);
+
   // Sync with backend on mount
   useEffect(() => {
-    const syncData = async () => {
-      const [remoteUser, remoteQuests] = await Promise.all([
-        fetchUser(),
-        getQuests()
-      ]);
-      setUser(remoteUser);
-      setQuests(remoteQuests);
-    };
-    syncData();
+    fetchLatestData();
 
     // Listener pour les mises à jour de solde externes (ex: promo codes)
     const handleBalanceUpdate = () => {
-      syncData();
+      fetchLatestData();
     };
     window.addEventListener('casino_balance_update', handleBalanceUpdate);
     return () => window.removeEventListener('casino_balance_update', handleBalanceUpdate);
-  }, []);
-  
-  // Persist changes to backend
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    saveUser(user);
-  }, [user]);
-  
-  useEffect(() => {
-    if (!isInitialMount.current) {
-      saveQuests(quests);
-    }
-  }, [quests]);
+  }, [fetchLatestData]);
   
   const refreshUser = useCallback(async () => {
-    const remoteUser = await fetchUser();
-    const remoteQuests = await getQuests();
-    setUser(remoteUser);
-    setQuests(remoteQuests);
-  }, []);
+    await fetchLatestData();
+  }, [fetchLatestData]);
 
-  const updateBalance = useCallback(async (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
-    const numericAmount = Number(amount);
+  const updateBalance = useCallback(async (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
+    const numericAmount = typeof amount === 'string' 
+      ? parseFloat(amount.replace(/,/g, '')) 
+      : Number(amount);
+      
     if (isNaN(numericAmount)) return;
 
     setUser(prev => {
-      const currentBalance = Number(prev.balance) || 0;
-      const newBalance = currentBalance + numericAmount;
+      const currentBalance = typeof prev.balance === 'string' 
+        ? parseFloat(prev.balance.replace(/,/g, '')) 
+        : Number(prev.balance);
+      
+      const safeBalance = isNaN(currentBalance) ? 0 : currentBalance;
+      const newBalance = safeBalance + numericAmount;
       
       const newUser = { ...prev, balance: newBalance };
       
-      // On déclenche les effets secondaires sans bloquer
-      addTransaction({
-        userId: prev.id,
-        type,
-        amount: numericAmount,
-        game,
-        balanceAfter: newBalance,
-      }).catch(console.error);
-
       saveUser(newUser).catch(console.error);
-      
       return newUser;
     });
   }, []);
   
-  const placeBet = useCallback((amount: number, game: string): boolean => {
-    const numericAmount = Number(amount);
+  const placeBet = useCallback((amount: number | string, game: string): boolean => {
+    const numericAmount = typeof amount === 'string' 
+      ? parseFloat(amount.replace(/,/g, '')) 
+      : Number(amount);
+
     if (isNaN(numericAmount) || numericAmount <= 0) return false;
 
     const cheats = getCheats();
-    const currentBalance = Number(user.balance) || 0;
     
-    if (!cheats.infiniteBalance && currentBalance < numericAmount) return false;
+    const currentBalance = typeof user.balance === 'string' 
+      ? parseFloat(user.balance.replace(/,/g, '')) 
+      : Number(user.balance);
+    
+    const safeBalance = isNaN(currentBalance) ? 0 : currentBalance;
+    
+    if (!cheats.infiniteBalance && safeBalance < numericAmount) return false;
     
     setUser(prev => {
-      const prevBalance = Number(prev.balance) || 0;
-      if (!cheats.infiniteBalance && prevBalance < numericAmount) return prev;
+      const prevBalance = typeof prev.balance === 'string' 
+        ? parseFloat(prev.balance.replace(/,/g, '')) 
+        : Number(prev.balance);
+      
+      const safePrevBalance = isNaN(prevBalance) ? 0 : prevBalance;
 
-      const newBalance = cheats.infiniteBalance ? prevBalance : prevBalance - numericAmount;
+      if (!cheats.infiniteBalance && safePrevBalance < numericAmount) return prev;
+
+      const newBalance = cheats.infiniteBalance ? safePrevBalance : safePrevBalance - numericAmount;
       const newWagered = (Number(prev.totalWagered) || 0) + numericAmount;
       const vipLevel = getVIPLevel(newWagered);
       
@@ -121,17 +114,27 @@ export function useGameState() {
     return true;
   }, [user.balance, user.id]);
 
-  const recordWin = useCallback((betAmount: number, payout: number, multiplier: number, game: string) => {
+  const recordWin = useCallback((betAmount: number | string, payout: number | string, multiplier: number | string, game: string) => {
     const cheats = getCheats();
     
-    const numBet = Number(betAmount) || 0;
-    const numPayout = Number(payout) || 0;
-    const numMultiplier = Number(multiplier) || 0;
+    const numBet = typeof betAmount === 'string' ? parseFloat(betAmount.replace(/,/g, '')) : Number(betAmount) || 0;
+    const numPayout = typeof payout === 'string' ? parseFloat(payout.replace(/,/g, '')) : Number(payout) || 0;
+    const numMultiplier = typeof multiplier === 'string' ? parseFloat(multiplier.replace(/,/g, '')) : Number(multiplier) || 0;
 
-    // Calcul du gain réel
+    // Calcul du gain réel : si payout est 0, on utilise bet * multiplier
     let calculatedPayout = numPayout;
     if (numPayout <= 0 && numMultiplier > 0) {
       calculatedPayout = numBet * numMultiplier;
+    }
+    
+    // Si après calcul c'est toujours 0 ou moins, on s'assure que c'est au moins la mise si multiplier >= 1
+    if (calculatedPayout <= 0 && numMultiplier >= 1) {
+      calculatedPayout = numBet * numMultiplier;
+    }
+    
+    // Application du multiplicateur actif de l'utilisateur s'il existe
+    if (user.activeMultiplier && user.activeMultiplier.expiresAt > Date.now()) {
+      calculatedPayout *= user.activeMultiplier.value;
     }
     
     const finalAmount = cheats.infiniteBalance ? 0 : calculatedPayout;
@@ -147,9 +150,9 @@ export function useGameState() {
     }).catch(console.error);
     
     return finalAmount;
-  }, [updateBalance]);
+  }, [updateBalance, user.activeMultiplier]);
 
-  const recordLoss = useCallback((amount: number, game: string) => {
+  const recordLoss = useCallback((amount: number | string, game: string) => {
     const cheats = getCheats();
     if (cheats.infiniteBalance) return;
     

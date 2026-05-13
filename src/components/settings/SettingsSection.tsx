@@ -176,12 +176,19 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     }
 
     // Apply reward
+    const promoValue = Number(promo.value) || 0;
+    
     if (promo.type === 'currency') {
-      user.balance += promo.value;
+      const currentBalance = typeof user.balance === 'string' 
+        ? parseFloat(user.balance.replace(/,/g, '')) 
+        : Number(user.balance);
+      
+      user.balance = (isNaN(currentBalance) ? 0 : currentBalance) + promoValue;
+      
       await addTransaction({
         userId: user.id,
         type: 'win',
-        amount: promo.value,
+        amount: promoValue,
         game: 'Promo Code',
         balanceAfter: user.balance
       });
@@ -189,21 +196,21 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
       const portfolio = JSON.parse(localStorage.getItem('crypto_portfolio') || '[]');
       const assetIndex = portfolio.findIndex((a: any) => a.symbol === promo.cryptoSymbol);
       if (assetIndex >= 0) {
-        portfolio[assetIndex].amount += promo.value;
+        portfolio[assetIndex].amount = (Number(portfolio[assetIndex].amount) || 0) + promoValue;
       } else {
         portfolio.push({
           id: crypto.randomUUID(),
           symbol: promo.cryptoSymbol,
           name: promo.cryptoSymbol,
-          amount: promo.value,
+          amount: promoValue,
           avgBuyPrice: 0
         });
       }
       localStorage.setItem('crypto_portfolio', JSON.stringify(portfolio));
     } else if (promo.type === 'multiplier') {
       user.activeMultiplier = {
-        value: promo.value,
-        expiresAt: Date.now() + (promo.duration || 3600) * 1000
+        value: promoValue,
+        expiresAt: Date.now() + (Number(promo.duration) || 3600) * 1000
       };
     }
 

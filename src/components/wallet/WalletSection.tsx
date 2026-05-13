@@ -27,8 +27,15 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
   const [dbTransactions, setDbTransactions] = useState<any[]>([]);
   const [dbHistory, setDbHistory] = useState<any[]>([]);
   
-  const balanceMax = user.balance;
-  const bankMax = user.bankBalance;
+  const currentBalance = typeof user.balance === 'string' 
+    ? parseFloat(user.balance.replace(/,/g, '')) 
+    : Number(user.balance);
+  const currentBankBalance = typeof user.bankBalance === 'string' 
+    ? parseFloat(user.bankBalance.replace(/,/g, '')) 
+    : Number(user.bankBalance);
+
+  const balanceMax = isNaN(currentBalance) ? 0 : currentBalance;
+  const bankMax = isNaN(currentBankBalance) ? 0 : currentBankBalance;
   
   const cardBg = tweaks.cardBackground.useState();
   const primaryAccent = tweaks.primaryAccent.useState();
@@ -189,7 +196,7 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
                     <Coins className="size-5" style={{ color: primaryAccent }} />
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Game Balance</span>
                   </div>
-                  <div className="text-3xl font-black text-white">{user.balance.toFixed(2)}</div>
+                  <div className="text-3xl font-black text-white">{balanceMax.toFixed(2)}</div>
                 </div>
                 
                 <div 
@@ -201,7 +208,7 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
                     <DollarSign className="size-5" style={{ color: primaryAccent }} />
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Bank Balance</span>
                   </div>
-                  <div className="text-3xl font-black text-white">{user.bankBalance.toFixed(2)}</div>
+                  <div className="text-3xl font-black text-white">{bankMax.toFixed(2)}</div>
                 </div>
               </div>
               
@@ -209,7 +216,7 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">Amount</label>
                   <button 
-                    onClick={() => setAmount(maxContext === 'wallet' ? user.balance : user.bankBalance)}
+                    onClick={() => setAmount(maxContext === 'wallet' ? balanceMax : bankMax)}
                     className="text-xs font-black px-2 py-1 rounded bg-gray-700 text-white active:scale-90"
                     style={{ color: primaryAccent }}
                   >
@@ -228,7 +235,7 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={handleDeposit}
-                  disabled={amount > user.balance}
+                  disabled={amount > balanceMax}
                   className="flex items-center justify-center gap-2 py-4 rounded-xl font-black text-black transition-all active:scale-95 disabled:opacity-50 shadow-lg"
                   style={{ backgroundColor: primaryAccent, boxShadow: `0 0 20px ${primaryAccent}40` }}
                 >
@@ -237,7 +244,7 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
                 </button>
                 <button
                   onClick={handleWithdraw}
-                  disabled={amount > user.bankBalance}
+                  disabled={amount > bankMax}
                   className="flex items-center justify-center gap-2 py-4 rounded-xl font-black bg-gray-700/80 text-white transition-all active:scale-95 disabled:opacity-50 border-2 border-gray-600"
                 >
                   <ArrowDownCircle className="size-5" />
