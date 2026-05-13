@@ -69,9 +69,9 @@ function App() {
     if (globalPromoCodesStr) {
       try {
         const remoteCodes = JSON.parse(globalPromoCodesStr);
-        if (Array.isArray(remoteCodes) && remoteCodes.length > 0) {
+        if (Array.isArray(remoteCodes)) {
           setSyncedPromoCodes(remoteCodes);
-          savePromoCodes(remoteCodes); // Persister localement aussi
+          savePromoCodes(remoteCodes);
         }
       } catch (e) {
         console.error("Failed to parse global promo codes", e);
@@ -82,9 +82,11 @@ function App() {
   const handleUpdatePromoCodes = (newCodes: any[]) => {
     setSyncedPromoCodes(newCodes);
     savePromoCodes(newCodes);
-    // Tenter de mettre à jour le tweak global si possible (lecture seule souvent sur cette plateforme)
-    // On utilise quand même l'événement pour notifier les autres instances
-    sendEvent('global_promo_codes_update', { codes: JSON.stringify(newCodes) });
+    // On notifie la plateforme du changement
+    sendEvent('global_promo_codes_update', { 
+      codes: JSON.stringify(newCodes),
+      timestamp: Date.now()
+    });
   };
 
   const handleSectionChange = (section: typeof activeSection) => {

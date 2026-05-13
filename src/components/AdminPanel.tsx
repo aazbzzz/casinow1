@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2 } from 'lucide-react';
+import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe } from 'lucide-react';
 import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, type PromoCode } from '@/lib/storage';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
@@ -638,59 +638,70 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-xl font-black text-white px-2">Active Codes ({promoCodes.length})</h3>
+                <div className="flex items-center justify-between px-2">
+                  <h3 className="text-xl font-black text-white">Promo Database ({promoCodes.length})</h3>
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-green-500 uppercase tracking-widest bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
+                    <Globe className="size-3" /> Global Sync Active
+                  </div>
+                </div>
                 {promoCodes.length === 0 ? (
                   <div className="p-8 text-center text-gray-500 bg-black/30 rounded-2xl border-2 border-dashed border-gray-800">
-                    No promo codes created yet.
+                    No promo codes in global database.
                   </div>
                 ) : (
-                  promoCodes.map((code) => (
-                    <div key={code.code} className="p-4 rounded-xl border-2 flex items-center justify-between gap-3" style={{ backgroundColor: code.isActive ? '#0a0a0a' : '#1a0a0a', borderColor: code.isActive ? `${primaryAccent}20` : '#333', opacity: code.isActive ? 1 : 0.5 }}>
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                          <Ticket className="size-5" style={{ color: code.isActive ? primaryAccent : '#666' }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-black text-white flex items-center gap-2">
-                            {code.code}
-                            {!code.isActive && <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">INACTIVE</span>}
+                  <div className="grid grid-cols-1 gap-3">
+                    {promoCodes.map((code) => (
+                      <div 
+                        key={code.code} 
+                        className={`p-4 rounded-xl border-2 flex items-center justify-between gap-3 transition-all ${code.isActive ? 'bg-[#0a0a0a]' : 'bg-[#1a0a0a] opacity-60 grayscale'}`} 
+                        style={{ borderColor: code.isActive ? `${primaryAccent}20` : '#333' }}
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                            <Ticket className="size-5" style={{ color: code.isActive ? primaryAccent : '#666' }} />
                           </div>
-                          <div className="text-xs text-gray-400">Reward: <span style={{ color: primaryAccent }}>{code.rewardText}</span></div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-black text-white flex items-center gap-2">
+                              {code.code}
+                              {!code.isActive && <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold">DISABLED</span>}
+                            </div>
+                            <div className="text-xs text-gray-400">Reward: <span style={{ color: primaryAccent }} className="font-bold">{code.rewardText}</span></div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right shrink-0 px-4">
+                          <div className="text-[10px] font-black uppercase text-gray-500 mb-1">Uses</div>
+                          <div className="text-white font-black">{code.usedCount} <span className="text-gray-600 font-normal">/</span> {code.isUnlimited ? '∞' : code.maxUses}</div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => {
+                              const updated = promoCodes.map(c => c.code === code.code ? { ...c, isActive: !c.isActive } : c);
+                              onUpdatePromoCodes(updated);
+                              if (enableHaptics) vibrate(50);
+                            }}
+                            title={code.isActive ? "Deactivate" : "Activate"}
+                            className={`size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2 ${code.isActive ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-gray-500/20 border-gray-500 text-gray-500'}`}
+                          >
+                            {code.isActive ? '✓' : '✗'}
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (confirm(`Delete code ${code.code}?`)) {
+                                const updated = promoCodes.filter(c => c.code !== code.code);
+                                onUpdatePromoCodes(updated);
+                                if (enableHaptics) vibrate(100);
+                              }
+                            }}
+                            className="size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2 border-red-500/30 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-xs font-black uppercase text-gray-500 mb-1">Usage</div>
-                        <div className="text-white font-bold">{code.usedCount} / {code.isUnlimited ? '∞' : code.maxUses}</div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => {
-                            const updated = promoCodes.map(c => c.code === code.code ? { ...c, isActive: !c.isActive } : c);
-                            onUpdatePromoCodes(updated);
-                            if (enableHaptics) vibrate(50);
-                          }}
-                          className="size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2"
-                          style={{
-                            backgroundColor: code.isActive ? '#22c55e20' : '#ef444420',
-                            borderColor: code.isActive ? '#22c55e' : '#ef4444',
-                            color: code.isActive ? '#22c55e' : '#ef4444'
-                          }}
-                        >
-                          {code.isActive ? '✓' : '✗'}
-                        </button>
-                        <button 
-                          onClick={() => {
-                            const updated = promoCodes.filter(c => c.code !== code.code);
-                            onUpdatePromoCodes(updated);
-                            if (enableHaptics) vibrate(100);
-                          }}
-                          className="size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2 border-red-500/30 text-red-500/70 hover:text-red-500 hover:border-red-500"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
