@@ -16,7 +16,7 @@ import tweaksConfig from '@/config/tweaksConfig.json';
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 function App() {
-  const { user, quests, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, refreshUser } = useGameState();
+  const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, refreshUser } = useGameState();
   const [activeSection, setActiveSection] = useState<'casino' | 'sports' | 'wallet' | 'vip' | 'quests' | 'settings'>('casino');
   const [showAdminCode, setShowAdminCode] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -282,7 +282,12 @@ function App() {
           </div>
         )}
 
-        {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
+        {showAdminPanel && (
+          <AdminPanel 
+            onClose={() => setShowAdminPanel(false)} 
+            onUpdateBalance={updateBalance}
+          />
+        )}
       </div>
     </div>
   );

@@ -49,6 +49,7 @@ const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface AdminPanelProps {
   onClose: () => void;
+  onUpdateBalance?: (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => void;
 }
 
 interface FileNode {
@@ -204,7 +205,7 @@ const projectFiles: FileNode[] = [
   { name: '.env', type: 'file', content: '// .env - Environment variables' },
 ];
 
-export function AdminPanel({ onClose }: AdminPanelProps) {
+export function AdminPanel({ onClose, onUpdateBalance }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'master' | 'reset'>('promo');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src/components', 'src/components/casino', 'src/components/casino/games']));
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
@@ -277,11 +278,15 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
   };
   
   const handleAddMoney = () => {
-    const currentUser = getUser();
-    currentUser.balance += addMoneyAmount;
-    saveUser(currentUser);
+    if (onUpdateBalance) {
+      onUpdateBalance(addMoneyAmount, 'deposit', 'Admin Manual Deposit');
+    } else {
+      const currentUser = getUser();
+      currentUser.balance += addMoneyAmount;
+      saveUser(currentUser);
+      window.location.reload();
+    }
     if (enableHaptics) vibrate(200);
-    window.location.reload();
   };
   
   const handleCheatToggle = (key: keyof CheatSettings, value: boolean | number | null | string) => {
@@ -474,6 +479,34 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {activeTab === 'manage' && (
+            <div className="space-y-6">
+              <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}>
+                <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2">
+                  <Plus className="size-6" style={{ color: primaryAccent }} />
+                  Add Credits
+                </h3>
+                <div className="flex gap-4">
+                  <input
+                    type="number"
+                    value={addMoneyAmount}
+                    onChange={(e) => setAddMoneyAmount(Number(e.target.value))}
+                    className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                    style={{ borderColor: `${primaryAccent}40` }}
+                    placeholder="1000"
+                  />
+                  <button
+                    onClick={handleAddMoney}
+                    className="px-8 py-3 rounded-xl font-black text-black transition-all active:scale-95"
+                    style={{ backgroundColor: primaryAccent }}
+                  >
+                    ADD
+                  </button>
+                </div>
+              </div>
             </div>
           )}
           
