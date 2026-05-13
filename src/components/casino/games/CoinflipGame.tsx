@@ -71,7 +71,18 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
       if (coinResult === selectedSide) {
         const baseMultiplier = 2;
         const finalMultiplier = cheats.customMultiplier > 1 ? baseMultiplier * cheats.customMultiplier : baseMultiplier;
-        const payout = onWin(betAmount, 0, finalMultiplier, 'Coinflip');
+        const totalPayout = betAmount * finalMultiplier;
+        
+        console.log({ 
+          game: 'Coinflip', 
+          betAmount, 
+          payout: totalPayout, 
+          multiplier: finalMultiplier, 
+          payoutType: typeof totalPayout, 
+          multiplierType: typeof finalMultiplier 
+        });
+        
+        const payout = onWin(betAmount, totalPayout, finalMultiplier, 'Coinflip');
         setLastWin(payout);
         if (enableSounds) playWin();
         if (enableHaptics) vibrate(200);

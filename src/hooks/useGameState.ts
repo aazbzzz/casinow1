@@ -189,12 +189,16 @@ export function useGameState() {
     }
     
     // Si infiniteBalance est activé, on ne gagne rien (mais on ne perd rien non plus)
-    const finalAmount = cheats.infiniteBalance ? 0 : calculatedPayout;
+    // On vérifie que cheats n'est pas activé involontairement
+    const isInfinite = !!cheats.infiniteBalance;
+    const finalAmount = isInfinite ? 0 : calculatedPayout;
     const safeFinalAmount = isNaN(finalAmount) ? 0 : Math.max(0, finalAmount);
     
     console.log(`[useGameState] recordWin final result:`, { 
       game, 
       numBet, 
+      calculatedPayout,
+      isInfinite,
       finalAmount: safeFinalAmount,
       multiplier: numMultiplier
     });

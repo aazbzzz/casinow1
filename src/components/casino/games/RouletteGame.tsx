@@ -124,6 +124,16 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
         const baseMultiplier = cheats.rouletteInstantPayout ? 8 : 8;
         const finalMultiplier = cheats.customMultiplier > 1 ? baseMultiplier * cheats.customMultiplier : baseMultiplier;
         const totalPayout = betAmount * finalMultiplier;
+        
+        console.log({ 
+          game: 'Roulette (Combo)', 
+          betAmount, 
+          payout: totalPayout, 
+          multiplier: finalMultiplier, 
+          payoutType: typeof totalPayout, 
+          multiplierType: typeof finalMultiplier 
+        });
+        
         const payout = onWin(betAmount, totalPayout, finalMultiplier, 'Roulette (Combo)');
         setLastWin(payout);
         if (enableHaptics) vibrate(300);

@@ -93,14 +93,36 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
         if (allSame) {
           const baseMultiplier = PAYOUTS[finalReels[0]] || 1;
           const finalMultiplier = cheats.customMultiplier > 1 ? baseMultiplier * cheats.customMultiplier : baseMultiplier;
-          const payout = onWin(betAmount, 0, finalMultiplier, 'Slots');
+          const totalPayout = betAmount * finalMultiplier;
+          
+          console.log({ 
+            game: 'Slots', 
+            betAmount, 
+            payout: totalPayout, 
+            multiplier: finalMultiplier, 
+            payoutType: typeof totalPayout, 
+            multiplierType: typeof finalMultiplier 
+          });
+          
+          const payout = onWin(betAmount, totalPayout, finalMultiplier, 'Slots');
           setLastWin(payout);
           if (enableHaptics) vibrate(200);
         } else if (twoSame) {
           const symbol = finalReels[0] === finalReels[1] ? finalReels[0] : finalReels[1] === finalReels[2] ? finalReels[1] : finalReels[0];
           const baseMultiplier = (PAYOUTS[symbol] || 1) * 0.5;
           const finalMultiplier = cheats.customMultiplier > 1 ? baseMultiplier * cheats.customMultiplier : baseMultiplier;
-          const payout = onWin(betAmount, 0, finalMultiplier, 'Slots');
+          const totalPayout = betAmount * finalMultiplier;
+          
+          console.log({ 
+            game: 'Slots', 
+            betAmount, 
+            payout: totalPayout, 
+            multiplier: finalMultiplier, 
+            payoutType: typeof totalPayout, 
+            multiplierType: typeof finalMultiplier 
+          });
+          
+          const payout = onWin(betAmount, totalPayout, finalMultiplier, 'Slots');
           setLastWin(payout);
           if (enableHaptics) vibrate(100);
         } else {

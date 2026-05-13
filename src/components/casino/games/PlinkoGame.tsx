@@ -185,6 +185,14 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           setLastPayout(totalPayout);
           
           if (finalMultiplier >= 1) {
+            console.log({ 
+              game: 'Plinko', 
+              betAmount, 
+              payout: 0, 
+              multiplier: finalMultiplier, 
+              payoutType: typeof 0, 
+              multiplierType: typeof finalMultiplier 
+            });
             onWin(betAmount, 0, finalMultiplier, 'Plinko');
             if (enableSounds) playWin();
             if (enableHaptics) vibrate(200);

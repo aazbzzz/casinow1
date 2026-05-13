@@ -77,7 +77,18 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
       
       if (won) {
         const finalMultiplier = cheats.customMultiplier > 1 ? multiplier * cheats.customMultiplier : multiplier;
-        const payout = onWin(betAmount, 0, finalMultiplier, 'Dice');
+        const totalPayout = betAmount * finalMultiplier;
+        
+        console.log({ 
+          game: 'Dice', 
+          betAmount, 
+          payout: totalPayout, 
+          multiplier: finalMultiplier, 
+          payoutType: typeof totalPayout, 
+          multiplierType: typeof finalMultiplier 
+        });
+        
+        const payout = onWin(betAmount, totalPayout, finalMultiplier, 'Dice');
         setLastWin(payout);
         if (enableSounds) playWin();
         if (enableHaptics) vibrate(200);
