@@ -39,10 +39,12 @@ export function useGameState() {
   const updateBalance = useCallback(async (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
     // Nettoyage rigoureux de l'entrée
     const cleanAmount = (val: any): number => {
-      if (typeof val === 'number') return val;
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
       if (typeof val === 'string') {
         const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
-        return parseFloat(cleaned) || 0;
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
       }
       return 0;
     };
@@ -50,13 +52,7 @@ export function useGameState() {
     const numericAmount = cleanAmount(amount);
     console.log(`[useGameState] updateBalance start:`, { amount, numericAmount, type, game });
     
-    if (isNaN(numericAmount)) {
-      console.error(`[useGameState] updateBalance: numericAmount is NaN`, { amount });
-      return;
-    }
-
-    // Mise à jour de l'état local d'abord pour la réactivité
-    let newUser: any;
+    // On récupère l'utilisateur actuel pour s'assurer de ne pas écraser des données
     setUser(prev => {
       const currentBalance = cleanAmount(prev.balance);
       const newBalance = currentBalance + numericAmount;
@@ -68,22 +64,23 @@ export function useGameState() {
         userId: prev.id 
       });
       
-      newUser = { ...prev, balance: newBalance };
+      const newUser = { ...prev, balance: newBalance };
+      
+      // On lance la sauvegarde immédiatement avec le nouvel objet
+      saveUser(newUser).catch(err => console.error("[useGameState] updateBalance saveUser error:", err));
+      
       return newUser;
     });
-
-    // Side effect en dehors de setUser
-    if (newUser) {
-      saveUser(newUser).catch(err => console.error("[useGameState] updateBalance saveUser error:", err));
-    }
   }, []);
   
   const placeBet = useCallback((amount: number | string, game: string): boolean => {
     const cleanAmount = (val: any): number => {
-      if (typeof val === 'number') return val;
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
       if (typeof val === 'string') {
         const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
-        return parseFloat(cleaned) || 0;
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
       }
       return 0;
     };
@@ -91,26 +88,28 @@ export function useGameState() {
     const numericAmount = cleanAmount(amount);
     console.log(`[useGameState] placeBet start:`, { game, amount, numericAmount });
 
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    if (numericAmount <= 0) {
       console.warn(`[useGameState] placeBet: Invalid amount`, { amount, numericAmount });
       return false;
     }
 
     const cheats = getCheats();
     
-    const currentBalance = cleanAmount(user.balance);
+    // Utilisation de getUser() pour avoir la valeur la plus fraîche possible avant de décider du pari
+    const latestUser = getUser();
+    const currentBalance = cleanAmount(latestUser.balance);
+    
     if (!cheats.infiniteBalance && currentBalance < numericAmount) {
       console.warn(`[useGameState] placeBet: Insufficient balance`, { currentBalance, numericAmount });
       return false;
     }
     
-    let updatedUser: any;
     setUser(prev => {
       const prevBalance = cleanAmount(prev.balance);
       if (!cheats.infiniteBalance && prevBalance < numericAmount) return prev;
 
       const newBalance = cheats.infiniteBalance ? prevBalance : prevBalance - numericAmount;
-      const newWagered = (cleanAmount(prev.totalWagered)) + numericAmount;
+      const newWagered = cleanAmount(prev.totalWagered) + numericAmount;
       const vipLevel = getVIPLevel(newWagered);
       
       console.log(`[useGameState] placeBet execution:`, { 
@@ -120,17 +119,13 @@ export function useGameState() {
         newWagered 
       });
 
-      updatedUser = {
+      const updatedUser = {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
         vipLevel: vipLevel.level,
       };
-      
-      return updatedUser;
-    });
 
-    if (updatedUser) {
       addTransaction({
         userId: updatedUser.id,
         type: 'bet',
@@ -140,7 +135,9 @@ export function useGameState() {
       }).catch(console.error);
 
       saveUser(updatedUser).catch(console.error);
-    }
+      
+      return updatedUser;
+    });
     
     setQuests(prev => updateQuestProgress(prev, 'play', 1));
     setQuests(prev => updateQuestProgress(prev, 'wager', numericAmount));
@@ -152,10 +149,12 @@ export function useGameState() {
     const cheats = getCheats();
     
     const cleanAmount = (val: any): number => {
-      if (typeof val === 'number') return val;
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
       if (typeof val === 'string') {
         const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
-        return parseFloat(cleaned) || 0;
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
       }
       return 0;
     };
@@ -164,7 +163,14 @@ export function useGameState() {
     const numPayout = cleanAmount(payout);
     const numMultiplier = cleanAmount(multiplier);
 
-    console.log(`[useGameState] recordWin start:`, { game, numBet, numPayout, numMultiplier });
+    console.log(`[useGameState] recordWin start:`, { 
+      game, 
+      numBet, 
+      numPayout, 
+      numMultiplier,
+      payoutType: typeof payout,
+      multiplierType: typeof multiplier
+    });
 
     // Calcul du gain réel
     let calculatedPayout = numPayout;
@@ -181,7 +187,7 @@ export function useGameState() {
       console.log(`[useGameState] recordWin: adjusted to min bet:`, { calculatedPayout });
     }
     
-    // Application du multiplicateur actif (On utilise l'état local 'user' plus fiable que getUser() ici)
+    // Application du multiplicateur actif
     if (user.activeMultiplier && user.activeMultiplier.expiresAt > Date.now()) {
       const bonusMult = cleanAmount(user.activeMultiplier.value) || 1;
       calculatedPayout *= bonusMult;
@@ -189,7 +195,6 @@ export function useGameState() {
     }
     
     // Si infiniteBalance est activé, on ne gagne rien (mais on ne perd rien non plus)
-    // On vérifie que cheats n'est pas activé involontairement
     const isInfinite = !!cheats.infiniteBalance;
     const finalAmount = isInfinite ? 0 : calculatedPayout;
     const safeFinalAmount = isNaN(finalAmount) ? 0 : Math.max(0, finalAmount);
@@ -221,10 +226,12 @@ export function useGameState() {
     if (cheats.infiniteBalance) return;
     
     const cleanAmount = (val: any): number => {
-      if (typeof val === 'number') return val;
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
       if (typeof val === 'string') {
-        const cleaned = val.replace(/[^0-9.-]/g, '');
-        return parseFloat(cleaned) || 0;
+        const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
       }
       return 0;
     };

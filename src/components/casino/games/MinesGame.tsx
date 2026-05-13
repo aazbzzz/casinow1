@@ -92,19 +92,19 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
     
     const cheats = getCheats();
     const baseMultiplier = cheats.minesMaxMultiplier ? Math.max(currentMultiplier, 10) : currentMultiplier;
-    const finalMultiplier = cheats.customMultiplier > 1 ? baseMultiplier * cheats.customMultiplier : baseMultiplier;
-    const totalPayout = betAmount * finalMultiplier;
+    const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
+    const totalPayout = Number(betAmount) * finalMultiplier;
     
     console.log({ 
       game: 'Mines', 
-      betAmount, 
+      betAmount: Number(betAmount), 
       payout: totalPayout, 
       multiplier: finalMultiplier, 
       payoutType: typeof totalPayout, 
       multiplierType: typeof finalMultiplier 
     });
     
-    onWin(betAmount, totalPayout, finalMultiplier, 'Mines');
+    onWin(Number(betAmount), totalPayout, finalMultiplier, 'Mines');
     setGameActive(false);
     setGameOver(true);
     if (enableSounds) playWin();

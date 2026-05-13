@@ -50,7 +50,7 @@ const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface AdminPanelProps {
   onClose: () => void;
-  onUpdateBalance?: (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => void;
+  onUpdateBalance?: (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => void;
   promoCodes: PromoCode[];
   onUpdatePromoCodes: (codes: PromoCode[]) => void;
 }

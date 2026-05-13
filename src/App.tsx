@@ -294,6 +294,7 @@ function App() {
               promoCodes={syncedPromoCodes}
               onUpdatePromoCodes={handleUpdatePromoCodes}
               onLogout={handleLogout}
+              onUpdateBalance={updateBalance}
             />
           )}
         </div>

@@ -122,19 +122,19 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
       if (colorMatch && parityMatch && rangeMatch) {
         const cheats = getCheats();
         const baseMultiplier = cheats.rouletteInstantPayout ? 8 : 8;
-        const finalMultiplier = cheats.customMultiplier > 1 ? baseMultiplier * cheats.customMultiplier : baseMultiplier;
-        const totalPayout = betAmount * finalMultiplier;
+        const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
+        const totalPayout = Number(betAmount) * finalMultiplier;
         
         console.log({ 
           game: 'Roulette (Combo)', 
-          betAmount, 
+          betAmount: Number(betAmount), 
           payout: totalPayout, 
           multiplier: finalMultiplier, 
           payoutType: typeof totalPayout, 
           multiplierType: typeof finalMultiplier 
         });
         
-        const payout = onWin(betAmount, totalPayout, finalMultiplier, 'Roulette (Combo)');
+        const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Roulette (Combo)');
         setLastWin(payout);
         if (enableHaptics) vibrate(300);
       } else {

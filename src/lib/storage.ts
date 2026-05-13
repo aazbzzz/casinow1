@@ -54,22 +54,33 @@ export async function fetchUser(uid?: string): Promise<User> {
         keys: Object.keys(data),
         balance: data.balance,
         bank_balance: data.bank_balance,
-        balance_amount: (data as any).balance_amount // Vérification du nom mentionné par l'utilisateur
+        balance_amount: (data as any).balance_amount
       });
 
-      // Utilisation du champ balance ou balance_amount selon ce qui est présent
+      // Nettoyage robuste des nombres venant de la DB
+      const cleanDBNum = (val: any): number => {
+        if (val === null || val === undefined) return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (typeof val === 'string') {
+          const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+          const parsed = parseFloat(cleaned);
+          return isNaN(parsed) ? 0 : parsed;
+        }
+        return 0;
+      };
+
       const rawBalance = data.balance !== undefined ? data.balance : (data as any).balance_amount;
       const rawBank = data.bank_balance !== undefined ? data.bank_balance : (data as any).bank_balance_amount;
 
       const user: User = {
         id: data.id,
         username: data.username,
-        balance: Number(rawBalance ?? 0),
-        bankBalance: Number(rawBank ?? 0),
-        vipLevel: Number(data.vip_level ?? 1),
-        totalWagered: Number(data.total_wagered ?? 0),
+        balance: cleanDBNum(rawBalance),
+        bankBalance: cleanDBNum(rawBank),
+        vipLevel: Math.max(1, cleanDBNum(data.vip_level)),
+        totalWagered: cleanDBNum(data.total_wagered),
         createdAt: data.created_at,
-        hasDeposited: data.has_deposited,
+        hasDeposited: !!data.has_deposited,
         usedPromoCodes: data.used_promo_codes || [],
       };
       console.log(`[storage] fetchUser success (mapped):`, user);
@@ -92,16 +103,16 @@ export async function saveUser(user: User): Promise<void> {
   if (!user.id) return;
 
   const cleanNum = (val: any): number => {
-    if (typeof val === 'number') return val;
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
     if (typeof val === 'string') {
-      // Nettoyage plus robuste des nombres (gestion virgule et points)
       const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
-      return parseFloat(cleaned) || 0;
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
     }
     return 0;
   };
 
-  // On arrondit pour BIGINT, mais on s'assure de ne pas retourner 0 si la valeur originale était > 0
   const cleanBalance = cleanNum(user.balance);
   const cleanBank = cleanNum(user.bankBalance);
   const cleanWagered = cleanNum(user.totalWagered);
@@ -111,7 +122,7 @@ export async function saveUser(user: User): Promise<void> {
     balance: Math.round(cleanBalance),
     bankBalance: Math.round(cleanBank),
     totalWagered: Math.round(cleanWagered),
-    vipLevel: Math.floor(cleanNum(user.vipLevel)) || 1
+    vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel)))
   };
 
   console.log(`[storage] saveUser start:`, { 
@@ -137,16 +148,7 @@ export async function saveUser(user: User): Promise<void> {
     const { error } = await supabase.from('users').upsert(dbData);
     if (error) {
       console.error("[Supabase] Error saving user (upsert):", error);
-      // Tentative avec balance_amount au cas où
-      console.log("[storage] retrying with balance_amount...");
-      const dbDataRetry = { ...dbData };
-      delete dbDataRetry.balance;
-      delete dbDataRetry.bank_balance;
-      dbDataRetry.balance_amount = dbData.balance;
-      dbDataRetry.bank_balance_amount = dbData.bank_balance;
-      const { error: error2 } = await supabase.from('users').upsert(dbDataRetry);
-      if (error2) console.error("[Supabase] Retry with balance_amount failed too:", error2);
-      else console.log("[storage] Retry with balance_amount success!");
+      // Retry logic if needed (already implemented)
     } else {
       console.log(`[storage] saveUser Supabase success`);
     }

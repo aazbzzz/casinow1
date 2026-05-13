@@ -178,8 +178,8 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           
           const finalSlot = Math.max(0, Math.min(MULTIPLIERS.length - 1, slotIndex));
           const baseMultiplier = MULTIPLIERS[finalSlot];
-          const finalMultiplier = cheats.customMultiplier > 1 ? baseMultiplier * cheats.customMultiplier : baseMultiplier;
-          const totalPayout = betAmount * finalMultiplier;
+          const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
+          const totalPayout = Number(betAmount) * finalMultiplier;
           
           setLastMultiplier(finalMultiplier);
           setLastPayout(totalPayout);
@@ -187,13 +187,13 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           if (finalMultiplier >= 1) {
             console.log({ 
               game: 'Plinko', 
-              betAmount, 
-              payout: 0, 
+              betAmount: Number(betAmount), 
+              payout: totalPayout, 
               multiplier: finalMultiplier, 
-              payoutType: typeof 0, 
+              payoutType: typeof totalPayout, 
               multiplierType: typeof finalMultiplier 
             });
-            onWin(betAmount, 0, finalMultiplier, 'Plinko');
+            onWin(Number(betAmount), totalPayout, finalMultiplier, 'Plinko');
             if (enableSounds) playWin();
             if (enableHaptics) vibrate(200);
           } else {

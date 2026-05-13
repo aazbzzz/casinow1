@@ -76,19 +76,19 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
       const won = mode === 'over' ? roll > target : roll < target;
       
       if (won) {
-        const finalMultiplier = cheats.customMultiplier > 1 ? multiplier * cheats.customMultiplier : multiplier;
-        const totalPayout = betAmount * finalMultiplier;
+        const finalMultiplier = Number(cheats.customMultiplier) > 1 ? multiplier * Number(cheats.customMultiplier) : multiplier;
+        const totalPayout = Number(betAmount) * finalMultiplier;
         
         console.log({ 
           game: 'Dice', 
-          betAmount, 
+          betAmount: Number(betAmount), 
           payout: totalPayout, 
           multiplier: finalMultiplier, 
           payoutType: typeof totalPayout, 
           multiplierType: typeof finalMultiplier 
         });
         
-        const payout = onWin(betAmount, totalPayout, finalMultiplier, 'Dice');
+        const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Dice');
         setLastWin(payout);
         if (enableSounds) playWin();
         if (enableHaptics) vibrate(200);

@@ -119,21 +119,21 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     
     const cheats = getCheats();
     const baseMultiplier = cheats.crashMaxMultiplier ? Math.max(currentMultiplier, 100) : currentMultiplier;
-    const finalMultiplier = cheats.customMultiplier > 1 ? baseMultiplier * cheats.customMultiplier : baseMultiplier;
+    const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
     
     setCashedOut(true);
-    const totalPayout = betAmount * finalMultiplier;
+    const totalPayout = Number(betAmount) * finalMultiplier;
     
     console.log({ 
       game: 'Crash', 
-      betAmount, 
+      betAmount: Number(betAmount), 
       payout: totalPayout, 
       multiplier: finalMultiplier, 
       payoutType: typeof totalPayout, 
       multiplierType: typeof finalMultiplier 
     });
     
-    const bonusWon = onWin(betAmount, totalPayout, finalMultiplier, 'Crash');
+    const bonusWon = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Crash');
     if (enableHaptics) vibrate(200);
     
     setTimeout(() => {

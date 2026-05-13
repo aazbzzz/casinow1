@@ -89,11 +89,12 @@ const translations = {
   },
 };
 
-export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout }: { 
+export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout, onUpdateBalance }: { 
   onRewardClaimed?: () => void,
   promoCodes: any[],
   onUpdatePromoCodes: (codes: any[]) => void,
-  onLogout: () => void
+  onLogout: () => void,
+  onUpdateBalance?: (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => Promise<void>
 }) {
   const [language, setLanguage] = useState(() => localStorage.getItem('app_language') || 'en');
   const [t, setT] = useState(translations[language as keyof typeof translations]);
@@ -185,22 +186,27 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     console.log(`[SettingsSection] Applying reward:`, { type: promo.type, value: promoValue });
     
     if (promo.type === 'currency') {
-      const currentBalance = typeof user.balance === 'string' 
-        ? parseFloat(user.balance.replace(/,/g, '')) 
-        : Number(user.balance);
-      
-      const oldBalance = isNaN(currentBalance) ? 0 : currentBalance;
-      user.balance = oldBalance + promoValue;
-      
-      console.log(`[SettingsSection] Balance updated:`, { oldBalance, change: promoValue, newBalance: user.balance });
+      if (onUpdateBalance) {
+        await onUpdateBalance(promoValue, 'win', 'Promo Code');
+      } else {
+        const currentBalance = typeof user.balance === 'string' 
+          ? parseFloat(user.balance.replace(/,/g, '')) 
+          : Number(user.balance);
+        
+        const oldBalance = isNaN(currentBalance) ? 0 : currentBalance;
+        user.balance = oldBalance + promoValue;
+        
+        console.log(`[SettingsSection] Balance updated manually (no onUpdateBalance):`, { oldBalance, change: promoValue, newBalance: user.balance });
 
-      await addTransaction({
-        userId: user.id,
-        type: 'win',
-        amount: promoValue,
-        game: 'Promo Code',
-        balanceAfter: user.balance
-      });
+        await addTransaction({
+          userId: user.id,
+          type: 'win',
+          amount: promoValue,
+          game: 'Promo Code',
+          balanceAfter: user.balance
+        });
+        await saveUser(user);
+      }
     } else if (promo.type === 'crypto') {
       const portfolio = JSON.parse(localStorage.getItem('crypto_portfolio') || '[]');
       const assetIndex = portfolio.findIndex((a: any) => a.symbol === promo.cryptoSymbol);
@@ -221,12 +227,14 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
         value: promoValue,
         expiresAt: Date.now() + (Number(promo.duration) || 3600) * 1000
       };
+      await saveUser(user);
     }
 
     // Mark as used by this user and save
-    user.usedPromoCodes = [...userUsedCodes, code];
+    const updatedUser = getUser(); // Reload to be sure
+    updatedUser.usedPromoCodes = [...(updatedUser.usedPromoCodes || []), code];
     console.log(`[SettingsSection] Saving user with updated usedPromoCodes...`);
-    await saveUser(user);
+    await saveUser(updatedUser);
     
     // IMPORTANT: On force le rafraîchissement global pour que le solde mis à jour soit visible partout
     window.dispatchEvent(new CustomEvent('casino_balance_update'));
