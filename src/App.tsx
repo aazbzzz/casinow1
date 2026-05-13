@@ -12,7 +12,7 @@ import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAler
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent } from '@aippy/runtime/leaderboard';
-import { savePromoCodes } from '@/lib/storage';
+import { savePromoCodes, getPromoCodes } from '@/lib/storage';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -58,11 +58,33 @@ function App() {
   const enableHaptics = tweaks.enableHaptics.useState();
   const globalPromoCodesStr = tweaks.globalPromoCodes.useState();
 
+  // "Base de données" synchronisée des codes promo
+  const [syncedPromoCodes, setSyncedPromoCodes] = useState<any[]>(() => {
+    const local = getPromoCodes();
+    return local.length > 0 ? local : [];
+  });
+
+  // Synchronisation entre le tweak global et l'état local
+  useEffect(() => {
+    if (globalPromoCodesStr) {
+      try {
+        const remoteCodes = JSON.parse(globalPromoCodesStr);
+        if (Array.isArray(remoteCodes) && remoteCodes.length > 0) {
+          setSyncedPromoCodes(remoteCodes);
+          savePromoCodes(remoteCodes); // Persister localement aussi
+        }
+      } catch (e) {
+        console.error("Failed to parse global promo codes", e);
+      }
+    }
+  }, [globalPromoCodesStr]);
+
   const handleUpdatePromoCodes = (newCodes: any[]) => {
-    // Synchroniser via un événement global puisque les tweaks sont en lecture seule ici
-    sendEvent('global_promo_codes_update', { codes: JSON.stringify(newCodes) });
-    // Optionnel: sauvegarder localement aussi pour cette session
+    setSyncedPromoCodes(newCodes);
     savePromoCodes(newCodes);
+    // Tenter de mettre à jour le tweak global si possible (lecture seule souvent sur cette plateforme)
+    // On utilise quand même l'événement pour notifier les autres instances
+    sendEvent('global_promo_codes_update', { codes: JSON.stringify(newCodes) });
   };
 
   const handleSectionChange = (section: typeof activeSection) => {
@@ -174,7 +196,7 @@ function App() {
             {activeSection === 'settings' && (
               <SettingsSection 
                 onRewardClaimed={refreshUser} 
-                promoCodes={JSON.parse(globalPromoCodesStr || '[]')}
+                promoCodes={syncedPromoCodes}
                 onUpdatePromoCodes={handleUpdatePromoCodes}
               />
             )}
@@ -302,7 +324,7 @@ function App() {
           <AdminPanel 
             onClose={() => setShowAdminPanel(false)} 
             onUpdateBalance={updateBalance}
-            promoCodes={JSON.parse(globalPromoCodesStr || '[]')}
+            promoCodes={syncedPromoCodes}
             onUpdatePromoCodes={handleUpdatePromoCodes}
           />
         )}
