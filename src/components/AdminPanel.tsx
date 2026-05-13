@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe } from 'lucide-react';
-import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, type PromoCode } from '@/lib/storage';
+import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode } from '@/lib/storage';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
@@ -444,21 +444,41 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           )}
           
           {activeTab === 'users' && (
-            <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}>
-              <h3 className="text-xl font-black text-white mb-4">User Profile</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">ID:</span>
-                  <span className="text-white font-mono text-sm">{user.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Username:</span>
-                  <span className="text-white font-bold">{user.username}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Created:</span>
-                  <span className="text-white">{new Date(user.createdAt).toLocaleString()}</span>
-                </div>
+            <div className="space-y-6">
+              <h3 className="text-xl font-black text-white mb-4">Users Database ({getAllUsers().length})</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {getAllUsers().map((u) => (
+                  <div 
+                    key={u.id} 
+                    className={`p-6 rounded-2xl border-2 transition-all ${u.id === user.id ? 'border-white/30 bg-white/5' : 'border-white/5 bg-[#0a0a0a]'}`}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="size-12 rounded-xl bg-white/5 flex items-center justify-center font-black text-xl" style={{ color: primaryAccent }}>
+                          {u.username[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-black text-white text-lg">{u.username} {u.id === user.id && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded ml-2 uppercase tracking-widest text-gray-400">You</span>}</div>
+                          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">ID: {u.id}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-black text-white italic">{u.balance.toLocaleString()}</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest" style={{ color: primaryAccent }}>Credits</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                      <div className="text-center p-3 rounded-xl bg-black/30">
+                        <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">VIP Level</div>
+                        <div className="font-black text-white">{u.vipLevel}</div>
+                      </div>
+                      <div className="text-center p-3 rounded-xl bg-black/30">
+                        <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">Created</div>
+                        <div className="font-bold text-white text-xs">{new Date(u.createdAt).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

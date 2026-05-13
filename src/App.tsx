@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { TopBar } from '@/components/TopBar';
 import { CasinoSection } from '@/components/casino/CasinoSection';
-import { SportsSection } from '@/components/sports/SportsSection';
 import { WalletSection } from '@/components/wallet/WalletSection';
 import { VIPSection } from '@/components/vip/VIPSection';
 import { QuestsSection } from '@/components/quests/QuestsSection';
@@ -13,14 +12,14 @@ import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAler
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent, reportScore } from '@aippy/runtime/leaderboard';
-import { savePromoCodes, getPromoCodes, saveUser, getUser, logout, getAllUsers } from '@/lib/storage';
+import { savePromoCodes, getPromoCodes, saveUser, getUser, logout, getAllUsers, saveForeignUsers } from '@/lib/storage';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 function App() {
   const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, refreshUser } = useGameState();
-  const [activeSection, setActiveSection] = useState<'casino' | 'sports' | 'wallet' | 'vip' | 'quests' | 'settings' | 'leaderboard'>('casino');
+  const [activeSection, setActiveSection] = useState<'casino' | 'wallet' | 'vip' | 'quests' | 'settings' | 'leaderboard'>('casino');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState(() => !localStorage.getItem('casino_current_user_id'));
 
@@ -28,8 +27,53 @@ function App() {
     if (user && user.id) {
       reportScore(user.balance);
       fetchLeaderboard();
+      
+      // Diffuser ses infos aux autres joueurs pour le leaderboard "global"
+      sendEvent('user_sync', {
+        id: user.id,
+        username: user.username,
+        balance: user.balance,
+        vipLevel: user.vipLevel,
+        timestamp: Date.now()
+      });
     }
-  }, [user?.balance, user?.id, user?.username]);
+  }, [user?.balance, user?.id, user?.username, user?.vipLevel]);
+
+  // Écouter les infos des autres joueurs
+  useEffect(() => {
+    const cleanup = sendEvent('on:user_sync', (data: any) => {
+      if (data && data.id && data.id !== user.id) {
+        const users = getAllUsers();
+        const foreignUsers = JSON.parse(localStorage.getItem('casino_foreign_users') || '[]');
+        
+        // Mettre à jour ou ajouter l'utilisateur étranger
+        const existingIdx = foreignUsers.findIndex((u: any) => u.id === data.id);
+        const userData = {
+          id: data.id,
+          username: data.username,
+          balance: data.balance,
+          vipLevel: data.vipLevel,
+          createdAt: new Date().toISOString(),
+          totalWagered: 0,
+          bankBalance: 0,
+          hasDeposited: false
+        };
+
+        if (existingIdx >= 0) {
+          foreignUsers[existingIdx] = userData;
+        } else {
+          foreignUsers.push(userData);
+        }
+        
+        saveForeignUsers(foreignUsers);
+        fetchLeaderboard(); // Rafraîchir le classement
+      }
+    });
+    
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+  }, [user.id]);
 
   const fetchLeaderboard = () => {
     const users = getAllUsers();
@@ -115,10 +159,30 @@ function App() {
     }
   }, [globalPromoCodesStr]);
 
+  // Écouter les mises à jour en temps réel des codes promo
+  useEffect(() => {
+    const cleanup = sendEvent('on:global_promo_codes_update', (data: any) => {
+      if (data && data.codes) {
+        try {
+          const newCodes = JSON.parse(data.codes);
+          setSyncedPromoCodes(newCodes);
+          savePromoCodes(newCodes);
+        } catch (e) {
+          console.error("Failed to parse real-time promo codes", e);
+        }
+      }
+    });
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+  }, []);
+
   const handleUpdatePromoCodes = (newCodes: any[]) => {
     setSyncedPromoCodes(newCodes);
     savePromoCodes(newCodes);
-    // On notifie la plateforme du changement
+    // On notifie la plateforme du changement via le tweak si possible
+    tweaks.globalPromoCodes.set(JSON.stringify(newCodes));
+    
     sendEvent('global_promo_codes_update', { 
       codes: JSON.stringify(newCodes),
       timestamp: Date.now()
@@ -135,10 +199,9 @@ function App() {
 
   const navItems = [
     { id: 'casino', icon: Coins, label: 'Casino' },
-    { id: 'sports', icon: Trophy, label: 'Sports' },
     { id: 'wallet', icon: Wallet, label: 'Wallet' },
     { id: 'leaderboard', icon: Globe, label: 'Ranking' },
-    { id: 'vip', icon: Shield, label: 'VIP' },
+    { id: 'vip', icon: Trophy, label: 'VIP' },
     { id: 'quests', icon: Target, label: 'Quests' },
     { id: 'settings', icon: SettingsIcon, label: 'Settings' },
   ];
@@ -223,9 +286,6 @@ function App() {
                 onGameStatusChange={handleGameStatusChange}
                 onSetCloseCallback={setGameCloseCallback}
               />
-            )}
-            {activeSection === 'sports' && (
-              <SportsSection />
             )}
             {activeSection === 'wallet' && (
               <WalletSection user={user} onDeposit={depositToBank} onWithdraw={withdrawFromBank} />

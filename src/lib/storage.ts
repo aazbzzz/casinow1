@@ -5,8 +5,9 @@ import tweaksConfig from '@/config/tweaksConfig.json';
 
 const STORAGE_KEYS = {
   USER: 'casino_user',
-  USERS_DB: 'casino_users_db', // Simuler une base de données d'utilisateurs
+  USERS_DB: 'casino_users_db',
   CURRENT_USER_ID: 'casino_current_user_id',
+  FOREIGN_USERS: 'casino_foreign_users', // Cache pour les autres joueurs synchronisés
   TRANSACTIONS: 'casino_transactions',
   GAME_HISTORY: 'casino_game_history',
   QUESTS: 'casino_quests',
@@ -28,8 +29,19 @@ export interface PromoCode {
 }
 
 export function getAllUsers(): User[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.USERS_DB);
-  return stored ? JSON.parse(stored) : [];
+  const localUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS_DB) || '[]');
+  const foreignUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.FOREIGN_USERS) || '[]');
+  
+  // Merge and deduplicate by ID, preferring local if available
+  const mergedMap = new Map<string, User>();
+  foreignUsers.forEach((u: User) => mergedMap.set(u.id, u));
+  localUsers.forEach((u: User) => mergedMap.set(u.id, u));
+  
+  return Array.from(mergedMap.values());
+}
+
+export function saveForeignUsers(users: User[]): void {
+  localStorage.setItem(STORAGE_KEYS.FOREIGN_USERS, JSON.stringify(users));
 }
 
 export function saveAllUsers(users: User[]): void {
