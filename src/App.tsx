@@ -12,8 +12,8 @@ import { AuthModal } from '@/components/AuthModal';
 import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAlert, Zap, Coins, Globe, Shield, Target } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
-import { sendEvent, getLeaderboard, reportScore } from '@aippy/runtime/leaderboard';
-import { savePromoCodes, getPromoCodes, saveUser, getUser, logout } from '@/lib/storage';
+import { sendEvent, reportScore } from '@aippy/runtime/leaderboard';
+import { savePromoCodes, getPromoCodes, saveUser, getUser, logout, getAllUsers } from '@/lib/storage';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -26,18 +26,22 @@ function App() {
 
   useEffect(() => {
     if (user && user.id) {
-      reportScore('credits', user.balance, { username: user.username });
+      reportScore(user.balance);
       fetchLeaderboard();
     }
   }, [user?.balance, user?.id, user?.username]);
 
-  const fetchLeaderboard = async () => {
-    try {
-      const data = await getLeaderboard('credits');
-      setLeaderboard(data.entries || []);
-    } catch (e) {
-      console.error("Failed to fetch leaderboard", e);
-    }
+  const fetchLeaderboard = () => {
+    const users = getAllUsers();
+    const sortedUsers = [...users]
+      .sort((a, b) => b.balance - a.balance)
+      .slice(0, 10)
+      .map(u => ({
+        userId: u.id,
+        score: u.balance,
+        metadata: { username: u.username }
+      }));
+    setLeaderboard(sortedUsers);
   };
 
   const handleAuthComplete = (newUser: any) => {

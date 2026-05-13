@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { User, Shield, UserPlus, LogIn, UserCircle, AlertCircle, Sparkles } from 'lucide-react';
-import { getAllUsers, saveUser, type User as UserType } from '@/lib/storage';
+import { Shield, UserPlus, LogIn, UserCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { getAllUsers, saveUser } from '@/lib/storage';
+import { User as UserType } from '@/types';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
