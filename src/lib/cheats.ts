@@ -1,0 +1,122 @@
+export interface CheatSettings {
+  // Global Cheats
+  alwaysWin: boolean;
+  customMultiplier: number;
+  infiniteBalance: boolean;
+  autoPlay: boolean;
+  instantWin: boolean;
+  instantLoss: boolean;
+  freezeBalance: boolean;
+  doubleWinnings: boolean;
+  tripleWinnings: boolean;
+  maxBetOverride: boolean;
+  
+  // Roulette Cheats
+  forceRouletteNumber: number | null;
+  forceRouletteColor: 'red' | 'black' | 'green' | null;
+  forceRouletteParity: 'even' | 'odd' | null;
+  rouletteNextPrediction: boolean;
+  rouletteInstantPayout: boolean;
+  
+  // Slots Cheats
+  forceSlotsSymbol: string | null;
+  slotsAlwaysJackpot: boolean;
+  slotsNoLoss: boolean;
+  
+  // Coinflip Cheats
+  forceCoinflipSide: 'heads' | 'tails' | null;
+  coinflipAlwaysDouble: boolean;
+  
+  // Dice Cheats
+  forceDiceResult: number | null;
+  diceAlwaysWin: boolean;
+  diceMaxMultiplier: boolean;
+  
+  // Mines Cheats
+  forceMinesSafe: boolean;
+  minesRevealAll: boolean;
+  minesInstantWin: boolean;
+  minesMaxMultiplier: boolean;
+  
+  // Crash Cheats
+  forceCrashMultiplier: number | null;
+  crashNeverCrash: boolean;
+  crashInstantCashout: boolean;
+  crashMaxMultiplier: boolean;
+  
+  // Plinko Cheats
+  forcePlinkoWin: boolean;
+  plinkoAlwaysCenter: boolean;
+  plinkoMaxMultiplier: boolean;
+}
+
+const DEFAULT_CHEATS: CheatSettings = {
+  // Global
+  alwaysWin: false,
+  customMultiplier: 1,
+  infiniteBalance: false,
+  autoPlay: false,
+  instantWin: false,
+  instantLoss: false,
+  freezeBalance: false,
+  doubleWinnings: false,
+  tripleWinnings: false,
+  maxBetOverride: false,
+  
+  // Roulette
+  forceRouletteNumber: null,
+  forceRouletteColor: null,
+  forceRouletteParity: null,
+  rouletteNextPrediction: false,
+  rouletteInstantPayout: false,
+  
+  // Slots
+  forceSlotsSymbol: null,
+  slotsAlwaysJackpot: false,
+  slotsNoLoss: false,
+  
+  // Coinflip
+  forceCoinflipSide: null,
+  coinflipAlwaysDouble: false,
+  
+  // Dice
+  forceDiceResult: null,
+  diceAlwaysWin: false,
+  diceMaxMultiplier: false,
+  
+  // Mines
+  forceMinesSafe: false,
+  minesRevealAll: false,
+  minesInstantWin: false,
+  minesMaxMultiplier: false,
+  
+  // Crash
+  forceCrashMultiplier: null,
+  crashNeverCrash: false,
+  crashInstantCashout: false,
+  crashMaxMultiplier: false,
+  
+  // Plinko
+  forcePlinkoWin: false,
+  plinkoAlwaysCenter: false,
+  plinkoMaxMultiplier: false,
+};
+
+export function getCheats(): CheatSettings {
+  const stored = localStorage.getItem('admin_cheats');
+  return stored ? { ...DEFAULT_CHEATS, ...JSON.parse(stored) } : DEFAULT_CHEATS;
+}
+
+export function saveCheats(cheats: CheatSettings): void {
+  localStorage.setItem('admin_cheats', JSON.stringify(cheats));
+}
+
+export function isCheatsActive(): boolean {
+  const cheats = getCheats();
+  return Object.entries(cheats).some(([key, value]) => {
+    if (key === 'customMultiplier') return value > 1;
+    if (typeof value === 'boolean') return value === true;
+    if (value === null) return false;
+    return true;
+  });
+}

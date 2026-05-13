@@ -1,0 +1,90 @@
+{
+  "enableHaptics": {
+    "description": "Activer les retours haptiques",
+    "type": "boolean",
+    "name": "Vibrations",
+    "index": 8,
+    "value": 1,
+    "group": "ui"
+  },
+  "enableSounds": {
+    "type": "boolean",
+    "name": "Sons",
+    "description": "Activer les effets sonores",
+    "group": "ui",
+    "value": 0,
+    "index": 9
+  },
+  "secondaryAccent": {
+    "name": "Accent 2",
+    "value": "#FF00FF",
+    "description": "Couleur d'accent secondaire",
+    "index": 2,
+    "type": "color",
+    "group": "colors"
+  },
+  "animationSpeed": {
+    "description": "Vitesse des animations (ms)",
+    "group": "ui",
+    "name": "Vitesse",
+    "type": "number",
+    "max": 800,
+    "value": 300,
+    "index": 7,
+    "min": 100
+  },
+  "primaryAccent": {
+    "type": "color",
+    "name": "Accent",
+    "index": 1,
+    "group": "colors",
+    "value": "#00efff",
+    "description": "Couleur d'accent principale (néon)"
+  },
+  "sidebarBg": {
+    "index": 4,
+    "type": "color",
+    "name": "Sidebar",
+    "value": "#0F0F1E",
+    "group": "colors",
+    "description": "Fond de la sidebar"
+  },
+  "cardBackground": {
+    "type": "color",
+    "index": 3,
+    "description": "Fond des cartes",
+    "name": "Carte",
+    "value": "#1A1A2E",
+    "group": "colors"
+  },
+  "defaultBetAmount": {
+    "index": 10,
+    "name": "Mise",
+    "group": "game",
+    "min": 1,
+    "value": 10,
+    "max": 100,
+    "description": "Montant de mise par défaut",
+    "type": "number"
+  },
+  "vipMultiplierMax": {
+    "name": "VIP Max",
+    "value": 1.7,
+    "type": "number",
+    "index": 6,
+    "max": 2,
+    "group": "vip",
+    "description": "Multiplicateur VIP niveau max",
+    "min": 1.5
+  },
+  "vipMultiplierBase": {
+    "type": "number",
+    "description": "Multiplicateur VIP niveau 1",
+    "group": "vip",
+    "max": 1.2000000476837158,
+    "index": 5,
+    "name": "VIP Base",
+    "value": 1.05,
+    "min": 1
+  }
+}
