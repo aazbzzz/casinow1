@@ -8,18 +8,50 @@ import { VIPSection } from '@/components/vip/VIPSection';
 import { QuestsSection } from '@/components/quests/QuestsSection';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { AdminPanel } from '@/components/AdminPanel';
-import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAlert, Zap } from 'lucide-react';
+import { AuthModal } from '@/components/AuthModal';
+import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAlert, Zap, Coins, Globe, Shield, Target } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
-import { sendEvent } from '@aippy/runtime/leaderboard';
-import { savePromoCodes, getPromoCodes } from '@/lib/storage';
+import { sendEvent, getLeaderboard, reportScore } from '@aippy/runtime/leaderboard';
+import { savePromoCodes, getPromoCodes, saveUser, getUser, logout } from '@/lib/storage';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 function App() {
   const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, refreshUser } = useGameState();
-  const [activeSection, setActiveSection] = useState<'casino' | 'sports' | 'wallet' | 'vip' | 'quests' | 'settings'>('casino');
+  const [activeSection, setActiveSection] = useState<'casino' | 'sports' | 'wallet' | 'vip' | 'quests' | 'settings' | 'leaderboard'>('casino');
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [showAuth, setShowAuth] = useState(() => !localStorage.getItem('casino_current_user_id'));
+
+  useEffect(() => {
+    if (user && user.id) {
+      reportScore('credits', user.balance, { username: user.username });
+      fetchLeaderboard();
+    }
+  }, [user?.balance, user?.id, user?.username]);
+
+  const fetchLeaderboard = async () => {
+    try {
+      const data = await getLeaderboard('credits');
+      setLeaderboard(data.entries || []);
+    } catch (e) {
+      console.error("Failed to fetch leaderboard", e);
+    }
+  };
+
+  const handleAuthComplete = (newUser: any) => {
+    saveUser(newUser);
+    refreshUser();
+    setShowAuth(false);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setShowAuth(true);
+    refreshUser();
+  };
+
   const [showAdminCode, setShowAdminCode] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [adminInput, setAdminInput] = useState('');
@@ -98,11 +130,12 @@ function App() {
   };
 
   const navItems = [
-    { id: 'casino', icon: LayoutGrid, label: 'Casino' },
+    { id: 'casino', icon: Coins, label: 'Casino' },
     { id: 'sports', icon: Trophy, label: 'Sports' },
     { id: 'wallet', icon: Wallet, label: 'Wallet' },
-    { id: 'vip', icon: Crown, label: 'VIP' },
-    { id: 'quests', icon: LayoutGrid, label: 'Quests' },
+    { id: 'leaderboard', icon: Globe, label: 'Ranking' },
+    { id: 'vip', icon: Shield, label: 'VIP' },
+    { id: 'quests', icon: Target, label: 'Quests' },
     { id: 'settings', icon: SettingsIcon, label: 'Settings' },
   ];
 
@@ -195,11 +228,52 @@ function App() {
             )}
             {activeSection === 'vip' && <VIPSection user={user} />}
             {activeSection === 'quests' && <QuestsSection quests={quests} onClaimQuest={claimQuest} />}
+            
+            {activeSection === 'leaderboard' && (
+              <div className="p-4 space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col">
+                    <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Leaderboard</h2>
+                    <div className="h-1 w-12 mt-1 rounded-full" style={{ backgroundColor: primaryAccent }} />
+                  </div>
+                  <Globe className="size-6 text-white/20" />
+                </div>
+                
+                <div className="space-y-3">
+                  {leaderboard.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500 italic">No rankings available. Be the first!</div>
+                  ) : (
+                    leaderboard.map((entry, idx) => (
+                      <div 
+                        key={entry.userId} 
+                        className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${entry.userId === user.id ? 'border-white/20 bg-white/5 scale-105' : 'border-white/5 bg-black/40'}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`size-10 rounded-xl flex items-center justify-center font-black ${idx === 0 ? 'bg-yellow-500 text-black shadow-[0_0_20px_rgba(234,179,8,0.3)]' : idx === 1 ? 'bg-gray-300 text-black' : idx === 2 ? 'bg-amber-600 text-black' : 'bg-white/5 text-white/40'}`}>
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <div className="font-black text-white uppercase tracking-tight">{entry.metadata?.username || 'Anonyme'}</div>
+                            <div className="text-[10px] text-gray-500 font-bold uppercase">Rank {idx + 1}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-black text-lg italic" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>{entry.score.toLocaleString()}</div>
+                          <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Credits</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
             {activeSection === 'settings' && (
               <SettingsSection 
                 onRewardClaimed={refreshUser} 
                 promoCodes={syncedPromoCodes}
                 onUpdatePromoCodes={handleUpdatePromoCodes}
+                onLogout={handleLogout}
               />
             )}
           </div>
@@ -261,6 +335,11 @@ function App() {
             ))}
           </div>
         </nav>
+
+        {/* Auth Modal */}
+        {showAuth && (
+          <AuthModal onAuthComplete={handleAuthComplete} />
+        )}
 
         {/* Triple Click Hidden Trigger (Top-Left Corner) */}
         <div className="absolute top-0 left-0 w-20 h-20 z-[200]">

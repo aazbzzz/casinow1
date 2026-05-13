@@ -1,6 +1,8 @@
 export interface User {
   id: string;
   username: string;
+  password?: string;
+  isGuest?: boolean;
   balance: number;
   bankBalance: number;
   vipLevel: number;

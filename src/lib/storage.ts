@@ -1,9 +1,12 @@
 import { User, Transaction, GameHistory, Quest } from '@/types';
 import { INITIAL_QUESTS } from './quests';
 import { sendEvent } from '@aippy/runtime/leaderboard';
+import tweaksConfig from '@/config/tweaksConfig.json';
 
 const STORAGE_KEYS = {
   USER: 'casino_user',
+  USERS_DB: 'casino_users_db', // Simuler une base de données d'utilisateurs
+  CURRENT_USER_ID: 'casino_current_user_id',
   TRANSACTIONS: 'casino_transactions',
   GAME_HISTORY: 'casino_game_history',
   QUESTS: 'casino_quests',
@@ -24,37 +27,83 @@ export interface PromoCode {
   isUnlimited: boolean;
 }
 
+export function getAllUsers(): User[] {
+  const stored = localStorage.getItem(STORAGE_KEYS.USERS_DB);
+  return stored ? JSON.parse(stored) : [];
+}
+
+export function saveAllUsers(users: User[]): void {
+  localStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(users));
+}
+
 export function getUser(): User {
-  const stored = localStorage.getItem(STORAGE_KEYS.USER);
-  if (stored) {
-    return JSON.parse(stored);
+  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+  const users = getAllUsers();
+  
+  if (currentId) {
+    const user = users.find(u => u.id === currentId);
+    if (user) return user;
   }
   
-  const newUser: User = {
-    id: crypto.randomUUID(),
-    username: 'Player',
-    balance: 1000,
+  // Fallback or legacy support
+  const legacyStored = localStorage.getItem(STORAGE_KEYS.USER);
+  if (legacyStored) {
+    const user = JSON.parse(legacyStored);
+    // Migrate legacy user to DB if not exists
+    if (!users.find(u => u.id === user.id)) {
+      users.push(user);
+      saveAllUsers(users);
+    }
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
+    return user;
+  }
+
+  // No user found, but we won't create one here anymore to force Auth
+  // We'll return a default object but AuthModal should handle the creation
+  return {
+    id: '',
+    username: 'Guest',
+    balance: 0,
     bankBalance: 0,
     vipLevel: 1,
     totalWagered: 0,
     createdAt: new Date().toISOString(),
     hasDeposited: false,
   };
-  
-  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
-  return newUser;
 }
 
 export function saveUser(user: User): void {
+  if (!user.id) return;
+  
+  const users = getAllUsers();
+  const index = users.findIndex(u => u.id === user.id);
+  
+  if (index >= 0) {
+    users[index] = user;
+  } else {
+    users.push(user);
+  }
+  
+  saveAllUsers(users);
+  localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
+  // Keep legacy for safety
   localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
 }
 
+export function logout(): void {
+  localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+}
+
 export function getTransactions(): Transaction[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+  if (!currentId) return [];
+  const stored = localStorage.getItem(`${STORAGE_KEYS.TRANSACTIONS}_${currentId}`);
   return stored ? JSON.parse(stored) : [];
 }
 
 export function addTransaction(transaction: Omit<Transaction, 'id' | 'timestamp'>): void {
+  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+  if (!currentId) return;
   const transactions = getTransactions();
   const newTransaction: Transaction = {
     ...transaction,
@@ -62,15 +111,19 @@ export function addTransaction(transaction: Omit<Transaction, 'id' | 'timestamp'
     timestamp: new Date().toISOString(),
   };
   transactions.unshift(newTransaction);
-  localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions.slice(0, 100)));
+  localStorage.setItem(`${STORAGE_KEYS.TRANSACTIONS}_${currentId}`, JSON.stringify(transactions.slice(0, 100)));
 }
 
 export function getGameHistory(): GameHistory[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.GAME_HISTORY);
+  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+  if (!currentId) return [];
+  const stored = localStorage.getItem(`${STORAGE_KEYS.GAME_HISTORY}_${currentId}`);
   return stored ? JSON.parse(stored) : [];
 }
 
 export function addGameHistory(history: Omit<GameHistory, 'id' | 'timestamp'>): void {
+  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+  if (!currentId) return;
   const histories = getGameHistory();
   const newHistory: GameHistory = {
     ...history,
@@ -78,11 +131,13 @@ export function addGameHistory(history: Omit<GameHistory, 'id' | 'timestamp'>): 
     timestamp: new Date().toISOString(),
   };
   histories.unshift(newHistory);
-  localStorage.setItem(STORAGE_KEYS.GAME_HISTORY, JSON.stringify(histories.slice(0, 100)));
+  localStorage.setItem(`${STORAGE_KEYS.GAME_HISTORY}_${currentId}`, JSON.stringify(histories.slice(0, 100)));
 }
 
 export function getQuests(): Quest[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.QUESTS);
+  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+  if (!currentId) return [];
+  const stored = localStorage.getItem(`${STORAGE_KEYS.QUESTS}_${currentId}`);
   if (stored) {
     return JSON.parse(stored);
   }
@@ -95,25 +150,47 @@ export function getQuests(): Quest[] {
     claimed: false,
   }));
   
-  localStorage.setItem(STORAGE_KEYS.QUESTS, JSON.stringify(initialQuests));
+  localStorage.setItem(`${STORAGE_KEYS.QUESTS}_${currentId}`, JSON.stringify(initialQuests));
   return initialQuests;
 }
 
 export function saveQuests(quests: Quest[]): void {
-  localStorage.setItem(STORAGE_KEYS.QUESTS, JSON.stringify(quests));
+  const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+  if (!currentId) return;
+  localStorage.setItem(`${STORAGE_KEYS.QUESTS}_${currentId}`, JSON.stringify(quests));
 }
 
-// Global promo codes via tweaks (simulated database for this exercise)
-// In a real @aippy environment, these would be managed via the Tweaks dashboard
+// Global promo codes logic
 export function getPromoCodes(): PromoCode[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
-  return stored ? JSON.parse(stored) : [];
+  // Source 1: LocalStorage (Fallback/Local tests)
+  const localStored = localStorage.getItem(STORAGE_KEYS.PROMO_CODES);
+  const localCodes: PromoCode[] = localStored ? JSON.parse(localStored) : [];
+
+  // Source 2: Tweaks (Shared Source of Truth)
+  // Note: Since tweaks are usually read-only for users, we merge them
+  const globalCodesStr = (tweaksConfig as any).globalPromoCodes?.value || "[]";
+  let globalCodes: PromoCode[] = [];
+  try {
+    globalCodes = JSON.parse(globalCodesStr);
+  } catch (e) {
+    console.error("Failed to parse global codes from tweaks", e);
+  }
+
+  // Merge codes by unique code string, preferring local if available for admin tests
+  const mergedMap = new Map<string, PromoCode>();
+  globalCodes.forEach(p => mergedMap.set(p.code, p));
+  localCodes.forEach(p => mergedMap.set(p.code, p));
+
+  return Array.from(mergedMap.values());
 }
 
 export function savePromoCodes(codes: PromoCode[]): void {
   localStorage.setItem(STORAGE_KEYS.PROMO_CODES, JSON.stringify(codes));
-  // Notify system of new/updated promo code
-  sendEvent('promo_codes_updated', { codes: JSON.stringify(codes) });
+  // Notify system of new/updated promo code via leaderboard event
+  sendEvent('global_promo_codes_update', { 
+    codes: JSON.stringify(codes),
+    timestamp: Date.now()
+  });
 }
 
 export function getUsedPromoCodes(): string[] {

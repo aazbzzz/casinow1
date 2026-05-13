@@ -29,6 +29,7 @@ const translations = {
     version: 'Version',
     versionText: 'Casino v1.0.0',
     reset: 'Réinitialiser toutes les données',
+    logout: 'Déconnexion',
     confirmTitle: 'Êtes-vous sûr ?',
     confirmDesc: 'Toutes vos données (solde, historique, progression) seront définitivement supprimées.',
     yes: 'Oui, réinitialiser',
@@ -54,6 +55,7 @@ const translations = {
     version: 'Version',
     versionText: 'Casino v1.0.0',
     reset: 'Alle Daten zurücksetzen',
+    logout: 'Abmelden',
     confirmTitle: 'Sind Sie sicher?',
     confirmDesc: 'Alle Ihre Daten (Guthaben, Verlauf, Fortschritt) werden dauerhaft gelöscht.',
     yes: 'Ja, zurücksetzen',
@@ -79,6 +81,7 @@ const translations = {
     version: 'Version',
     versionText: 'Casino v1.0.0',
     reset: 'Reset all data',
+    logout: 'Log Out',
     confirmTitle: 'Are you sure?',
     confirmDesc: 'All your data (balance, history, progress) will be permanently deleted.',
     yes: 'Yes, reset',
@@ -86,10 +89,11 @@ const translations = {
   },
 };
 
-export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCodes }: { 
+export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout }: { 
   onRewardClaimed?: () => void,
   promoCodes: any[],
-  onUpdatePromoCodes: (codes: any[]) => void
+  onUpdatePromoCodes: (codes: any[]) => void,
+  onLogout: () => void
 }) {
   const [language, setLanguage] = useState(() => localStorage.getItem('app_language') || 'en');
   const [t, setT] = useState(translations[language as keyof typeof translations]);
@@ -343,6 +347,17 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
         </div>
         
         <button
+          onClick={() => {
+            onLogout();
+            if (enableHaptics) vibrate(50);
+          }}
+          className="w-full p-4 rounded-xl flex items-center justify-center gap-3 bg-white/5 text-white font-semibold border border-white/10 transition-all active:scale-95"
+        >
+          <XCircle className="size-6" />
+          {t.logout}
+        </button>
+
+        <button
           onClick={() => setShowConfirm(true)}
           className="w-full p-4 rounded-xl flex items-center justify-center gap-3 bg-red-500/20 text-red-500 font-semibold transition-all active:scale-95"
         >
@@ -410,52 +425,6 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
                   <div className="text-red-400 font-bold text-sm">{promoErrorMessage}</div>
                 </div>
               )}
-
-              {/* Display Available Codes List */}
-              <div className="mt-8 space-y-3">
-                <h4 className="text-xs font-black text-gray-500 uppercase tracking-widest px-2">Available Codes</h4>
-                <div className="max-h-48 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-                  {promoCodes.filter(p => p.isActive).length === 0 ? (
-                    <div className="text-center py-4 text-gray-600 text-xs italic">No active codes available.</div>
-                  ) : (
-                    promoCodes.filter(p => p.isActive).map(p => {
-                      const isUsed = usedCodes.includes(p.code);
-                      const isFull = !p.isUnlimited && p.usedCount >= p.maxUses;
-                      
-                      return (
-                        <div 
-                          key={p.code} 
-                          className={`p-3 rounded-xl border-2 flex items-center justify-between transition-all ${isUsed || isFull ? 'opacity-40 grayscale bg-black/20 border-white/5' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="size-8 rounded-lg bg-white/5 flex items-center justify-center">
-                              <Ticket className="size-4" style={{ color: isUsed || isFull ? '#666' : primaryAccent }} />
-                            </div>
-                            <div>
-                              <div className="font-bold text-sm text-white flex items-center gap-2">
-                                {p.code}
-                                {isUsed && <span className="text-[8px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-400">USED</span>}
-                                {isFull && !isUsed && <span className="text-[8px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">EXPIRED</span>}
-                              </div>
-                              <div className="text-[10px] text-gray-500">{p.rewardText}</div>
-                            </div>
-                          </div>
-                          <button
-                            disabled={isUsed || isFull}
-                            onClick={() => {
-                              setPromoInput(p.code);
-                              if (enableHaptics) vibrate(20);
-                            }}
-                            className={`px-3 py-1.5 rounded-lg font-black text-[10px] transition-all ${isUsed || isFull ? 'bg-gray-800 text-gray-600' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                          >
-                            {isUsed ? 'REDEEMED' : isFull ? 'FULL' : 'SELECT'}
-                          </button>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>

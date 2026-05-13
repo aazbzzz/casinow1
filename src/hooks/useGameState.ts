@@ -178,6 +178,7 @@ export function useGameState() {
   
   const refreshUser = useCallback(() => {
     setUser(getUser());
+    setQuests(getQuests());
   }, []);
 
   return {
