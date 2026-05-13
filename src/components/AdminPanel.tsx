@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe } from 'lucide-react';
-import { fetchUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode } from '@/lib/storage';
+import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
@@ -618,15 +618,15 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     )}
                   </div>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newPromo.code) return;
                     let rewardText = '';
                     if (newPromo.type === 'currency') {
                       rewardText = `${newPromo.value} Credits`;
                     } else if (newPromo.type === 'multiplier') {
-                      const h = Math.floor(newPromo.duration / 3600);
-                      const m = Math.floor((newPromo.duration % 3600) / 60);
-                      const s = newPromo.duration % 60;
+                      const h = Math.floor((newPromo.duration || 3600) / 3600);
+                      const m = Math.floor(((newPromo.duration || 3600) % 3600) / 60);
+                      const s = (newPromo.duration || 3600) % 60;
                       const timeStr = h > 0 ? `${h}h ` : m > 0 ? `${m}m ` : `${s}s`;
                       rewardText = `${newPromo.value}x Multiplier (${timeStr})`;
                     } else if (newPromo.type === 'crypto') {
@@ -638,7 +638,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                       rewardText,
                       usedCount: 0,
                       isActive: true
-                    };
+                    } as PromoCode;
                     const updated = [...promoCodes, codeObj];
                     onUpdatePromoCodes(updated);
                     

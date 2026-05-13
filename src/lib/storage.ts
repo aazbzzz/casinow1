@@ -18,6 +18,17 @@ const isSupabaseConfigured = () => {
   }
 };
 
+export function getUser(uid?: string): User {
+  const targetUid = uid || getCurrentUID();
+  
+  if (targetUid) {
+    const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
+    if (stored) return JSON.parse(stored);
+  }
+  
+  return getDefaultUser(targetUid || undefined);
+}
+
 export async function fetchUser(uid?: string): Promise<User> {
   const targetUid = uid || getCurrentUID();
   if (!targetUid) return getDefaultUser();

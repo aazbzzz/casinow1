@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { User, Quest } from '@/types';
-import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID } from '@/lib/storage';
+import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser } from '@/lib/storage';
 import { getVIPLevel } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';

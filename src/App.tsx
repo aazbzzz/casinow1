@@ -117,7 +117,7 @@ function App() {
     if (isSupabaseConfigured) {
       const channel = supabase
         .channel('promo_codes_changes')
-        .on('postgres_changes', { event: '*', table: 'promo_codes' }, (payload) => {
+        .on('postgres_changes' as any, { event: '*', table: 'promo_codes' }, (_payload: any) => {
           fetchGlobalCodes();
         })
         .subscribe();
