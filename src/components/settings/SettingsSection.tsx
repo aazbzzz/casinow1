@@ -211,6 +211,9 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     user.usedPromoCodes = [...userUsedCodes, code];
     await saveUser(user);
     
+    // IMPORTANT: On force le rafraîchissement global pour que le solde mis à jour soit visible partout
+    window.dispatchEvent(new CustomEvent('casino_balance_update'));
+    
     if (onRewardClaimed) onRewardClaimed();
 
     // Update global usage count (Centralized)

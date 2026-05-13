@@ -22,6 +22,13 @@ export function useGameState() {
       setQuests(remoteQuests);
     };
     syncData();
+
+    // Listener pour les mises à jour de solde externes (ex: promo codes)
+    const handleBalanceUpdate = () => {
+      syncData();
+    };
+    window.addEventListener('casino_balance_update', handleBalanceUpdate);
+    return () => window.removeEventListener('casino_balance_update', handleBalanceUpdate);
   }, []);
   
   // Persist changes to backend
@@ -49,6 +56,8 @@ export function useGameState() {
   const updateBalance = useCallback(async (amount: number, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
     setUser(prev => {
       const newBalance = prev.balance + amount;
+      
+      // On déclenche la transaction de manière asynchrone sans bloquer l'UI
       addTransaction({
         userId: prev.id,
         type,
@@ -56,14 +65,19 @@ export function useGameState() {
         game,
         balanceAfter: newBalance,
       });
-      return { ...prev, balance: newBalance };
+
+      const newUser = { ...prev, balance: newBalance };
+      // IMPORTANT: On sauvegarde immédiatement pour éviter les désynchronisations
+      saveUser(newUser);
+      
+      return newUser;
     });
   }, []);
   
   const placeBet = useCallback((amount: number, game: string): boolean => {
     const cheats = getCheats();
     
-    // Use the current state 'user' which is already synced
+    // On vérifie le solde actuel
     if (!cheats.infiniteBalance && user.balance < amount) return false;
     
     setUser(prev => {
@@ -81,25 +95,35 @@ export function useGameState() {
         balanceAfter: newBalance,
       });
       
-      return {
+      const newUser = {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
         vipLevel: vipLevel.level,
       };
+
+      // Sauvegarde immédiate
+      saveUser(newUser);
+      
+      return newUser;
     });
     
     setQuests(prev => updateQuestProgress(prev, 'play', 1));
     setQuests(prev => updateQuestProgress(prev, 'wager', amount));
     
     return true;
-  }, [user.balance]);
+  }, [user.balance, user.id]);
 
   const recordWin = useCallback((betAmount: number, payout: number, multiplier: number, game: string) => {
     const cheats = getCheats();
-    const finalAmount = cheats.infiniteBalance ? 0 : payout;
+    
+    // Si payout est 0 mais qu'on a un multiplier, on calcule le gain réel
+    // Coinflip par exemple envoie payout=0 et multiplier=2
+    const calculatedPayout = payout > 0 ? payout : betAmount * multiplier;
+    const finalAmount = cheats.infiniteBalance ? 0 : calculatedPayout;
     
     updateBalance(finalAmount, 'win', game);
+    
     addGameHistory({
       game,
       bet: betAmount,
@@ -107,6 +131,7 @@ export function useGameState() {
       payout: finalAmount,
       outcome: 'win',
     });
+    
     return finalAmount;
   }, [updateBalance]);
 
