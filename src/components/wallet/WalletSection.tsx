@@ -86,7 +86,8 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
   
   const buyCrypto = (symbol: string) => {
     const crypto = cryptoPrices.find(c => c.symbol === symbol);
-    if (!crypto || tradeAmount > user.bankBalance) {
+    // Use user.balance instead of user.bankBalance to use wallet funds
+    if (!crypto || tradeAmount > user.balance) {
       if (enableHaptics) vibrate([100, 50, 100]);
       return;
     }
@@ -110,7 +111,8 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
       }
     });
     
-    onWithdraw(tradeAmount); // Deduction from bank balance
+    // Deduct from wallet balance (not bank)
+    onDeposit(-tradeAmount); 
     if (enableHaptics) vibrate(100);
     setSelectedCrypto(null);
   };
@@ -133,7 +135,8 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
       ));
     }
     
-    onDeposit(sellValue); // Return to bank balance
+    // Return to wallet balance (not bank)
+    onDeposit(sellValue); 
     if (enableHaptics) vibrate(100);
     setSelectedCrypto(null);
   };
@@ -345,7 +348,7 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-bold text-gray-400">Amount (in $)</label>
                       <button 
-                        onClick={() => setTradeAmount(user.bankBalance)}
+                        onClick={() => setTradeAmount(user.balance)}
                         className="text-xs font-black px-2 py-1 rounded bg-gray-700 text-white active:scale-90"
                         style={{ color: primaryAccent }}
                       >
@@ -363,7 +366,7 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <button
                       onClick={() => buyCrypto(selectedCrypto)}
-                      disabled={tradeAmount > user.bankBalance}
+                      disabled={tradeAmount > user.balance}
                       className="py-3 rounded-xl font-black text-black transition-all active:scale-95 disabled:opacity-50"
                       style={{ backgroundColor: primaryAccent }}
                     >
