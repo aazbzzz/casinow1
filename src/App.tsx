@@ -39,42 +39,6 @@ function App() {
     }
   }, [user?.balance, user?.id, user?.username, user?.vipLevel]);
 
-  // Écouter les infos des autres joueurs
-  useEffect(() => {
-    const cleanup = sendEvent('on:user_sync', (data: any) => {
-      if (data && data.id && data.id !== user.id) {
-        const users = getAllUsers();
-        const foreignUsers = JSON.parse(localStorage.getItem('casino_foreign_users') || '[]');
-        
-        // Mettre à jour ou ajouter l'utilisateur étranger
-        const existingIdx = foreignUsers.findIndex((u: any) => u.id === data.id);
-        const userData = {
-          id: data.id,
-          username: data.username,
-          balance: data.balance,
-          vipLevel: data.vipLevel,
-          createdAt: new Date().toISOString(),
-          totalWagered: 0,
-          bankBalance: 0,
-          hasDeposited: false
-        };
-
-        if (existingIdx >= 0) {
-          foreignUsers[existingIdx] = userData;
-        } else {
-          foreignUsers.push(userData);
-        }
-        
-        saveForeignUsers(foreignUsers);
-        fetchLeaderboard(); // Rafraîchir le classement
-      }
-    });
-    
-    return () => {
-      if (typeof cleanup === 'function') cleanup();
-    };
-  }, [user.id]);
-
   const fetchLeaderboard = () => {
     const users = getAllUsers();
     const sortedUsers = [...users]
@@ -166,29 +130,9 @@ function App() {
     }
   }, [globalPromoCodesStr]);
 
-  // Écouter les mises à jour en temps réel des codes promo
-  useEffect(() => {
-    const cleanup = sendEvent('on:global_promo_codes_update', (data: any) => {
-      if (data && data.codes) {
-        try {
-          const newCodes = JSON.parse(data.codes);
-          setSyncedPromoCodes(newCodes);
-          savePromoCodes(newCodes);
-        } catch (e) {
-          console.error("Failed to parse real-time promo codes", e);
-        }
-      }
-    });
-    return () => {
-      if (typeof cleanup === 'function') cleanup();
-    };
-  }, []);
-
   const handleUpdatePromoCodes = (newCodes: any[]) => {
     setSyncedPromoCodes(newCodes);
     savePromoCodes(newCodes);
-    // On notifie la plateforme du changement via le tweak si possible
-    tweaks.globalPromoCodes.set(JSON.stringify(newCodes));
     
     sendEvent('global_promo_codes_update', { 
       codes: JSON.stringify(newCodes),

@@ -24,7 +24,6 @@ import SlotsGameContent from '@/components/casino/games/SlotsGame.tsx?raw';
 import VIPSectionContent from '@/components/vip/VIPSection.tsx?raw';
 import QuestsSectionContent from '@/components/quests/QuestsSection.tsx?raw';
 import WalletSectionContent from '@/components/wallet/WalletSection.tsx?raw';
-import SportsSectionContent from '@/components/sports/SportsSection.tsx?raw';
 import SettingsSectionContent from '@/components/settings/SettingsSection.tsx?raw';
 
 // Lib
@@ -136,13 +135,6 @@ const projectFiles: FileNode[] = [
             type: 'folder',
             children: [
               { name: 'WalletSection.tsx', type: 'file', content: WalletSectionContent }
-            ]
-          },
-          {
-            name: 'sports',
-            type: 'folder',
-            children: [
-              { name: 'SportsSection.tsx', type: 'file', content: SportsSectionContent }
             ]
           },
           {
