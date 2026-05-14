@@ -11,12 +11,9 @@ const STORAGE_KEYS = {
 
 // Helper to check if Supabase is configured
 export const isSupabaseConfigured = () => {
-  try {
-    const url = (supabase as any).supabaseUrl;
-    return url && !url.includes('VOTRE_PROJET');
-  } catch {
-    return false;
-  }
+  return !!import.meta.env.VITE_SUPABASE_URL && 
+         !!import.meta.env.VITE_SUPABASE_ANON_KEY &&
+         !import.meta.env.VITE_SUPABASE_URL.includes('VOTRE_PROJET');
 };
 
 /**
@@ -168,41 +165,62 @@ export async function getAllUsers(): Promise<User[]> {
 }
 
 /**
- * PROMO CODES (CLOUD ONLY + REALTIME)
+ * PROMO CODES (CLOUD FIRST)
  */
-export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
+export async function getPromoCodes(): Promise<PromoCode[]> {
   if (isSupabaseConfigured()) {
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('*');
-    
-    if (!error && data) {
-      const cleanNum = (val: any): number => {
-        if (val === null || val === undefined) return 0;
-        if (typeof val === 'number') return isNaN(val) ? 0 : val;
-        if (typeof val === 'string') return parseFloat(val) || 0;
-        return 0;
-      };
+    try {
+      const { data, error } = await supabase
+        .from('promo_codes')
+        .select('*');
+      
+      if (!error && data) {
+        const cleanNum = (val: any): number => {
+          if (val === null || val === undefined) return 0;
+          if (typeof val === 'number') return isNaN(val) ? 0 : val;
+          if (typeof val === 'string') return parseFloat(val) || 0;
+          return 0;
+        };
 
-      const codes = data.map(p => ({
-        code: p.code,
-        type: p.type as any,
-        value: cleanNum(p.value),
-        duration: cleanNum(p.duration),
-        rewardText: p.reward_text,
-        maxUses: cleanNum(p.max_uses),
-        usedCount: cleanNum(p.used_count),
-        cryptoSymbol: p.crypto_symbol,
-        isActive: p.is_active,
-        isUnlimited: p.is_unlimited,
-      }));
-      localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));
-      return codes;
+        const codes = data.map(p => ({
+          code: p.code,
+          type: p.type as any,
+          value: cleanNum(p.value),
+          duration: cleanNum(p.duration),
+          rewardText: p.reward_text,
+          maxUses: cleanNum(p.max_uses),
+          usedCount: cleanNum(p.used_count),
+          cryptoSymbol: p.crypto_symbol,
+          isActive: p.is_active,
+          isUnlimited: p.is_unlimited,
+        }));
+        
+        // Update local cache
+        localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));
+        return codes;
+      }
+    } catch (err) {
+      console.error("[storage] Error fetching promo codes from Supabase:", err);
     }
   }
 
+  // Fallback to local cache
   const stored = localStorage.getItem(STORAGE_KEYS.CACHE_PROMO);
   return stored ? JSON.parse(stored) : [];
+}
+
+/**
+ * Version asynchrone (alias pour getPromoCodes désormais cloud-first)
+ */
+export async function fetchPromoCodes(): Promise<PromoCode[]> {
+  return getPromoCodes();
+}
+
+/**
+ * Get Global Promo Codes (Alias)
+ */
+export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
+  return getPromoCodes();
 }
 
 /**
@@ -222,43 +240,62 @@ export async function syncPromoCodeToCloud(code: PromoCode): Promise<void> {
       is_active: code.isActive,
       is_unlimited: code.isUnlimited,
     });
-    if (error) console.error("[Supabase] Error syncing promo code:", error);
+    if (error) {
+      console.error("[Supabase] Error syncing promo code:", error);
+    } else {
+      // Update local cache immediately
+      const current = await getPromoCodes();
+      const updated = current.map(c => c.code === code.code ? code : c);
+      if (!current.find(c => c.code === code.code)) updated.push(code);
+      localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(updated));
+    }
   }
 }
 
 /**
- * LEADERBOARD (CLOUD ONLY)
+ * LEADERBOARD (CLOUD FIRST)
  */
 export async function getLeaderboard(limit = 10): Promise<User[]> {
   if (isSupabaseConfigured()) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('balance', { ascending: false })
-      .limit(limit);
-    
-    if (!error && data) {
-      const cleanDBNum = (val: any): number => {
-        if (val === null || val === undefined) return 0;
-        if (typeof val === 'number') return isNaN(val) ? 0 : val;
-        if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
-        return 0;
-      };
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('balance', { ascending: false })
+        .limit(limit);
+      
+      if (!error && data) {
+        const cleanDBNum = (val: any): number => {
+          if (val === null || val === undefined) return 0;
+          if (typeof val === 'number') return isNaN(val) ? 0 : val;
+          if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
+          return 0;
+        };
 
-      return data.map(d => ({
-        id: d.id,
-        username: d.username,
-        balance: cleanDBNum(d.balance),
-        bankBalance: cleanDBNum(d.bank_balance),
-        vipLevel: cleanDBNum(d.vip_level) || 1,
-        totalWagered: cleanDBNum(d.total_wagered),
-        createdAt: d.created_at,
-        hasDeposited: d.has_deposited,
-        usedPromoCodes: d.used_promo_codes || [],
-      }));
+        const users = data.map(d => ({
+          id: d.id,
+          username: d.username,
+          balance: cleanDBNum(d.balance),
+          bankBalance: cleanDBNum(d.bank_balance),
+          vipLevel: cleanDBNum(d.vip_level) || 1,
+          totalWagered: cleanDBNum(d.total_wagered),
+          createdAt: d.created_at,
+          hasDeposited: d.has_deposited,
+          usedPromoCodes: d.used_promo_codes || [],
+        }));
+
+        // Update local cache for leaderboard
+        localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
+        return users;
+      }
+    } catch (err) {
+      console.error("[storage] Error fetching leaderboard from Supabase:", err);
     }
   }
-  return [];
+  
+  // Fallback to local cache
+  const stored = localStorage.getItem(STORAGE_KEYS.CACHE_USERS);
+  return stored ? JSON.parse(stored) : [];
 }
 
 export async function savePromoCodes(codes: PromoCode[]): Promise<void> {
@@ -282,6 +319,18 @@ export async function savePromoCodes(codes: PromoCode[]): Promise<void> {
 
   // 2. Mise à jour Cache local
   localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));
+}
+
+/**
+ * REALTIME SUBSCRIPTION HELPER
+ */
+export function subscribeToRealtime(table: 'promo_codes' | 'users', callback: (payload: any) => void) {
+  if (!isSupabaseConfigured()) return null;
+
+  return supabase
+    .channel(`${table}-changes`)
+    .on('postgres_changes', { event: '*', schema: 'public', table }, callback)
+    .subscribe();
 }
 
 /**
