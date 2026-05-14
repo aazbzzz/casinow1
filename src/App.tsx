@@ -12,7 +12,7 @@ import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAler
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent, reportScore } from '@aippy/runtime/leaderboard';
-import { savePromoCodes, getPromoCodes, saveUser, logout, getAllUsers, getCurrentUID, getGlobalLeaderboard, getGlobalPromoCodes, fetchUser } from '@/lib/storage';
+import { savePromoCodes, getPromoCodes, saveUser, logout, getAllUsers, getCurrentUID, getGlobalLeaderboard, getGlobalPromoCodes, fetchUser, isSupabaseConfigured, getLeaderboard } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
@@ -31,37 +31,32 @@ function App() {
     }
   }, [user?.balance, user?.id, user?.username]);
 
-  // Periodic Leaderboard Refresh & Real-time Sync
-  useEffect(() => {
-    const fetchGlobalLeaderboard = async () => {
-      const data = await getGlobalLeaderboard();
-      if (data) setLeaderboard(data);
-    };
-    
-    fetchGlobalLeaderboard();
+  // Sync Leaderboard from Supabase
+  const refreshLeaderboard = useCallback(async () => {
+    const data = await getLeaderboard();
+    setLeaderboard(data);
+  }, []);
 
-    // Real-time subscription for Leaderboard (users table)
-    const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
-    if (isSupabaseConfigured) {
-      const channel = supabase
-        .channel('leaderboard_changes')
-        .on(
-          'postgres_changes' as any, 
-          { event: '*', table: 'users', schema: 'public' }, 
-          (_payload: any) => {
-            fetchGlobalLeaderboard();
-          }
-        )
+  useEffect(() => {
+    refreshLeaderboard();
+    const interval = setInterval(refreshLeaderboard, 30000); // Toutes les 30s
+    
+    // REALTIME SUPABASE: Écouter les changements des utilisateurs pour le leaderboard
+    if (isSupabaseConfigured()) {
+      const userChannel = supabase
+        .channel('leaderboard-updates')
+        .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'users' }, () => {
+          refreshLeaderboard();
+        })
         .subscribe();
       
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(userChannel);
       };
-    } else {
-      const interval = setInterval(fetchGlobalLeaderboard, 15000); // Fallback to polling
-      return () => clearInterval(interval);
     }
-  }, []);
+
+    return () => clearInterval(interval);
+  }, [refreshLeaderboard]);
 
   const handleAuthComplete = (newUser: any) => {
     const cleanUser = {
@@ -130,34 +125,25 @@ function App() {
 
   // Sync Promo Codes from Global Storage & Real-time
   useEffect(() => {
-    const fetchGlobalCodes = async () => {
-      const remoteCodes = await getGlobalPromoCodes();
-      if (remoteCodes.length > 0) {
-        setSyncedPromoCodes(remoteCodes);
-      }
+    const loadInitialPromo = async () => {
+      const codes = await getGlobalPromoCodes();
+      setSyncedPromoCodes(codes);
     };
-    fetchGlobalCodes();
+    loadInitialPromo();
 
-    // Real-time subscription for Promo Codes
-    const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
-    if (isSupabaseConfigured) {
-      const channel = supabase
-        .channel('promo_codes_changes')
-        .on(
-          'postgres_changes' as any, 
-          { event: '*', table: 'promo_codes', schema: 'public' }, 
-          (_payload: any) => {
-            fetchGlobalCodes();
-          }
-        )
+    // REALTIME SUPABASE: Écouter les changements des codes promo
+    if (isSupabaseConfigured()) {
+      const promoChannel = supabase
+        .channel('promo-updates')
+        .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'promo_codes' }, (payload: any) => {
+          console.log('[Realtime] Promo Code Update:', payload);
+          loadInitialPromo(); // Recharger tout pour être sûr
+        })
         .subscribe();
       
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(promoChannel);
       };
-    } else {
-      const interval = setInterval(fetchGlobalCodes, 15000); // Fallback to polling
-      return () => clearInterval(interval);
     }
   }, []);
 

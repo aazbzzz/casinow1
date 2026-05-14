@@ -170,11 +170,15 @@ export async function getAllUsers(): Promise<User[]> {
 /**
  * PROMO CODES (CLOUD ONLY)
  */
+/**
+ * PROMO CODES (CLOUD ONLY + REALTIME)
+ */
 export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
   if (isSupabaseConfigured()) {
     const { data, error } = await supabase
       .from('promo_codes')
-      .select('*');
+      .select('*')
+      .eq('is_active', true);
     
     if (!error && data) {
       const cleanNum = (val: any): number => {
@@ -203,6 +207,55 @@ export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
 
   const stored = localStorage.getItem(STORAGE_KEYS.CACHE_PROMO);
   return stored ? JSON.parse(stored) : [];
+}
+
+/**
+ * Sync Promo Code usage back to Cloud
+ */
+export async function syncPromoCodeToCloud(promo: PromoCode): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase
+      .from('promo_codes')
+      .update({ used_count: promo.usedCount })
+      .eq('code', promo.code);
+    
+    if (error) console.error("[Supabase] Error syncing promo usage:", error);
+  }
+}
+
+/**
+ * LEADERBOARD (CLOUD ONLY)
+ */
+export async function getLeaderboard(): Promise<User[]> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('balance', { ascending: false })
+      .limit(10);
+    
+    if (!error && data) {
+      const cleanDBNum = (val: any): number => {
+        if (val === null || val === undefined) return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
+        return 0;
+      };
+
+      return data.map(d => ({
+        id: d.id,
+        username: d.username,
+        balance: cleanDBNum(d.balance),
+        bankBalance: cleanDBNum(d.bank_balance),
+        vipLevel: cleanDBNum(d.vip_level) || 1,
+        totalWagered: cleanDBNum(d.total_wagered),
+        createdAt: d.created_at,
+        hasDeposited: d.has_deposited,
+        usedPromoCodes: d.used_promo_codes || [],
+      }));
+    }
+  }
+  return [];
 }
 
 export async function savePromoCodes(codes: PromoCode[]): Promise<void> {
