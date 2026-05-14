@@ -224,6 +224,11 @@ export function useGameState() {
       multiplier: numMultiplier
     });
 
+    // Affichage du debug directement sur l'écran pour le test
+    window.dispatchEvent(new CustomEvent('casino_debug_msg', { 
+      detail: `DEBUG: Mult=${numMultiplier}x | Payout=${safeFinalAmount.toFixed(2)} | InfBal=${cheats.infiniteBalance}` 
+    }));
+
     updateBalance(safeFinalAmount, 'win', game);
     
     addGameHistory({

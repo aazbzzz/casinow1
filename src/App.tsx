@@ -127,6 +127,17 @@ function App() {
 
   // "Base de données" synchronisée des codes promo
   const [syncedPromoCodes, setSyncedPromoCodes] = useState<any[]>([]);
+  const [debugMsg, setDebugMsg] = useState<string | null>(null);
+
+  // Debug Message Listener
+  useEffect(() => {
+    const handleDebug = (e: any) => {
+      setDebugMsg(e.detail);
+      setTimeout(() => setDebugMsg(null), 5000);
+    };
+    window.addEventListener('casino_debug_msg', handleDebug);
+    return () => window.removeEventListener('casino_debug_msg', handleDebug);
+  }, []);
 
   // Sync Promo Codes from Global Storage & Real-time
   useEffect(() => {
@@ -220,6 +231,13 @@ function App() {
   return (
     <div className="h-screen w-screen bg-[#050505] text-white overflow-hidden font-sans select-none flex flex-col relative">
       <TopBar user={user} onAdminClick={handleSecretClick} />
+      
+      {/* Debug Overlay */}
+      {debugMsg && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[999] px-4 py-2 bg-yellow-500 text-black text-[10px] font-black rounded-full shadow-2xl animate-bounce">
+          {debugMsg}
+        </div>
+      )}
       
       <main ref={containerRef} className="flex-1 overflow-y-auto pb-32 px-4 pt-4 scroll-smooth">
         <div className="max-w-2xl mx-auto space-y-6">
