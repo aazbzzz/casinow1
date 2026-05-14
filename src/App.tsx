@@ -233,6 +233,9 @@ function App() {
       <TopBar user={user} onAdminClick={handleSecretClick} />
       
       {/* Debug Overlay */}
+      <div className="fixed top-2 left-2 z-[999] px-2 py-1 bg-white/10 text-[8px] text-gray-500 rounded font-mono">
+        v1.0.8-FIX
+      </div>
       {debugMsg && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[999] px-4 py-2 bg-yellow-500 text-black text-[10px] font-black rounded-full shadow-2xl animate-bounce">
           {debugMsg}

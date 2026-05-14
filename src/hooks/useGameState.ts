@@ -90,13 +90,10 @@ export function useGameState() {
 
     const numericAmount = cleanAmount(amount);
     
-    // IMPORTANT: On crée une variable locale pour stocker le nouvel état
-    // afin de pouvoir le sauvegarder immédiatement si c'est un gain
-    let updatedUser: User | null = null;
-
     setUser(prev => {
       const currentBalance = cleanAmount(prev.balance);
       const newBalance = currentBalance + numericAmount;
+      const newUser = { ...prev, balance: newBalance };
       
       console.log(`[useGameState] Balance update check:`, {
         type,
@@ -106,15 +103,13 @@ export function useGameState() {
         new: newBalance
       });
       
-      updatedUser = { ...prev, balance: newBalance };
-      return updatedUser;
+      // Save inside functional update to ensure we have the right state
+      if (type === 'win' || type === 'deposit' || type === 'withdraw') {
+        saveUser(newUser).catch(err => console.error("[useGameState] updateBalance saveUser error:", err));
+      }
+      
+      return newUser;
     });
-
-    // Si c'est un gain ou un dépot, on force la sauvegarde immédiate (pas de debounce)
-    if (updatedUser && (type === 'win' || type === 'deposit')) {
-      console.log(`[useGameState] Instant sync for ${type}:`, { balance: (updatedUser as User).balance });
-      await saveUser(updatedUser);
-    }
   }, []);
   
   const placeBet = useCallback((amount: number | string, game: string): boolean => {
