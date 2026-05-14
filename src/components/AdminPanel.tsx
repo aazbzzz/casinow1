@@ -297,9 +297,10 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       onUpdateBalance(numericAmount, 'deposit', 'Admin Manual Deposit');
     } else {
       const currentUser = getUser();
-      const currentBalance = typeof currentUser.balance === 'string' 
-        ? parseFloat(currentUser.balance.replace(/,/g, '')) 
-        : Number(currentUser.balance);
+      const rawBalance = currentUser.balance;
+      const currentBalance = typeof rawBalance === 'string' 
+        ? parseFloat((rawBalance as string).replace(/,/g, '')) 
+        : Number(rawBalance);
       
       currentUser.balance = (isNaN(currentBalance) ? 0 : currentBalance) + numericAmount;
       await saveUser(currentUser);
@@ -527,7 +528,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
             </div>
           )}
 
-          {activeSection === 'manage' && (
+          {activeTab === 'manage' && (
             <div className="space-y-6">
               <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}>
                 <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2">

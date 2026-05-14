@@ -27,12 +27,14 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
   const [dbTransactions, setDbTransactions] = useState<any[]>([]);
   const [dbHistory, setDbHistory] = useState<any[]>([]);
   
-  const currentBalance = typeof user.balance === 'string' 
-    ? parseFloat(user.balance.replace(/,/g, '')) 
-    : Number(user.balance);
-  const currentBankBalance = typeof user.bankBalance === 'string' 
-    ? parseFloat(user.bankBalance.replace(/,/g, '')) 
-    : Number(user.bankBalance);
+  const rawBalance = user.balance;
+  const rawBank = user.bankBalance;
+  const currentBalance = typeof rawBalance === 'string' 
+    ? parseFloat((rawBalance as string).replace(/,/g, '')) 
+    : Number(rawBalance);
+  const currentBankBalance = typeof rawBank === 'string' 
+    ? parseFloat((rawBank as string).replace(/,/g, '')) 
+    : Number(rawBank);
 
   const balanceMax = isNaN(currentBalance) ? 0 : currentBalance;
   const bankMax = isNaN(currentBankBalance) ? 0 : currentBankBalance;

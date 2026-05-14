@@ -216,11 +216,6 @@ export function useGameState() {
     const cheats = getCheats();
     const safeFinalAmount = Math.max(0, calculatedPayout);
     
-    // ALERT DEBUG: Impossible à rater pour l'utilisateur
-    if (safeFinalAmount === 0 && numMultiplier > 0) {
-      alert(`BUG DETECTED: Game=${game} | Bet=${numBet} | Mult=${numMultiplier} | Result=0`);
-    }
-
     console.log('WIN CALCULATION EXECUTION', { 
       game,
       numBet,
@@ -228,11 +223,6 @@ export function useGameState() {
       calculatedPayout, 
       finalAmount: safeFinalAmount 
     });
-
-    // Affichage du debug directement sur l'écran
-    window.dispatchEvent(new CustomEvent('casino_debug_msg', { 
-      detail: `WIN: ${game} | +${safeFinalAmount.toFixed(2)} | Mult: ${numMultiplier}x` 
-    }));
 
     updateBalance(safeFinalAmount, 'win', game);
     
