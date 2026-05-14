@@ -182,21 +182,37 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     }
 
     // Apply reward
-    const promoValue = Number(promo.value) || 0;
-    console.log(`[SettingsSection] Applying reward:`, { type: promo.type, value: promoValue });
+    const cleanNum = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
+      if (typeof val === 'string') {
+        const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return 0;
+    };
+
+    const promoValue = cleanNum(promo.value);
+    console.log(`[SettingsSection] Applying reward:`, { 
+      type: promo.type, 
+      value: promoValue, 
+      valueType: typeof promoValue 
+    });
     
     if (promo.type === 'currency') {
       if (onUpdateBalance) {
         await onUpdateBalance(promoValue, 'win', 'Promo Code');
       } else {
-        const currentBalance = typeof user.balance === 'string' 
-          ? parseFloat(user.balance.replace(/,/g, '')) 
-          : Number(user.balance);
-        
-        const oldBalance = isNaN(currentBalance) ? 0 : currentBalance;
+        const currentBalance = cleanNum(user.balance);
+        const oldBalance = currentBalance;
         user.balance = oldBalance + promoValue;
         
-        console.log(`[SettingsSection] Balance updated manually (no onUpdateBalance):`, { oldBalance, change: promoValue, newBalance: user.balance });
+        console.log(`[SettingsSection] Balance updated manually:`, { 
+          oldBalance, 
+          change: promoValue, 
+          newBalance: user.balance 
+        });
 
         await addTransaction({
           userId: user.id,
@@ -210,14 +226,15 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     } else if (promo.type === 'crypto') {
       const portfolio = JSON.parse(localStorage.getItem('crypto_portfolio') || '[]');
       const assetIndex = portfolio.findIndex((a: any) => a.symbol === promo.cryptoSymbol);
+      const amountToAdd = promoValue;
       if (assetIndex >= 0) {
-        portfolio[assetIndex].amount = (Number(portfolio[assetIndex].amount) || 0) + promoValue;
+        portfolio[assetIndex].amount = cleanNum(portfolio[assetIndex].amount) + amountToAdd;
       } else {
         portfolio.push({
           id: crypto.randomUUID(),
           symbol: promo.cryptoSymbol,
           name: promo.cryptoSymbol,
-          amount: promoValue,
+          amount: amountToAdd,
           avgBuyPrice: 0
         });
       }
@@ -225,7 +242,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     } else if (promo.type === 'multiplier') {
       user.activeMultiplier = {
         value: promoValue,
-        expiresAt: Date.now() + (Number(promo.duration) || 3600) * 1000
+        expiresAt: Date.now() + (cleanNum(promo.duration) || 3600) * 1000
       };
       await saveUser(user);
     }

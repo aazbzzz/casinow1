@@ -98,8 +98,11 @@ export function useGameState() {
         type,
         game,
         old: currentBalance,
+        oldType: typeof currentBalance,
         change: numericAmount,
-        new: newBalance
+        changeType: typeof numericAmount,
+        new: newBalance,
+        newType: typeof newBalance
       });
       
       return { ...prev, balance: newBalance };

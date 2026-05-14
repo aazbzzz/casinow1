@@ -50,23 +50,26 @@ export async function fetchUser(uid?: string): Promise<User> {
       .single();
     
     if (!error && data) {
-      console.log(`[storage] RAW data from Supabase (users):`, {
-        keys: Object.keys(data),
-        balance: data.balance,
-        bank_balance: data.bank_balance,
-        balance_amount: (data as any).balance_amount
-      });
-
-      // Nettoyage robuste des nombres venant de la DB
-      const cleanDBNum = (val: any): number => {
+      // Nettoyage robuste des nombres venant de la DB (Postgres BIGINT/NUMERIC -> JS Number)
+      const cleanDBNum = (val: any, fieldName: string): number => {
         if (val === null || val === undefined) return 0;
-        if (typeof val === 'number') return isNaN(val) ? 0 : val;
-        if (typeof val === 'string') {
+        const type = typeof val;
+        let result = 0;
+        
+        if (type === 'number') {
+          result = isNaN(val) ? 0 : val;
+        } else if (type === 'string') {
           const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
-          const parsed = parseFloat(cleaned);
-          return isNaN(parsed) ? 0 : parsed;
+          result = parseFloat(cleaned) || 0;
         }
-        return 0;
+        
+        console.log(`[storage] Type check (${fieldName}):`, { 
+          raw: val, 
+          rawType: type, 
+          cleaned: result, 
+          finalType: typeof result 
+        });
+        return result;
       };
 
       const rawBalance = data.balance !== undefined ? data.balance : (data as any).balance_amount;
@@ -75,28 +78,22 @@ export async function fetchUser(uid?: string): Promise<User> {
       const user: User = {
         id: data.id,
         username: data.username,
-        balance: cleanDBNum(rawBalance),
-        bankBalance: cleanDBNum(rawBank),
-        vipLevel: Math.max(1, cleanDBNum(data.vip_level)),
-        totalWagered: cleanDBNum(data.total_wagered),
+        balance: cleanDBNum(rawBalance, 'balance'),
+        bankBalance: cleanDBNum(rawBank, 'bank_balance'),
+        vipLevel: Math.max(1, cleanDBNum(data.vip_level, 'vip_level')),
+        totalWagered: cleanDBNum(data.total_wagered, 'total_wagered'),
         createdAt: data.created_at,
         hasDeposited: !!data.has_deposited,
         usedPromoCodes: data.used_promo_codes || [],
       };
-      console.log(`[storage] fetchUser success (mapped):`, user);
-      // Sync local cache
+      
       localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
       return user;
-    } else if (error) {
-      console.warn(`[storage] fetchUser Supabase error (falling back):`, error);
     }
   }
 
-  // Fallback cache local
   const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
-  const user = stored ? JSON.parse(stored) : getDefaultUser(targetUid);
-  console.log(`[storage] fetchUser local fallback:`, user);
-  return user;
+  return stored ? JSON.parse(stored) : getDefaultUser(targetUid);
 }
 
 export async function saveUser(user: User): Promise<void> {
@@ -107,30 +104,20 @@ export async function saveUser(user: User): Promise<void> {
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
     if (typeof val === 'string') {
       const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? 0 : parsed;
+      return parseFloat(cleaned) || 0;
     }
     return 0;
   };
 
-  const cleanBalance = cleanNum(user.balance);
-  const cleanBank = cleanNum(user.bankBalance);
-  const cleanWagered = cleanNum(user.totalWagered);
-
+  // On conserve les décimales car nous passons en NUMERIC/DOUBLE PRECISION
   const cleanUser = {
     ...user,
-    balance: Math.round(cleanBalance),
-    bankBalance: Math.round(cleanBank),
-    totalWagered: Math.round(cleanWagered),
+    balance: cleanNum(user.balance),
+    bankBalance: cleanNum(user.bankBalance),
+    totalWagered: cleanNum(user.totalWagered),
     vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel)))
   };
 
-  console.log(`[storage] saveUser start:`, { 
-    original: { balance: user.balance, bank: user.bankBalance },
-    cleaned: { balance: cleanUser.balance, bank: cleanUser.bankBalance }
-  });
-
-  // 1. Mise à jour Cloud (Source de vérité)
   if (isSupabaseConfigured()) {
     const dbData: any = {
       id: cleanUser.id,
@@ -143,18 +130,12 @@ export async function saveUser(user: User): Promise<void> {
       used_promo_codes: cleanUser.usedPromoCodes || [],
     };
     
-    console.log(`[storage] saveUser Supabase upserting...`, dbData);
-    
     const { error } = await supabase.from('users').upsert(dbData);
     if (error) {
       console.error("[Supabase] Error saving user (upsert):", error);
-      // Retry logic if needed (already implemented)
-    } else {
-      console.log(`[storage] saveUser Supabase success`);
     }
   }
 
-  // 2. Mise à jour Cache Local (Offline / Fast UI)
   localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
 }
 
@@ -191,30 +172,32 @@ export async function getAllUsers(): Promise<User[]> {
  */
 export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
   if (isSupabaseConfigured()) {
-    console.log(`[storage] fetchPromoCodes from Supabase...`);
     const { data, error } = await supabase
       .from('promo_codes')
       .select('*');
     
     if (!error && data) {
-      console.log(`[storage] RAW data from Supabase (promo_codes):`, data[0] ? Object.keys(data[0]) : "empty");
+      const cleanNum = (val: any): number => {
+        if (val === null || val === undefined) return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (typeof val === 'string') return parseFloat(val) || 0;
+        return 0;
+      };
+
       const codes = data.map(p => ({
         code: p.code,
         type: p.type as any,
-        value: Number(p.value ?? 0),
-        duration: Number(p.duration ?? 0),
+        value: cleanNum(p.value),
+        duration: cleanNum(p.duration),
         rewardText: p.reward_text,
-        maxUses: Number(p.max_uses ?? 0),
-        usedCount: Number(p.used_count ?? 0),
+        maxUses: cleanNum(p.max_uses),
+        usedCount: cleanNum(p.used_count),
         cryptoSymbol: p.crypto_symbol,
         isActive: p.is_active,
         isUnlimited: p.is_unlimited,
       }));
-      console.log(`[storage] mapped promo codes:`, codes.length);
       localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));
       return codes;
-    } else if (error) {
-      console.error(`[storage] Error fetching promo codes:`, error);
     }
   }
 
