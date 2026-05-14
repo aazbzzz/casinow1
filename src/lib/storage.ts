@@ -549,54 +549,75 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
 
       if (sender.id === receiver.id) return { success: false, error: 'Cannot send to yourself' };
       
-      const senderBank = Number(sender.bank_balance) || 0;
-      const receiverBank = Number(receiver.bank_balance) || 0;
+      // Nettoyage des montants (BIGINT peut revenir sous forme de string)
+      const parseAmount = (val: any) => {
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
+        return 0;
+      };
 
-      if (senderBank < amount) return { success: false, error: 'Insufficient bank balance' };
+      const senderBank = parseAmount(sender.bank_balance);
+      const receiverBank = parseAmount(receiver.bank_balance);
+
+      if (senderBank < amount) return { success: false, error: `Insufficient bank balance. You have ${senderBank}.` };
 
       const newSenderBankBalance = senderBank - amount;
       const newReceiverBankBalance = receiverBank + amount;
 
-      console.log(`[storage] Transferring: ${amount} from ${sender.username} to ${receiver.username}`, {
-        oldSender: senderBank,
-        newSender: newSenderBankBalance,
-        oldReceiver: receiverBank,
-        newReceiver: newReceiverBankBalance
+      console.log(`[storage] Sending ${amount} from ${sender.username} to ${receiver.username}`, {
+        senderId: sender.id,
+        receiverId: receiver.id,
+        senderOld: senderBank,
+        senderNew: newSenderBankBalance,
+        receiverOld: receiverBank,
+        receiverNew: newReceiverBankBalance
       });
 
       // 3. Update Sender
       const { error: sUpdateError } = await supabase
         .from('users')
         .update({ bank_balance: newSenderBankBalance })
-        .eq('id', senderId);
+        .eq('id', sender.id);
 
-      if (sUpdateError) throw sUpdateError;
+      if (sUpdateError) {
+        console.error("[storage] Sender update error:", sUpdateError);
+        throw sUpdateError;
+      }
 
       // 4. Update Receiver
+      // On s'assure d'utiliser l'ID exact trouvé en DB
       const { error: rUpdateError } = await supabase
         .from('users')
         .update({ bank_balance: newReceiverBankBalance })
         .eq('id', receiver.id);
 
-      if (rUpdateError) throw rUpdateError;
+      if (rUpdateError) {
+        console.error("[storage] Receiver update error:", rUpdateError);
+        throw rUpdateError;
+      }
 
-      await supabase.from('transfers').insert({
-        sender_id: senderId,
-        receiver_id: receiverId,
+      // 5. Record transfer
+      const { error: tInsertError } = await supabase.from('transfers').insert({
+        sender_id: sender.id,
+        receiver_id: receiver.id,
         amount: amount
       });
 
+      if (tInsertError) console.warn("[storage] Transfer log error (non-blocking):", tInsertError);
+
+      // 6. Record transactions for history
       await addTransaction({
-        userId: senderId,
+        userId: sender.id,
         type: 'withdraw',
         amount: -amount,
         game: `Transfer (Bank) to ${receiver.username}`,
-        balanceAfter: newSenderBankBalance // Reference bank balance here
+        balanceAfter: newSenderBankBalance
       });
 
-      const localSender = getUser(senderId);
+      // Update local cache for sender (immediate UI feedback)
+      const localSender = getUser(sender.id);
       localSender.bankBalance = newSenderBankBalance;
-      localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${senderId}`, JSON.stringify(localSender));
+      localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${sender.id}`, JSON.stringify(localSender));
 
       return { success: true };
     } catch (err: any) {
