@@ -194,22 +194,24 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     };
 
     const promoValue = cleanNum(promo.value);
-    console.log(`[SettingsSection] Applying reward:`, { 
-      type: promo.type, 
-      value: promoValue, 
-      reward: promo.rewardText
+    console.log(`[SettingsSection] Redeeming promo code:`, {
+      code,
+      type: promo.type,
+      value: promoValue
     });
     
     // On récupère la version la plus fraîche de l'utilisateur
-    const currentUser = getUser();
+    const currentUser = await fetchUser();
     const updatedUser = { ...currentUser };
 
-    // 1. Appliquer la récompense au solde/multiplier
+    // 1. Appliquer la récompense
     if (promo.type === 'currency') {
       const currentBalance = cleanNum(updatedUser.balance);
-      updatedUser.balance = currentBalance + promoValue;
+      const newBalance = currentBalance + promoValue;
+      console.log(`[SettingsSection] Updating balance: ${currentBalance} -> ${newBalance}`);
+      updatedUser.balance = newBalance;
       
-      // Enregistrer la transaction localement
+      // Enregistrer la transaction
       await addTransaction({
         userId: updatedUser.id,
         type: 'win',

@@ -1,6 +1,6 @@
 import assetsData from "@/config/assets";
 import { User } from '@/types';
-import { Trophy, TrendingUp } from 'lucide-react';
+import { Trophy, TrendingUp, Crown } from 'lucide-react';
 import { VIP_LEVELS, getVIPLevel, getNextVIPLevel, getVIPProgress } from '@/lib/vip';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
@@ -32,7 +32,9 @@ export function VIPSection({
       backgroundColor: cardBg
     }}>
         <div className="flex items-center gap-4 mb-4">
-          <img src={assetsData.IMAGE_DMNN} alt="VIP Badge" className="size-20 object-contain" />
+          <div className="size-20 rounded-2xl bg-white/5 flex items-center justify-center border-2" style={{ borderColor: primaryAccent }}>
+            <Crown className="size-12" style={{ color: primaryAccent }} />
+          </div>
           <div className="flex-1">
             <div className="text-sm text-gray-400">Current Level</div>
             <div className="text-3xl font-bold text-white">VIP {user.vipLevel}</div>

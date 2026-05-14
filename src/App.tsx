@@ -8,7 +8,7 @@ import { QuestsSection } from '@/components/quests/QuestsSection';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { AdminPanel } from '@/components/AdminPanel';
 import { AuthModal } from '@/components/AuthModal';
-import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAlert, Zap, Coins, Globe, Shield, Target } from 'lucide-react';
+import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAlert, Zap, Coins, Globe, Shield, Target, TrendingUp } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent, reportScore } from '@aippy/runtime/leaderboard';
@@ -194,7 +194,7 @@ function App() {
     { id: 'casino', icon: Coins, label: 'Casino' },
     { id: 'wallet', icon: Wallet, label: 'Wallet' },
     { id: 'leaderboard', icon: Globe, label: 'Ranking' },
-    { id: 'vip', icon: Trophy, label: 'VIP' },
+    { id: 'vip', icon: Crown, label: 'VIP' },
     { id: 'quests', icon: Target, label: 'Quests' },
     { id: 'settings', icon: SettingsIcon, label: 'Settings' },
   ];
@@ -237,6 +237,24 @@ function App() {
     <div className="h-screen w-screen bg-[#050505] text-white overflow-hidden font-sans select-none flex flex-col relative">
       <TopBar user={user} onAdminClick={handleSecretClick} />
       
+      {/* Active Multiplier Global Popup */}
+      {multiplierTimeLeft !== null && user.activeMultiplier && (
+        <div className="fixed top-20 right-4 z-[100] animate-in slide-in-from-right duration-500">
+          <div className="p-4 rounded-2xl border-2 bg-black/80 backdrop-blur-xl shadow-2xl flex items-center gap-4" style={{ borderColor: primaryAccent }}>
+            <div className="size-12 rounded-xl bg-white/10 flex items-center justify-center">
+              <TrendingUp className="size-7" style={{ color: primaryAccent }} />
+            </div>
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">Active Multiplier</div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-black italic" style={{ color: primaryAccent }}>x{user.activeMultiplier.value}</span>
+                <span className="text-sm font-bold text-white tabular-nums bg-white/10 px-2 py-0.5 rounded-lg">{formatTime(multiplierTimeLeft)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main ref={containerRef} className="flex-1 overflow-y-auto pb-32 px-4 pt-4 scroll-smooth">
         <div className="max-w-2xl mx-auto space-y-6">
           {activeSection === 'casino' && (
@@ -250,7 +268,7 @@ function App() {
             />
           )}
           {activeSection === 'wallet' && (
-            <WalletSection user={user} onDeposit={depositToBank} onWithdraw={withdrawFromBank} />
+            <WalletSection user={user} onDeposit={depositToBank} onWithdraw={withdrawFromBank} onRefreshUser={refreshUser} />
           )}
           {activeSection === 'vip' && (
             <VIPSection user={user} />

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { User, CryptoAsset, CryptoPrice } from '@/types';
 import { Wallet, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, Coins, Trophy, History, Lock, DollarSign } from 'lucide-react';
-import { getTransactions, getGameHistory } from '@/lib/storage';
+import { getTransactions, getGameHistory, getOtherUsers, sendMoney } from '@/lib/storage';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
+import { Search, Send, User as UserIcon, RefreshCcw, AlertCircle } from 'lucide-react';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
@@ -12,12 +13,13 @@ interface WalletSectionProps {
   user: User;
   onDeposit: (amount: number) => void;
   onWithdraw: (amount: number) => void;
+  onRefreshUser?: () => void;
 }
 
 const CRYPTO_SYMBOLS = ['BTC', 'ETH', 'SOL', 'USDT', 'BNB', 'XRP'];
 
-export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProps) {
-  const [activeTab, setActiveTab] = useState<'balance' | 'trading' | 'transactions' | 'history'>('balance');
+export function WalletSection({ user, onDeposit, onWithdraw, onRefreshUser }: WalletSectionProps) {
+  const [activeTab, setActiveTab] = useState<'balance' | 'trade' | 'trading' | 'transactions' | 'history'>('balance');
   const [amount, setAmount] = useState(100);
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
   const [portfolio, setPortfolio] = useState<CryptoAsset[]>([]);
@@ -26,6 +28,14 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
   const [maxContext, setMaxContext] = useState<'wallet' | 'bank'>('wallet');
   const [dbTransactions, setDbTransactions] = useState<any[]>([]);
   const [dbHistory, setDbHistory] = useState<any[]>([]);
+
+  // Trade State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [otherUsers, setOtherUsers] = useState<{ id: string; username: string }[]>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState<{ id: string; username: string } | null>(null);
+  const [transferAmount, setTransferAmount] = useState(100);
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferStatus, setTransferStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
   
   const rawBalance = user.balance;
   const rawBank = user.bankBalance;
@@ -43,16 +53,44 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
   
-  const walletUnlocked = user.vipLevel >= 7;
-  const tradingUnlocked = walletUnlocked && user.hasDeposited;
+  const walletUnlocked = user.vipLevel >= 10;
+  const tradingUnlocked = walletUnlocked;
   
   useEffect(() => {
     if (activeTab === 'transactions') {
       getTransactions().then(setDbTransactions);
     } else if (activeTab === 'history') {
       getGameHistory().then(setDbHistory);
+    } else if (activeTab === 'trade') {
+      getOtherUsers().then(setOtherUsers);
     }
   }, [activeTab]);
+
+  const handleSendMoney = async () => {
+    if (!selectedRecipient || transferAmount <= 0 || transferAmount > bankMax) return;
+    
+    setIsTransferring(true);
+    setTransferStatus(null);
+    
+    const result = await sendMoney(selectedRecipient.id, transferAmount);
+    
+    if (result.success) {
+      setTransferStatus({ type: 'success', msg: `Sent ${transferAmount} to ${selectedRecipient.username}!` });
+      setTransferAmount(100);
+      setSelectedRecipient(null);
+      if (onRefreshUser) onRefreshUser();
+      if (enableHaptics) vibrate(200);
+    } else {
+      setTransferStatus({ type: 'error', msg: result.error || 'Transfer failed' });
+      if (enableHaptics) vibrate([50, 50]);
+    }
+    setIsTransferring(false);
+  };
+
+  const filteredUsers = otherUsers.filter(u => 
+    u.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    u.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   
   useEffect(() => {
     const storedPortfolio = localStorage.getItem('crypto_portfolio');
@@ -174,11 +212,11 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
           <Lock className="size-16 mx-auto mb-4 text-red-500" />
           <h3 className="text-2xl font-black text-white mb-3">Wallet Locked</h3>
           <p className="text-gray-400 mb-6 max-w-md mx-auto">
-            Reach VIP level 7 to unlock Wallet and access deposits, withdrawals, and crypto trading.
+            Reach VIP level 10 to unlock Wallet and access deposits, withdrawals, and crypto trading.
           </p>
           <div className="flex items-center justify-center gap-3">
             <Trophy className="size-6" style={{ color: primaryAccent }} />
-            <span className="text-xl font-bold text-white">Current VIP: {user.vipLevel} / 7</span>
+            <span className="text-xl font-bold text-white">Current VIP: {user.vipLevel} / 10</span>
           </div>
         </div>
       )}
@@ -256,16 +294,22 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
             </div>
           </div>
           
-          <div className="flex gap-2 mb-6 overflow-x-auto">
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2 custom-scrollbar">
             {[
               { key: 'balance', label: 'Balance', icon: Coins },
+              { key: 'trade', label: 'Trade', icon: Send },
               { key: 'trading', label: 'Trading', icon: TrendingUp, locked: !tradingUnlocked },
               { key: 'transactions', label: 'Transactions', icon: History },
               { key: 'history', label: 'History', icon: Trophy },
             ].map(({ key, label, icon: Icon, locked }) => (
               <button
                 key={key}
-                onClick={() => !locked && setActiveTab(key as typeof activeTab)}
+                onClick={() => {
+                  if (!locked) {
+                    setActiveTab(key as any);
+                    if (enableHaptics) vibrate(10);
+                  }
+                }}
                 disabled={locked}
                 className="flex-1 py-3 px-4 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 border-2 whitespace-nowrap disabled:opacity-50"
                 style={{
@@ -297,7 +341,168 @@ export function WalletSection({ user, onDeposit, onWithdraw }: WalletSectionProp
                   <Trophy className="size-6" style={{ color: primaryAccent }} />
                   <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Games</span>
                 </div>
-                <div className="text-3xl font-black text-white">{history.length}</div>
+                <div className="text-3xl font-black text-white">{dbHistory.length}</div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'trade' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}40` }}>
+                <h3 className="text-xl font-black text-white uppercase italic mb-6">Send Credits to Player</h3>
+                
+                {transferStatus && (
+                  <div className={`p-4 rounded-xl mb-6 flex items-center gap-3 border-2 ${transferStatus.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' : 'bg-red-500/10 border-red-500 text-red-500'}`}>
+                    {transferStatus.type === 'success' ? <RefreshCcw className="size-5" /> : <AlertCircle className="size-5" />}
+                    <span className="font-bold text-sm">{transferStatus.msg}</span>
+                  </div>
+                )}
+
+                {!selectedRecipient ? (
+                  <div className="space-y-4">
+                    <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-gray-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search player or enter username..."
+                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-black/50 border-2 border-white/10 text-white font-bold focus:outline-none focus:border-white/20 transition-all"
+                  />
+                </div>
+
+                {searchQuery && !filteredUsers.find(u => u.username.toLowerCase() === searchQuery.toLowerCase()) && (
+                  <button
+                    onClick={() => {
+                      setSelectedRecipient({ id: searchQuery, username: searchQuery });
+                      if (enableHaptics) vibrate(50);
+                    }}
+                    className="w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between"
+                    style={{ 
+                      borderColor: `${primaryAccent}40`,
+                      backgroundColor: `${primaryAccent}10`
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-lg bg-white/10 flex items-center justify-center">
+                        <Send className="size-6 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-black text-white uppercase tracking-tight">Send to "{searchQuery}"</div>
+                        <div className="text-[10px] text-gray-500 font-bold italic">Manual Entry</div>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
+                    <div className="max-h-60 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                      {filteredUsers.length === 0 ? (
+                        <div className="p-8 text-center text-gray-500 font-bold italic bg-black/20 rounded-xl">
+                          No players found.
+                        </div>
+                      ) : (
+                        filteredUsers.map(u => (
+                          <button
+                            key={u.id}
+                            onClick={() => {
+                              setSelectedRecipient(u);
+                              if (enableHaptics) vibrate(50);
+                            }}
+                            className="w-full p-4 rounded-xl bg-white/5 border-2 border-transparent hover:border-white/20 hover:bg-white/10 transition-all flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="size-10 rounded-lg bg-white/10 flex items-center justify-center">
+                                <UserIcon className="size-6 text-gray-400" />
+                              </div>
+                              <div className="text-left">
+                                <div className="font-black text-white uppercase tracking-tight">{u.username}</div>
+                                <div className="text-[10px] text-gray-500 font-bold">{u.id}</div>
+                              </div>
+                            </div>
+                            <Send className="size-5 text-gray-600" />
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="p-4 rounded-xl bg-white/5 border-2 border-white/10 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 rounded-lg bg-white/10 flex items-center justify-center">
+                          <UserIcon className="size-6 text-gray-400" />
+                        </div>
+                        <div className="text-left">
+                          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Recipient</div>
+                          <div className="font-black text-white uppercase tracking-tight">{selectedRecipient.username}</div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedRecipient(null)}
+                        className="text-xs font-bold text-red-500 uppercase hover:underline"
+                      >
+                        Change
+                      </button>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">Amount to Send (from Bank)</label>
+                        <button 
+                          onClick={() => setTransferAmount(bankMax)}
+                          className="text-xs font-black px-2 py-1 rounded bg-gray-700 text-white active:scale-90"
+                          style={{ color: primaryAccent }}
+                        >
+                          MAX
+                        </button>
+                      </div>
+                      <input
+                        type="number"
+                        value={transferAmount}
+                        onChange={(e) => setTransferAmount(Math.max(0, Number(e.target.value)))}
+                        className="w-full px-5 py-4 rounded-xl bg-black/50 border-2 text-white font-bold text-lg focus:outline-none transition-all"
+                        style={{ borderColor: `${primaryAccent}60` }}
+                      />
+                      <div className="mt-2 text-right">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase">Available in Bank: </span>
+                        <span className="text-[10px] font-black text-white">{bankMax.toLocaleString()} Credits</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleSendMoney}
+                      disabled={isTransferring || transferAmount <= 0 || transferAmount > bankMax}
+                      className="w-full flex items-center justify-center gap-3 py-5 rounded-xl font-black text-black transition-all active:scale-95 disabled:opacity-50 shadow-xl"
+                      style={{ backgroundColor: primaryAccent, boxShadow: `0 0 30px ${primaryAccent}40` }}
+                    >
+                      {isTransferring ? (
+                        <RefreshCcw className="size-6 animate-spin" />
+                      ) : (
+                        <>
+                          <Send className="size-6" />
+                          Confirm Transfer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 rounded-2xl border-2 border-white/5 bg-black/30">
+                <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Transfer Rules</h4>
+                <ul className="space-y-3">
+                  {[
+                'Transfers are instant and non-reversible.',
+                'Ensure the recipient ID is correct before sending.',
+                'Minimum transfer amount is 1 Credit.',
+                'Only bank credits can be transferred (not wallet/game funds).'
+              ].map((rule, i) => (
+                    <li key={i} className="flex items-start gap-3 text-xs text-gray-500 font-bold">
+                      <div className="size-1.5 rounded-full bg-gray-700 mt-1.5 shrink-0" />
+                      {rule}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           )}

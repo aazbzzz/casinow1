@@ -4,6 +4,17 @@ import { createClient } from '@supabase/supabase-js';
  * CONFIGURATION SUPABASE
  * Remplacez les valeurs ci-dessous par vos propres identifiants Supabase
  * Vous pouvez les trouver dans Project Settings > API
+ * -- 8. Table des transferts (Multiplayer Trade)
+ * CREATE TABLE public.transfers (
+ *   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+ *   sender_id TEXT REFERENCES public.users(id),
+ *   receiver_id TEXT REFERENCES public.users(id),
+ *   amount BIGINT NOT NULL,
+ *   timestamp TIMESTAMPTZ DEFAULT NOW()
+ * );
+ * 
+ * ALTER PUBLICATION supabase_realtime ADD TABLE public.transfers;
+ * ALTER TABLE public.transfers DISABLE ROW LEVEL SECURITY;
  */
 const rawUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hshjdcxhjzsecsrfecsp.supabase.co';
 // Nettoyage de l'URL pour éviter les doubles /rest/v1 si l'URL contient déjà le suffixe

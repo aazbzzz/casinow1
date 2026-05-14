@@ -212,14 +212,37 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [dbTransactions, setDbTransactions] = useState<any[]>([]);
+  const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0 });
+
+  const fetchUsers = async () => {
+    const users = await getAllUsers();
+    setDbUsers(users);
+  };
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      const users = await getAllUsers();
-      setDbUsers(users);
-    };
     fetchUsers();
   }, []);
+
+  const handleUpdateUserBalances = async (userId: string) => {
+    const userToUpdate = dbUsers.find(u => u.id === userId);
+    if (!userToUpdate) return;
+
+    const updatedUser = { 
+      ...userToUpdate, 
+      balance: Number(editBalances.balance), 
+      bankBalance: Number(editBalances.bankBalance) 
+    };
+
+    await saveUser(updatedUser);
+    setEditingUser(null);
+    fetchUsers();
+    
+    // Force global sync and state refresh
+    window.dispatchEvent(new CustomEvent('casino_balance_update'));
+    
+    if (enableHaptics) vibrate(100);
+  };
 
   useEffect(() => {
     if (activeTab === 'transactions') {
@@ -484,9 +507,62 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                       <div className="text-right">
                         <div className="text-xl font-black text-white italic">{u.balance.toLocaleString()}</div>
                         <div className="text-[10px] font-black uppercase tracking-widest" style={{ color: primaryAccent }}>Credits</div>
+                        <div className="text-xs font-bold text-gray-500 mt-1">Bank: {u.bankBalance.toLocaleString()}</div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                    
+                    {editingUser === u.id ? (
+                      <div className="mt-4 p-4 rounded-xl bg-black/50 border-2 border-white/10 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Game Balance</label>
+                            <input
+                              type="number"
+                              value={editBalances.balance}
+                              onChange={(e) => setEditBalances({ ...editBalances, balance: Number(e.target.value) })}
+                              className="w-full px-3 py-2 rounded-lg bg-black border border-white/20 text-white font-bold text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Bank Balance</label>
+                            <input
+                              type="number"
+                              value={editBalances.bankBalance}
+                              onChange={(e) => setEditBalances({ ...editBalances, bankBalance: Number(e.target.value) })}
+                              className="w-full px-3 py-2 rounded-lg bg-black border border-white/20 text-white font-bold text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleUpdateUserBalances(u.id)}
+                            className="flex-1 py-2 rounded-lg font-black text-black text-xs uppercase"
+                            style={{ backgroundColor: primaryAccent }}
+                          >
+                            Save Changes
+                          </button>
+                          <button
+                            onClick={() => setEditingUser(null)}
+                            className="px-4 py-2 rounded-lg font-bold text-white text-xs uppercase bg-gray-800"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingUser(u.id);
+                          setEditBalances({ balance: u.balance, bankBalance: u.bankBalance });
+                          if (enableHaptics) vibrate(30);
+                        }}
+                        className="w-full mt-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+                      >
+                        Edit Balances
+                      </button>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5 mt-4">
                       <div className="text-center p-3 rounded-xl bg-black/30">
                         <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">VIP Level</div>
                         <div className="font-black text-white">{u.vipLevel}</div>
