@@ -44,6 +44,7 @@ export function setCurrentUID(uid: string): void {
 
 export function logout(): void {
   localStorage.removeItem(STORAGE_KEYS.CURRENT_UID);
+  localStorage.removeItem('casino_remembered_account'); // Clear auto-login on logout
 }
 
 /**
@@ -532,13 +533,14 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
       }
 
       // 2. Fetch receiver (by ID or Username)
+      // On utilise une syntaxe plus simple pour éviter les erreurs de parsing Supabase
       const { data: receiverResults, error: receiverFetchError } = await supabase
         .from('users')
         .select('id, bank_balance, username')
-        .or(`id.eq."${cleanReceiverId}",username.ilike."${cleanReceiverId}"`);
+        .or(`id.eq.${cleanReceiverId},username.ilike.${cleanReceiverId}`);
 
       if (receiverFetchError || !receiverResults || receiverResults.length === 0) {
-        console.error("[storage] sendMoney: Receiver not found", { cleanReceiverId });
+        console.error("[storage] sendMoney: Receiver not found", { cleanReceiverId, error: receiverFetchError });
         return { success: false, error: 'User not found. Check ID or Username.' };
       }
 
@@ -546,10 +548,21 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
       const receiver = receiverResults[0];
 
       if (sender.id === receiver.id) return { success: false, error: 'Cannot send to yourself' };
-      if (Number(sender.bank_balance) < amount) return { success: false, error: 'Insufficient bank balance' };
+      
+      const senderBank = Number(sender.bank_balance) || 0;
+      const receiverBank = Number(receiver.bank_balance) || 0;
 
-      const newSenderBankBalance = Number(sender.bank_balance) - amount;
-      const newReceiverBankBalance = Number(receiver.bank_balance) + amount;
+      if (senderBank < amount) return { success: false, error: 'Insufficient bank balance' };
+
+      const newSenderBankBalance = senderBank - amount;
+      const newReceiverBankBalance = receiverBank + amount;
+
+      console.log(`[storage] Transferring: ${amount} from ${sender.username} to ${receiver.username}`, {
+        oldSender: senderBank,
+        newSender: newSenderBankBalance,
+        oldReceiver: receiverBank,
+        newReceiver: newReceiverBankBalance
+      });
 
       // 3. Update Sender
       const { error: sUpdateError } = await supabase

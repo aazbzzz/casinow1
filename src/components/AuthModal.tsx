@@ -18,8 +18,23 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   
   const { uid, username: platformUsername, isLoading } = useUserInfo();
+
+  useEffect(() => {
+    // Tenter de récupérer les identifiants sauvegardés au montage
+    const saved = localStorage.getItem('casino_remembered_account');
+    if (saved && mode === 'login') {
+      try {
+        const { u, p } = JSON.parse(saved);
+        setUsername(u || '');
+        setPassword(p || '');
+      } catch (e) {
+        console.error("Failed to parse saved credentials", e);
+      }
+    }
+  }, [mode]);
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
 
@@ -83,6 +98,13 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
 
       setCurrentUID(newUser.id);
       await saveUser(newUser);
+
+      if (rememberMe) {
+        localStorage.setItem('casino_remembered_account', JSON.stringify({ u: username, p: password }));
+      } else {
+        localStorage.removeItem('casino_remembered_account');
+      }
+
       if (enableHaptics) vibrate(100);
       onAuthComplete(newUser);
     } else if (mode === 'login') {
@@ -92,6 +114,13 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
         if (enableHaptics) vibrate([50, 50]);
         return;
       }
+
+      if (rememberMe) {
+        localStorage.setItem('casino_remembered_account', JSON.stringify({ u: username, p: password }));
+      } else {
+        localStorage.removeItem('casino_remembered_account');
+      }
+
       setCurrentUID(user.id);
       if (enableHaptics) vibrate(50);
       onAuthComplete(user);
@@ -242,6 +271,19 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
                   className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-5 py-4 text-white font-bold focus:outline-none focus:border-white/20 transition-all placeholder:text-white/10"
                   placeholder="••••••••"
                 />
+              </div>
+              <div className="flex items-center gap-2 px-2">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="size-4 rounded border-white/10 bg-white/5 focus:ring-0 focus:ring-offset-0"
+                  style={{ accentColor: primaryAccent }}
+                />
+                <label htmlFor="rememberMe" className="text-[10px] font-black text-gray-500 uppercase tracking-widest cursor-pointer">
+                  Se souvenir de moi
+                </label>
               </div>
               <button
                 type="submit"

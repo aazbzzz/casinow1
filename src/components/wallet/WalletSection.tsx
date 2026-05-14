@@ -297,7 +297,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onRefreshUser }: Wa
           <div className="flex gap-2 mb-6 overflow-x-auto pb-2 custom-scrollbar">
             {[
               { key: 'balance', label: 'Balance', icon: Coins },
-              { key: 'trade', label: 'Trade', icon: Send },
+              { key: 'trade', label: 'Transfer', icon: Send },
               { key: 'trading', label: 'Trading', icon: TrendingUp, locked: !tradingUnlocked },
               { key: 'transactions', label: 'Transactions', icon: History },
               { key: 'history', label: 'History', icon: Trophy },
@@ -349,7 +349,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onRefreshUser }: Wa
           {activeTab === 'trade' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}40` }}>
-                <h3 className="text-xl font-black text-white uppercase italic mb-6">Send Credits to Player</h3>
+                <h3 className="text-xl font-black text-white uppercase italic mb-6">Transfer Credits to Player</h3>
                 
                 {transferStatus && (
                   <div className={`p-4 rounded-xl mb-6 flex items-center gap-3 border-2 ${transferStatus.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' : 'bg-red-500/10 border-red-500 text-red-500'}`}>
