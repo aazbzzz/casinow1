@@ -1,5 +1,5 @@
 import { User } from '@/types';
-import { Coins, Trophy, ShieldAlert } from 'lucide-react';
+import { Coins, Crown, ShieldAlert } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
@@ -37,7 +37,7 @@ export function TopBar({ user, onAdminClick }: TopBarProps) {
             className="absolute -bottom-1 -right-1 size-5 rounded-full border border-black flex items-center justify-center z-20 shadow-lg"
             style={{ backgroundColor: primaryAccent }}
           >
-            <Trophy className="size-3 text-black" fill="currentColor" />
+            <Crown className="size-3 text-black" fill="currentColor" />
           </div>
           {/* Admin Indicator (Optional, but makes it clickable as requested) */}
           {onAdminClick && (

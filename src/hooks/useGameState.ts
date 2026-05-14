@@ -237,11 +237,14 @@ export function useGameState() {
       calculatedPayout = numBet * Math.max(1, numMultiplier);
     }
     
-    // On utilise les données les plus fraîches pour le multiplicateur
-    const latestUser = getUser();
-    if (latestUser.activeMultiplier && latestUser.activeMultiplier.expiresAt > Date.now()) {
-      const bonusMult = cleanAmount(latestUser.activeMultiplier.value) || 1;
+    // On utilise les données de l'état actuel pour le multiplicateur
+    if (user.activeMultiplier && user.activeMultiplier.expiresAt > Date.now()) {
+      const bonusMult = cleanAmount(user.activeMultiplier.value) || 1;
       calculatedPayout *= bonusMult;
+      console.log(`[useGameState] Multiplier applied: x${bonusMult}`, { 
+        before: numPayout, 
+        after: calculatedPayout 
+      });
     }
     
     const cheats = getCheats();

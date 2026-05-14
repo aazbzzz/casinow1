@@ -54,59 +54,44 @@ export async function fetchUser(uid?: string): Promise<User> {
   if (!targetUid) return getDefaultUser();
 
   if (isSupabaseConfigured()) {
-    console.log(`[storage] fetchUser from Supabase:`, { targetUid });
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', targetUid)
-      .single();
-    
-    if (!error && data) {
-      // Nettoyage robuste des nombres venant de la DB (Postgres BIGINT/NUMERIC -> JS Number)
-      const cleanDBNum = (val: any, fieldName: string): number => {
-        if (val === null || val === undefined) return 0;
-        const type = typeof val;
-        let result = 0;
-        
-        if (type === 'number') {
-          result = isNaN(val) ? 0 : val;
-        } else if (type === 'string') {
-          // Remove spaces and handle both dot and comma
-          let cleaned = val.replace(/\s/g, '');
-          if (cleaned.includes(',') && cleaned.includes('.')) {
-            if (cleaned.indexOf(',') < cleaned.indexOf('.')) {
-              cleaned = cleaned.replace(/,/g, '');
-            } else {
-              cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-            }
-          } else {
-            cleaned = cleaned.replace(',', '.');
-          }
-          result = parseFloat(cleaned.replace(/[^0-9.-]/g, '')) || 0;
-        }
-        
-        // NO CEILING: Return the actual value, no matter how high
-        return result;
-      };
-
-      const rawBalance = data.balance !== undefined ? data.balance : (data as any).balance_amount;
-      const rawBank = data.bank_balance !== undefined ? data.bank_balance : (data as any).bank_balance_amount;
-
-      const user: User = {
-        id: data.id,
-        username: data.username,
-        balance: cleanDBNum(rawBalance, 'balance'),
-        bankBalance: cleanDBNum(rawBank, 'bank_balance'),
-        vipLevel: Math.max(1, cleanDBNum(data.vip_level, 'vip_level')),
-        totalWagered: cleanDBNum(data.total_wagered, 'total_wagered'),
-        createdAt: data.created_at,
-        hasDeposited: !!data.has_deposited,
-        usedPromoCodes: data.used_promo_codes || [],
-        activeMultiplier: data.active_multiplier || null,
-      };
+    try {
+      console.log(`[storage] fetchUser from Supabase:`, { targetUid });
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', targetUid)
+        .single();
       
-      localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
-      return user;
+      if (!error && data) {
+        const cleanDBNum = (val: any): number => {
+          if (val === null || val === undefined) return 0;
+          const type = typeof val;
+          if (type === 'number') return isNaN(val) ? 0 : val;
+          if (type === 'string') {
+            const cleaned = val.replace(/\s/g, '').replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+            return parseFloat(cleaned) || 0;
+          }
+          return 0;
+        };
+
+        const user: User = {
+          id: data.id,
+          username: data.username,
+          balance: cleanDBNum(data.balance),
+          bankBalance: cleanDBNum(data.bank_balance),
+          vipLevel: Math.max(1, cleanDBNum(data.vip_level)),
+          totalWagered: cleanDBNum(data.total_wagered),
+          createdAt: data.created_at,
+          hasDeposited: !!data.has_deposited,
+          usedPromoCodes: data.used_promo_codes || [],
+          activeMultiplier: data.active_multiplier || null,
+        };
+        
+        localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
+        return user;
+      }
+    } catch (err) {
+      console.error("[storage] fetchUser error:", err);
     }
   }
 
@@ -627,7 +612,7 @@ export function getDefaultUser(uid?: string): User {
     createdAt: new Date().toISOString(),
     hasDeposited: false,
     usedPromoCodes: [],
-    activeMultiplier: null,
+    activeMultiplier: undefined,
   };
 }
 
