@@ -200,29 +200,27 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
       valueType: typeof promoValue 
     });
     
-    if (promo.type === 'currency') {
-      if (onUpdateBalance) {
-        await onUpdateBalance(promoValue, 'win', 'Promo Code');
-      } else {
-        const currentBalance = cleanNum(user.balance);
-        const oldBalance = currentBalance;
-        user.balance = oldBalance + promoValue;
-        
-        console.log(`[SettingsSection] Balance updated manually:`, { 
-          oldBalance, 
-          change: promoValue, 
-          newBalance: user.balance 
-        });
+    // On met à jour l'utilisateur localement d'abord pour un feedback immédiat
+    const currentUser = getUser();
+    const updatedUser = { ...currentUser };
 
-        await addTransaction({
-          userId: user.id,
-          type: 'win',
-          amount: promoValue,
-          game: 'Promo Code',
-          balanceAfter: user.balance
-        });
-        await saveUser(user);
-      }
+    if (promo.type === 'currency') {
+      const currentBalance = cleanNum(updatedUser.balance);
+      updatedUser.balance = currentBalance + promoValue;
+      
+      console.log(`[SettingsSection] Balance updated for promo:`, { 
+        oldBalance: currentBalance, 
+        change: promoValue, 
+        newBalance: updatedUser.balance 
+      });
+
+      await addTransaction({
+        userId: updatedUser.id,
+        type: 'win',
+        amount: promoValue,
+        game: 'Promo Code',
+        balanceAfter: updatedUser.balance
+      });
     } else if (promo.type === 'crypto') {
       const portfolio = JSON.parse(localStorage.getItem('crypto_portfolio') || '[]');
       const assetIndex = portfolio.findIndex((a: any) => a.symbol === promo.cryptoSymbol);
@@ -240,17 +238,16 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
       }
       localStorage.setItem('crypto_portfolio', JSON.stringify(portfolio));
     } else if (promo.type === 'multiplier') {
-      user.activeMultiplier = {
+      updatedUser.activeMultiplier = {
         value: promoValue,
         expiresAt: Date.now() + (cleanNum(promo.duration) || 3600) * 1000
       };
-      await saveUser(user);
     }
 
-    // Mark as used by this user and save
-    const updatedUser = getUser(); // Reload to be sure
+    // Marquer comme utilisé par cet utilisateur
     updatedUser.usedPromoCodes = [...(updatedUser.usedPromoCodes || []), code];
-    console.log(`[SettingsSection] Saving user with updated usedPromoCodes...`);
+    
+    // Sauvegarder l'utilisateur mis à jour (Cloud + Local)
     await saveUser(updatedUser);
     
     // IMPORTANT: On force le rafraîchissement global pour que le solde mis à jour soit visible partout
@@ -258,17 +255,13 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     
     if (onRewardClaimed) onRewardClaimed();
 
-    // Update global usage count (Centralized)
-    const updatedCodes = promoCodes.map(p => 
-      p.code === code ? { ...p, usedCount: (Number(p.usedCount) || 0) + 1 } : p
-    );
+    // Mettre à jour le compteur d'utilisation global
+    const targetCode = { ...promo, usedCount: (Number(promo.usedCount) || 0) + 1 };
+    const updatedCodes = promoCodes.map(p => p.code === code ? targetCode : p);
     onUpdatePromoCodes(updatedCodes);
 
-    // Cloud Sync usage count
-    const targetCode = updatedCodes.find(p => p.code === code);
-    if (targetCode) {
-      await syncPromoCodeToCloud(targetCode);
-    }
+    // Cloud Sync usage count (Upsert)
+    await syncPromoCodeToCloud(targetCode);
     
     // Synchroniser avec le système global @aippy
     sendEvent('promo_code_used', {

@@ -61,16 +61,19 @@ function App() {
     
     // REALTIME SUPABASE: Écouter les changements des utilisateurs pour le leaderboard
     if (isSupabaseConfigured()) {
+      console.log('[Realtime] Subscribing to users table for leaderboard...');
       const userChannel = supabase
         .channel('leaderboard-updates')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload: any) => {
-          // On ne rafraîchit que si le changement affecte le top 10 ou si c'est un changement significatif
-          // Pour simplifier et assurer la précision, on utilise le debounce
+          console.log('[Realtime] User update detected for leaderboard:', payload);
           refreshLeaderboard();
         })
-        .subscribe();
+        .subscribe((status) => {
+          console.log(`[Realtime] Leaderboard subscription status: ${status}`);
+        });
       
       return () => {
+        console.log('[Realtime] Unsubscribing from leaderboard updates');
         supabase.removeChannel(userChannel);
         clearInterval(interval);
         if (leaderboardTimerRef.current) clearTimeout(leaderboardTimerRef.current);
@@ -155,16 +158,20 @@ function App() {
 
     // REALTIME SUPABASE: Écouter les changements des codes promo
     if (isSupabaseConfigured()) {
+      console.log('[Realtime] Subscribing to promo_codes table...');
       const promoChannel = supabase
         .channel('promo-updates')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'promo_codes' }, (payload: any) => {
-          console.log('[Realtime] Promo Code Update:', payload);
+          console.log('[Realtime] Promo Code Update detected:', payload);
           // On recharge tout pour avoir la liste à jour (insert/update/delete)
           loadInitialPromo();
         })
-        .subscribe();
+        .subscribe((status) => {
+          console.log(`[Realtime] Promo subscription status: ${status}`);
+        });
       
       return () => {
+        console.log('[Realtime] Unsubscribing from promo updates');
         supabase.removeChannel(promoChannel);
       };
     }

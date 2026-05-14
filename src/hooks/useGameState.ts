@@ -52,6 +52,7 @@ export function useGameState() {
     if (!uid || !isSupabaseConfigured()) return;
 
     // REALTIME: Écouter les changements spécifiques à CET utilisateur
+    console.log(`[useGameState] Subscribing to self-updates for ${uid}...`);
     const userChannel = supabase
       .channel(`user-sync-${uid}`)
       .on('postgres_changes', { 
@@ -60,11 +61,13 @@ export function useGameState() {
         table: 'users', 
         filter: `id=eq.${uid}` 
       }, (payload: any) => {
-        console.log(`[useGameState] Realtime update for user ${uid}:`, payload.new);
+        console.log(`[useGameState] Realtime self-update detected:`, payload.new);
         // On rafraîchit les données depuis la source de vérité
         fetchLatestData(true);
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[useGameState] Self-sync subscription status: ${status}`);
+      });
 
     // Listener pour les mises à jour de solde externes (ex: promo codes locaux)
     const handleBalanceUpdate = () => {
