@@ -228,20 +228,29 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     const userToUpdate = dbUsers.find(u => u.id === userId);
     if (!userToUpdate) return;
 
-    const updatedUser = { 
-      ...userToUpdate, 
-      balance: Number(editBalances.balance), 
-      bankBalance: Number(editBalances.bankBalance) 
-    };
+    try {
+      const updatedUser = { 
+        ...userToUpdate, 
+        balance: Number(editBalances.balance), 
+        bankBalance: Number(editBalances.bankBalance) 
+      };
 
-    await saveUser(updatedUser);
-    setEditingUser(null);
-    fetchUsers();
-    
-    // Force global sync and state refresh
-    window.dispatchEvent(new CustomEvent('casino_balance_update'));
-    
-    if (enableHaptics) vibrate(100);
+      console.log(`[AdminPanel] Updating balances for user ${userId}:`, updatedUser);
+      await saveUser(updatedUser);
+      
+      // Feedback visuel et rafraîchissement
+      setEditingUser(null);
+      await fetchUsers(); // Recharger la liste depuis Supabase
+      
+      // Force global sync and state refresh for all tabs
+      window.dispatchEvent(new CustomEvent('casino_balance_update'));
+      
+      if (enableHaptics) vibrate(100);
+      alert(`Balances updated for ${userToUpdate.username}!`);
+    } catch (err: any) {
+      console.error("[AdminPanel] Error updating balances:", err);
+      alert(`Error: ${err.message || 'Failed to save changes'}`);
+    }
   };
 
   useEffect(() => {

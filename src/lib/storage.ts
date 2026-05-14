@@ -149,6 +149,7 @@ export async function saveUser(user: User): Promise<void> {
     const { error } = await supabase.from('users').upsert(dbData);
     if (error) {
       console.error("[Supabase] Error saving user (upsert):", error);
+      throw new Error(error.message); // Throw to be caught by Admin Panel
     }
   }
 
@@ -512,25 +513,35 @@ export async function getGameHistory(): Promise<any[]> {
 export async function sendMoney(receiverId: string, amount: number): Promise<{ success: boolean; error?: string }> {
   const senderId = getCurrentUID();
   if (!senderId) return { success: false, error: 'Not logged in' };
-  if (senderId === receiverId) return { success: false, error: 'Cannot send to yourself' };
+  
+  // Clean receiverId (remove spaces)
+  const cleanReceiverId = receiverId.trim();
+  if (senderId === cleanReceiverId) return { success: false, error: 'Cannot send to yourself' };
 
   if (isSupabaseConfigured()) {
     try {
       // 1. Fetch current balances (More robust: find by ID or exact username)
+      // We use .or with ilike for case-insensitive username search
       const { data: users, error: fetchError } = await supabase
         .from('users')
         .select('id, bank_balance, username')
-        .or(`id.eq.${senderId},id.eq.${receiverId},username.eq.${receiverId}`);
+        .or(`id.eq.${senderId},id.eq.${cleanReceiverId},username.ilike.${cleanReceiverId}`);
 
-      if (fetchError || !users || users.length < 2) {
-        console.error("[storage] sendMoney: User not found", { senderId, receiverId, found: users?.length });
-        return { success: false, error: 'User not found' };
+      if (fetchError) {
+        console.error("[storage] sendMoney fetch error:", fetchError);
+        return { success: false, error: 'Database connection error' };
+      }
+
+      if (!users || users.length < 2) {
+        console.error("[storage] sendMoney: User not found", { senderId, cleanReceiverId, found: users?.length });
+        return { success: false, error: 'User not found. Make sure the ID or Username is correct.' };
       }
 
       const sender = users.find(u => u.id === senderId);
-      const receiver = users.find(u => u.id === receiverId || u.username === receiverId);
+      const receiver = users.find(u => u.id === cleanReceiverId || u.username.toLowerCase() === cleanReceiverId.toLowerCase());
 
       if (!sender || !receiver) return { success: false, error: 'User not found' };
+      if (sender.id === receiver.id) return { success: false, error: 'Cannot send to yourself' };
       if (Number(sender.bank_balance) < amount) return { success: false, error: 'Insufficient bank balance' };
 
       const newSenderBankBalance = Number(sender.bank_balance) - amount;
@@ -546,7 +557,7 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
       const { error: receiverError } = await supabase
         .from('users')
         .update({ bank_balance: newReceiverBankBalance })
-        .eq('id', receiverId);
+        .eq('id', receiver.id);
 
       if (receiverError) throw receiverError;
 

@@ -186,8 +186,18 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
       if (val === null || val === undefined) return 0;
       if (typeof val === 'number') return isNaN(val) ? 0 : val;
       if (typeof val === 'string') {
-        const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
-        const parsed = parseFloat(cleaned);
+        // Remove spaces and handle both dot and comma
+        let cleaned = val.replace(/\s/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+          if (cleaned.indexOf(',') < cleaned.indexOf('.')) {
+            cleaned = cleaned.replace(/,/g, '');
+          } else {
+            cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+          }
+        } else {
+          cleaned = cleaned.replace(',', '.');
+        }
+        const parsed = parseFloat(cleaned.replace(/[^0-9.-]/g, ''));
         return isNaN(parsed) ? 0 : parsed;
       }
       return 0;
