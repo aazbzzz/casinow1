@@ -12,7 +12,18 @@ import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAler
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent, reportScore } from '@aippy/runtime/leaderboard';
-import { savePromoCodes, getPromoCodes, saveUser, logout, getAllUsers, getCurrentUID, getGlobalLeaderboard, getGlobalPromoCodes, fetchUser, isSupabaseConfigured, getLeaderboard } from '@/lib/storage';
+import { 
+  savePromoCodes, 
+  getPromoCodes, 
+  saveUser, 
+  logout, 
+  getAllUsers, 
+  getCurrentUID, 
+  getGlobalPromoCodes, 
+  fetchUser, 
+  isSupabaseConfigured, 
+  getLeaderboard 
+} from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
@@ -31,27 +42,38 @@ function App() {
     }
   }, [user?.balance, user?.id, user?.username]);
 
-  // Sync Leaderboard from Supabase
+  // Sync Leaderboard from Supabase with Debounce
+  const leaderboardTimerRef = useRef<NodeJS.Timeout | null>(null);
   const refreshLeaderboard = useCallback(async () => {
-    const data = await getLeaderboard();
-    setLeaderboard(data);
+    // Éviter trop d'appels simultanés
+    if (leaderboardTimerRef.current) return;
+    
+    leaderboardTimerRef.current = setTimeout(async () => {
+      const data = await getLeaderboard(10);
+      setLeaderboard(data);
+      leaderboardTimerRef.current = null;
+    }, 2000); // Mise à jour max toutes les 2 secondes
   }, []);
 
   useEffect(() => {
     refreshLeaderboard();
-    const interval = setInterval(refreshLeaderboard, 30000); // Toutes les 30s
+    const interval = setInterval(refreshLeaderboard, 30000); // Backup toutes les 30s
     
     // REALTIME SUPABASE: Écouter les changements des utilisateurs pour le leaderboard
     if (isSupabaseConfigured()) {
       const userChannel = supabase
         .channel('leaderboard-updates')
-        .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'users' }, () => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload: any) => {
+          // On ne rafraîchit que si le changement affecte le top 10 ou si c'est un changement significatif
+          // Pour simplifier et assurer la précision, on utilise le debounce
           refreshLeaderboard();
         })
         .subscribe();
       
       return () => {
         supabase.removeChannel(userChannel);
+        clearInterval(interval);
+        if (leaderboardTimerRef.current) clearTimeout(leaderboardTimerRef.current);
       };
     }
 
@@ -135,9 +157,10 @@ function App() {
     if (isSupabaseConfigured()) {
       const promoChannel = supabase
         .channel('promo-updates')
-        .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'promo_codes' }, (payload: any) => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'promo_codes' }, (payload: any) => {
           console.log('[Realtime] Promo Code Update:', payload);
-          loadInitialPromo(); // Recharger tout pour être sûr
+          // On recharge tout pour avoir la liste à jour (insert/update/delete)
+          loadInitialPromo();
         })
         .subscribe();
       

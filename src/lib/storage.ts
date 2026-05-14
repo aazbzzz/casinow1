@@ -1,5 +1,5 @@
 import { type User, type Quest } from '@/types';
-import { supabase } from './supabase';
+export { supabase } from './supabase';
 
 const STORAGE_KEYS = {
   USER_DATA_PREFIX: 'casino_user_data_',
@@ -10,7 +10,7 @@ const STORAGE_KEYS = {
 } as const;
 
 // Helper to check if Supabase is configured
-const isSupabaseConfigured = () => {
+export const isSupabaseConfigured = () => {
   try {
     const url = (supabase as any).supabaseUrl;
     return url && !url.includes('VOTRE_PROJET');
@@ -168,17 +168,13 @@ export async function getAllUsers(): Promise<User[]> {
 }
 
 /**
- * PROMO CODES (CLOUD ONLY)
- */
-/**
  * PROMO CODES (CLOUD ONLY + REALTIME)
  */
 export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
   if (isSupabaseConfigured()) {
     const { data, error } = await supabase
       .from('promo_codes')
-      .select('*')
-      .eq('is_active', true);
+      .select('*');
     
     if (!error && data) {
       const cleanNum = (val: any): number => {
@@ -210,29 +206,36 @@ export async function getGlobalPromoCodes(): Promise<PromoCode[]> {
 }
 
 /**
- * Sync Promo Code usage back to Cloud
+ * Sync Promo Code to Cloud (Upsert)
  */
-export async function syncPromoCodeToCloud(promo: PromoCode): Promise<void> {
+export async function syncPromoCodeToCloud(code: PromoCode): Promise<void> {
   if (isSupabaseConfigured()) {
-    const { error } = await supabase
-      .from('promo_codes')
-      .update({ used_count: promo.usedCount })
-      .eq('code', promo.code);
-    
-    if (error) console.error("[Supabase] Error syncing promo usage:", error);
+    const { error } = await supabase.from('promo_codes').upsert({
+      code: code.code,
+      type: code.type,
+      value: code.value,
+      duration: code.duration,
+      reward_text: code.rewardText,
+      max_uses: code.maxUses,
+      used_count: code.usedCount,
+      crypto_symbol: code.cryptoSymbol,
+      is_active: code.isActive,
+      is_unlimited: code.isUnlimited,
+    });
+    if (error) console.error("[Supabase] Error syncing promo code:", error);
   }
 }
 
 /**
  * LEADERBOARD (CLOUD ONLY)
  */
-export async function getLeaderboard(): Promise<User[]> {
+export async function getLeaderboard(limit = 10): Promise<User[]> {
   if (isSupabaseConfigured()) {
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .order('balance', { ascending: false })
-      .limit(10);
+      .limit(limit);
     
     if (!error && data) {
       const cleanDBNum = (val: any): number => {
@@ -279,32 +282,6 @@ export async function savePromoCodes(codes: PromoCode[]): Promise<void> {
 
   // 2. Mise à jour Cache local
   localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));
-}
-
-// Fonction utilitaire pour le panel admin
-export async function syncPromoCodeToCloud(code: PromoCode): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await supabase.from('promo_codes').upsert({
-      code: code.code,
-      type: code.type,
-      value: code.value,
-      duration: code.duration,
-      reward_text: code.rewardText,
-      max_uses: code.maxUses,
-      used_count: code.usedCount,
-      crypto_symbol: code.cryptoSymbol,
-      is_active: code.isActive,
-      is_unlimited: code.isUnlimited,
-    });
-  }
-}
-
-/**
- * LEADERBOARD
- */
-export async function getGlobalLeaderboard(): Promise<any[]> {
-  // Déjà cloud-first via Supabase
-  return getAllUsers();
 }
 
 /**

@@ -4,7 +4,7 @@ import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHist
 import { getVIPLevel } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
-import { getCheats } from '@/lib/cheats';
+import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured } from '@/lib/storage';
 
 export function useGameState() {
   const [user, setUser] = useState<User>(() => getUser());
@@ -14,6 +14,9 @@ export function useGameState() {
   const lastUpdateRef = useRef(Date.now());
 
   const fetchLatestData = useCallback(async (force = false) => {
+    const uid = getCurrentUID();
+    if (!uid) return;
+
     // Ne pas écraser si une mise à jour locale est en attente (race condition protection)
     if (!force && isPendingSync.current && Date.now() - lastUpdateRef.current < 2000) {
       console.log(`[useGameState] fetchLatestData skipped: local update pending`);
@@ -21,14 +24,17 @@ export function useGameState() {
     }
 
     const [remoteUser, remoteQuests] = await Promise.all([
-      fetchUser(),
+      fetchUser(uid),
       getQuests()
     ]);
     
     if (remoteUser) {
       setUser(prev => {
+        // Si c'est un refresh forcé (ex: Realtime), on accepte les données distantes
+        if (force) return remoteUser;
+
         // Protection supplémentaire: on ne recule pas le solde si on a une version locale plus récente
-        if (!force && isPendingSync.current && remoteUser.balance < prev.balance) {
+        if (isPendingSync.current && remoteUser.balance < prev.balance) {
           console.warn(`[useGameState] remote balance is lower than local, skipping sync`);
           return prev;
         }
@@ -38,16 +44,38 @@ export function useGameState() {
     if (remoteQuests) setQuests(remoteQuests);
   }, []);
 
-  // Sync with backend on mount
+  // Sync with backend on mount & Realtime subscription
   useEffect(() => {
     fetchLatestData(true);
 
-    // Listener pour les mises à jour de solde externes (ex: promo codes)
+    const uid = getCurrentUID();
+    if (!uid || !isSupabaseConfigured()) return;
+
+    // REALTIME: Écouter les changements spécifiques à CET utilisateur
+    const userChannel = supabase
+      .channel(`user-sync-${uid}`)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'users', 
+        filter: `id=eq.${uid}` 
+      }, (payload: any) => {
+        console.log(`[useGameState] Realtime update for user ${uid}:`, payload.new);
+        // On rafraîchit les données depuis la source de vérité
+        fetchLatestData(true);
+      })
+      .subscribe();
+
+    // Listener pour les mises à jour de solde externes (ex: promo codes locaux)
     const handleBalanceUpdate = () => {
       fetchLatestData(true);
     };
     window.addEventListener('casino_balance_update', handleBalanceUpdate);
-    return () => window.removeEventListener('casino_balance_update', handleBalanceUpdate);
+
+    return () => {
+      supabase.removeChannel(userChannel);
+      window.removeEventListener('casino_balance_update', handleBalanceUpdate);
+    };
   }, [fetchLatestData]);
 
   // Sauvegarde automatique du profil utilisateur lors des changements (Débit/Crédit)

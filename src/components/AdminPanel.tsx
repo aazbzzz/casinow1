@@ -727,12 +727,12 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={async () => {
-                              const updated = promoCodes.map(c => c.code === code.code ? { ...c, isActive: !c.isActive } : c);
+                              const updatedCode = { ...code, isActive: !code.isActive };
+                              const updated = promoCodes.map(c => c.code === code.code ? updatedCode : c);
                               onUpdatePromoCodes(updated);
                               
-                              const isSupabaseConfigured = (supabase as any).supabaseUrl && !(supabase as any).supabaseUrl.includes('VOTRE_PROJET');
-                              if (isSupabaseConfigured) {
-                                await supabase.from('promo_codes').update({ is_active: !code.isActive }).eq('code', code.code);
+                              if (isSupabaseConfigured()) {
+                                await syncPromoCodeToCloud(updatedCode);
                               }
                               
                               if (enableHaptics) vibrate(50);
