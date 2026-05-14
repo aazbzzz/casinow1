@@ -211,13 +211,17 @@ export function useGameState() {
     }
     
     const cheats = getCheats();
-    const safeFinalAmount = cheats.infiniteBalance ? 0 : Math.max(0, calculatedPayout);
+    console.log('CHEATS DEBUG', cheats);
     
-    console.log(`[useGameState] recordWin Final Execution:`, { 
-      game, 
-      numBet, 
-      multiplier: numMultiplier,
-      finalAmount: safeFinalAmount 
+    // TEST: On force l'ignorance du mode infiniteBalance pour vérifier si les gains reviennent
+    // const safeFinalAmount = cheats.infiniteBalance ? 0 : Math.max(0, calculatedPayout);
+    const safeFinalAmount = Math.max(0, calculatedPayout);
+    
+    console.log('WIN CALCULATION DEBUG', { 
+      infiniteBalance: cheats.infiniteBalance, 
+      calculatedPayout, 
+      finalAmount: safeFinalAmount,
+      multiplier: numMultiplier
     });
 
     updateBalance(safeFinalAmount, 'win', game);
