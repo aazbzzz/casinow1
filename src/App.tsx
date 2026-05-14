@@ -232,9 +232,9 @@ function App() {
     <div className="h-screen w-screen bg-[#050505] text-white overflow-hidden font-sans select-none flex flex-col relative">
       <TopBar user={user} onAdminClick={handleSecretClick} />
       
-      {/* Debug Overlay */}
-      <div className="fixed top-2 left-2 z-[999] px-2 py-1 bg-white/10 text-[8px] text-gray-500 rounded font-mono">
-        v1.0.8-FIX
+      {/* Debug Overlay - Version Visible */}
+      <div className="fixed top-4 left-4 z-[999] px-3 py-1 bg-red-600 text-white text-[12px] font-black rounded shadow-lg border-2 border-white animate-pulse">
+        APP VERSION: v1.0.9-FORCE-UPDATE
       </div>
       {debugMsg && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[999] px-4 py-2 bg-yellow-500 text-black text-[10px] font-black rounded-full shadow-2xl animate-bounce">
