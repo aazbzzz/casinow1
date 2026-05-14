@@ -82,13 +82,15 @@ export function useGameState() {
   }, [fetchLatestData]);
 
   // Sauvegarde automatique du profil utilisateur lors des changements (Débit/Crédit)
-  // Utilisation d'un debounce pour éviter les conflits de sauvegarde et les race conditions
+  // On ne sauvegarde automatiquement QUE si le solde de jeu ou le wagered a changé
+  // Les transferts Bank sont gérés manuellement dans les composants pour éviter les rollbacks
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
     
+    // Si c'est un changement de balance lié au jeu, on active la synchronisation
     isPendingSync.current = true;
     lastUpdateRef.current = Date.now();
 
@@ -98,10 +100,10 @@ export function useGameState() {
         await saveUser(user);
         isPendingSync.current = false;
       }
-    }, 1500); // Debounce de 1.5 seconde pour regrouper bet + win
+    }, 1500); 
     
     return () => clearTimeout(timer);
-  }, [user]);
+  }, [user.balance, user.totalWagered, user.vipLevel]); // On restreint les triggers
   
   const refreshUser = useCallback(async () => {
     await fetchLatestData();

@@ -619,6 +619,10 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
       localSender.bankBalance = newSenderBankBalance;
       localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${sender.id}`, JSON.stringify(localSender));
 
+      // IMPORTANT: On déclenche l'événement pour que useGameState recharge les données de Supabase
+      // Cela évite que useGameState n'écrase la banque avec une vieille valeur locale
+      window.dispatchEvent(new CustomEvent('casino_balance_update'));
+
       return { success: true };
     } catch (err: any) {
       console.error("[storage] sendMoney error:", err);
