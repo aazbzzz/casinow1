@@ -211,11 +211,11 @@ export function useGameState() {
     }
     
     const cheats = getCheats();
-    console.log('CHEATS DEBUG', cheats);
     
-    // TEST: On force l'ignorance du mode infiniteBalance pour vérifier si les gains reviennent
-    // const safeFinalAmount = cheats.infiniteBalance ? 0 : Math.max(0, calculatedPayout);
-    const safeFinalAmount = Math.max(0, calculatedPayout);
+    // Correction finale: on ne force plus à 0 si infiniteBalance est actif
+    const safeFinalAmount = cheats.infiniteBalance 
+      ? calculatedPayout 
+      : Math.max(0, calculatedPayout);
     
     console.log('WIN CALCULATION DEBUG', { 
       infiniteBalance: cheats.infiniteBalance, 

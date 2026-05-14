@@ -107,6 +107,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
     });
     
     const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Mines');
+    console.log('ONWIN RETURN =', payoutResult);
     setLastWin(payoutResult);
     setGameActive(false);
     setGameOver(true);

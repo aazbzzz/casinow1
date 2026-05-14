@@ -105,6 +105,7 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
           });
           
           const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Slots');
+          console.log('ONWIN RETURN =', payout);
           setLastWin(payout);
           if (enableHaptics) vibrate(200);
         } else if (twoSame) {
@@ -123,6 +124,7 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
           });
           
           const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Slots');
+          console.log('ONWIN RETURN =', payout);
           setLastWin(payout);
           if (enableHaptics) vibrate(100);
         } else {

@@ -83,6 +83,7 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
         });
         
         const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Coinflip');
+        console.log('ONWIN RETURN =', payout);
         setLastWin(payout);
         if (enableSounds) playWin();
         if (enableHaptics) vibrate(200);

@@ -89,6 +89,7 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
         });
         
         const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Dice');
+        console.log('ONWIN RETURN =', payout);
         setLastWin(payout);
         if (enableSounds) playWin();
         if (enableHaptics) vibrate(200);

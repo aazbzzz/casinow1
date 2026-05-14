@@ -135,6 +135,7 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     });
     
     const bonusWon = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Crash');
+    console.log('ONWIN RETURN =', bonusWon);
     setLastWin(bonusWon);
     if (enableHaptics) vibrate(200);
     

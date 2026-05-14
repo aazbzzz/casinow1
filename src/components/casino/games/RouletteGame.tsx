@@ -135,6 +135,7 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
         });
         
         const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Roulette (Combo)');
+        console.log('ONWIN RETURN =', payout);
         setLastWin(payout);
         if (enableHaptics) vibrate(300);
       } else {

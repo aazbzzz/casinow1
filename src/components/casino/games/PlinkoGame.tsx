@@ -191,6 +191,7 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
               multiplierType: typeof finalMultiplier 
             });
             const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Plinko');
+            console.log('ONWIN RETURN =', payoutResult);
             setLastMultiplier(finalMultiplier);
             setLastPayout(payoutResult);
             
