@@ -143,7 +143,8 @@ export async function saveUser(user: User): Promise<void> {
       total_wagered: cleanUser.totalWagered,
       has_deposited: cleanUser.hasDeposited,
       used_promo_codes: cleanUser.usedPromoCodes || [],
-      active_multiplier: cleanUser.activeMultiplier || null,
+      // Omit active_multiplier from DB update as the column is missing in Supabase schema
+      // active_multiplier: cleanUser.activeMultiplier || null,
     };
     
     const { error } = await supabase.from('users').upsert(dbData);
@@ -514,52 +515,57 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
   const senderId = getCurrentUID();
   if (!senderId) return { success: false, error: 'Not logged in' };
   
-  // Clean receiverId (remove spaces)
   const cleanReceiverId = receiverId.trim();
   if (senderId === cleanReceiverId) return { success: false, error: 'Cannot send to yourself' };
 
   if (isSupabaseConfigured()) {
     try {
-      // 1. Fetch current balances (More robust: find by ID or exact username)
-      // We use .or with ilike for case-insensitive username search
-      const { data: users, error: fetchError } = await supabase
+      // 1. Fetch sender first
+      const { data: senderData, error: senderFetchError } = await supabase
         .from('users')
         .select('id, bank_balance, username')
-        .or(`id.eq.${senderId},id.eq.${cleanReceiverId},username.ilike.${cleanReceiverId}`);
+        .eq('id', senderId)
+        .single();
 
-      if (fetchError) {
-        console.error("[storage] sendMoney fetch error:", fetchError);
-        return { success: false, error: 'Database connection error' };
+      if (senderFetchError || !senderData) {
+        return { success: false, error: 'Sender not found in database' };
       }
 
-      if (!users || users.length < 2) {
-        console.error("[storage] sendMoney: User not found", { senderId, cleanReceiverId, found: users?.length });
-        return { success: false, error: 'User not found. Make sure the ID or Username is correct.' };
+      // 2. Fetch receiver (by ID or Username)
+      const { data: receiverResults, error: receiverFetchError } = await supabase
+        .from('users')
+        .select('id, bank_balance, username')
+        .or(`id.eq."${cleanReceiverId}",username.ilike."${cleanReceiverId}"`);
+
+      if (receiverFetchError || !receiverResults || receiverResults.length === 0) {
+        console.error("[storage] sendMoney: Receiver not found", { cleanReceiverId });
+        return { success: false, error: 'User not found. Check ID or Username.' };
       }
 
-      const sender = users.find(u => u.id === senderId);
-      const receiver = users.find(u => u.id === cleanReceiverId || u.username.toLowerCase() === cleanReceiverId.toLowerCase());
+      const sender = senderData;
+      const receiver = receiverResults[0];
 
-      if (!sender || !receiver) return { success: false, error: 'User not found' };
       if (sender.id === receiver.id) return { success: false, error: 'Cannot send to yourself' };
       if (Number(sender.bank_balance) < amount) return { success: false, error: 'Insufficient bank balance' };
 
       const newSenderBankBalance = Number(sender.bank_balance) - amount;
       const newReceiverBankBalance = Number(receiver.bank_balance) + amount;
 
-      const { error: senderError } = await supabase
+      // 3. Update Sender
+      const { error: sUpdateError } = await supabase
         .from('users')
         .update({ bank_balance: newSenderBankBalance })
         .eq('id', senderId);
 
-      if (senderError) throw senderError;
+      if (sUpdateError) throw sUpdateError;
 
-      const { error: receiverError } = await supabase
+      // 4. Update Receiver
+      const { error: rUpdateError } = await supabase
         .from('users')
         .update({ bank_balance: newReceiverBankBalance })
         .eq('id', receiver.id);
 
-      if (receiverError) throw receiverError;
+      if (rUpdateError) throw rUpdateError;
 
       await supabase.from('transfers').insert({
         sender_id: senderId,
