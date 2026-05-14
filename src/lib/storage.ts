@@ -179,22 +179,30 @@ export async function getPromoCodes(): Promise<PromoCode[]> {
         const cleanNum = (val: any): number => {
           if (val === null || val === undefined) return 0;
           if (typeof val === 'number') return isNaN(val) ? 0 : val;
-          if (typeof val === 'string') return parseFloat(val) || 0;
+          if (typeof val === 'string') {
+            const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+            return parseFloat(cleaned) || 0;
+          }
           return 0;
         };
 
-        const codes = data.map(p => ({
-          code: p.code,
-          type: p.type as any,
-          value: cleanNum(p.value),
-          duration: cleanNum(p.duration),
-          rewardText: p.reward_text,
-          maxUses: cleanNum(p.max_uses),
-          usedCount: cleanNum(p.used_count),
-          cryptoSymbol: p.crypto_symbol,
-          isActive: p.is_active,
-          isUnlimited: p.is_unlimited,
-        }));
+        const codes = data.map(p => {
+          // Robust check for value column names
+          const rawValue = p.value !== undefined ? p.value : (p.value_amount !== undefined ? p.value_amount : 0);
+          
+          return {
+            code: p.code,
+            type: p.type as any,
+            value: cleanNum(rawValue),
+            duration: cleanNum(p.duration),
+            rewardText: p.reward_text,
+            maxUses: cleanNum(p.max_uses),
+            usedCount: cleanNum(p.used_count),
+            cryptoSymbol: p.crypto_symbol,
+            isActive: p.is_active,
+            isUnlimited: p.is_unlimited,
+          };
+        });
         
         // Update local cache
         localStorage.setItem(STORAGE_KEYS.CACHE_PROMO, JSON.stringify(codes));

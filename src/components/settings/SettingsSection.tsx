@@ -197,23 +197,19 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     console.log(`[SettingsSection] Applying reward:`, { 
       type: promo.type, 
       value: promoValue, 
-      valueType: typeof promoValue 
+      reward: promo.rewardText
     });
     
-    // On met à jour l'utilisateur localement d'abord pour un feedback immédiat
+    // On récupère la version la plus fraîche de l'utilisateur
     const currentUser = getUser();
     const updatedUser = { ...currentUser };
 
+    // 1. Appliquer la récompense au solde/multiplier
     if (promo.type === 'currency') {
       const currentBalance = cleanNum(updatedUser.balance);
       updatedUser.balance = currentBalance + promoValue;
       
-      console.log(`[SettingsSection] Balance updated for promo:`, { 
-        oldBalance: currentBalance, 
-        change: promoValue, 
-        newBalance: updatedUser.balance 
-      });
-
+      // Enregistrer la transaction localement
       await addTransaction({
         userId: updatedUser.id,
         type: 'win',
@@ -244,29 +240,30 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
       };
     }
 
-    // Marquer comme utilisé par cet utilisateur
+    // 2. Marquer comme utilisé par cet utilisateur
     updatedUser.usedPromoCodes = [...(updatedUser.usedPromoCodes || []), code];
     
-    // Sauvegarder l'utilisateur mis à jour (Cloud + Local)
+    // 3. Sauvegarder l'utilisateur mis à jour (Une seule fois, Cloud + Local)
+    console.log(`[SettingsSection] Saving updated user with reward and used code:`, { balance: updatedUser.balance });
     await saveUser(updatedUser);
     
-    // IMPORTANT: On force le rafraîchissement global pour que le solde mis à jour soit visible partout
+    // 4. Forcer le rafraîchissement global pour que useGameState se mette à jour
     window.dispatchEvent(new CustomEvent('casino_balance_update'));
     
     if (onRewardClaimed) onRewardClaimed();
 
-    // Mettre à jour le compteur d'utilisation global
+    // 5. Mettre à jour le compteur d'utilisation global du code promo
     const targetCode = { ...promo, usedCount: (Number(promo.usedCount) || 0) + 1 };
     const updatedCodes = promoCodes.map(p => p.code === code ? targetCode : p);
     onUpdatePromoCodes(updatedCodes);
 
-    // Cloud Sync usage count (Upsert)
+    // 6. Cloud Sync usage count (Upsert)
     await syncPromoCodeToCloud(targetCode);
     
-    // Synchroniser avec le système global @aippy
+    // 7. Synchroniser avec le système global @aippy
     sendEvent('promo_code_used', {
       code,
-      userId: user.id,
+      userId: updatedUser.id,
       reward: promo.rewardText
     });
 
