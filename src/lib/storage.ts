@@ -330,9 +330,9 @@ export async function addTransaction(transaction: any): Promise<void> {
     const dbData = {
       user_id: uid,
       type: transaction.type,
-      amount: Math.round(cleanNum(transaction.amount)),
+      amount: cleanNum(transaction.amount),
       game: transaction.game,
-      balance_after: Math.round(cleanNum(transaction.balanceAfter)),
+      balance_after: cleanNum(transaction.balanceAfter),
     };
     console.log(`[storage] addTransaction Supabase:`, dbData);
     const { error } = await supabase.from('transactions').insert(dbData);

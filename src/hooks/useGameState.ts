@@ -90,6 +90,10 @@ export function useGameState() {
 
     const numericAmount = cleanAmount(amount);
     
+    // IMPORTANT: On crée une variable locale pour stocker le nouvel état
+    // afin de pouvoir le sauvegarder immédiatement si c'est un gain
+    let updatedUser: User | null = null;
+
     setUser(prev => {
       const currentBalance = cleanAmount(prev.balance);
       const newBalance = currentBalance + numericAmount;
@@ -98,15 +102,19 @@ export function useGameState() {
         type,
         game,
         old: currentBalance,
-        oldType: typeof currentBalance,
         change: numericAmount,
-        changeType: typeof numericAmount,
-        new: newBalance,
-        newType: typeof newBalance
+        new: newBalance
       });
       
-      return { ...prev, balance: newBalance };
+      updatedUser = { ...prev, balance: newBalance };
+      return updatedUser;
     });
+
+    // Si c'est un gain ou un dépot, on force la sauvegarde immédiate (pas de debounce)
+    if (updatedUser && (type === 'win' || type === 'deposit')) {
+      console.log(`[useGameState] Instant sync for ${type}:`, { balance: (updatedUser as User).balance });
+      await saveUser(updatedUser);
+    }
   }, []);
   
   const placeBet = useCallback((amount: number | string, game: string): boolean => {
@@ -211,25 +219,29 @@ export function useGameState() {
     }
     
     const cheats = getCheats();
-    
-    // Correction finale: on ne force plus à 0 jamais, on prend le gain calculé
     const safeFinalAmount = Math.max(0, calculatedPayout);
     
-    console.log('WIN CALCULATION DEBUG', { 
-      infiniteBalance: cheats.infiniteBalance, 
+    // ALERT DEBUG: Impossible à rater pour l'utilisateur
+    if (safeFinalAmount === 0 && numMultiplier > 0) {
+      alert(`BUG DETECTED: Game=${game} | Bet=${numBet} | Mult=${numMultiplier} | Result=0`);
+    }
+
+    console.log('WIN CALCULATION EXECUTION', { 
+      game,
+      numBet,
+      numMultiplier,
       calculatedPayout, 
-      finalAmount: safeFinalAmount,
-      multiplier: numMultiplier
+      finalAmount: safeFinalAmount 
     });
 
-    // Affichage du debug directement sur l'écran pour le test
+    // Affichage du debug directement sur l'écran
     window.dispatchEvent(new CustomEvent('casino_debug_msg', { 
-      detail: `DEBUG: Mult=${numMultiplier}x | Payout=${safeFinalAmount.toFixed(2)} | InfBal=${cheats.infiniteBalance}` 
+      detail: `WIN: ${game} | +${safeFinalAmount.toFixed(2)} | Mult: ${numMultiplier}x` 
     }));
 
     updateBalance(safeFinalAmount, 'win', game);
     
-    addGameHistory({
+    addGameHistory({ 
       game,
       bet: numBet,
       multiplier: numMultiplier,
