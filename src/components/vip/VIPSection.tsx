@@ -41,7 +41,7 @@ export function VIPSection({
             <div className="text-lg font-semibold" style={{
             color: primaryAccent
           }}>
-              Multiplier: {currentVIP.multiplier}x
+              Max Bet: {currentVIP.maxBet === Infinity ? 'Unlimited' : formatAmount(currentVIP.maxBet)}
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@ export function VIPSection({
                   <div>
                     <div className="font-bold text-white">VIP {level.level}</div>
                     <div className="text-sm text-gray-400">
-                      Multiplier {level.multiplier}x
+                      Mise max: {level.maxBet === Infinity ? 'Illimitée' : formatAmount(level.maxBet)}
                     </div>
                   </div>
                 </div>

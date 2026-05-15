@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Shield, UserPlus, LogIn, UserCircle, AlertCircle, Sparkles, Globe } from 'lucide-react';
+import { Shield, UserPlus, LogIn, UserCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { getAllUsers, saveUser, setCurrentUID } from '@/lib/storage';
 import { User as UserType } from '@/types';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
-import { useUserInfo } from '@aippy/runtime/user';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -14,14 +13,12 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ onAuthComplete }: AuthModalProps) {
-  const [mode, setMode] = useState<'platform' | 'login' | 'signup' | 'guest'>('platform');
+  const [mode, setMode] = useState<'login' | 'signup' | 'guest'>('signup');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   
-  const { uid, username: platformUsername, isLoading } = useUserInfo();
-
   useEffect(() => {
     // Tenter de récupérer les identifiants sauvegardés au montage
     const saved = localStorage.getItem('casino_remembered_account');
@@ -35,35 +32,14 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
       }
     }
   }, [mode]);
+
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
 
-  const handlePlatformAuth = async () => {
-    if (isLoading || !uid) return;
-    
-    const users = await getAllUsers();
-    const existingUser = users.find(u => u.id === uid);
-    if (existingUser) {
-      setCurrentUID(uid);
-      onAuthComplete(existingUser);
-    } else {
-      const newUser: UserType = {
-        id: uid,
-        username: platformUsername || 'Player',
-        isGuest: false,
-        balance: 1000,
-        bankBalance: 0,
-        vipLevel: 1,
-        totalWagered: 0,
-        createdAt: new Date().toISOString(),
-        hasDeposited: false,
-        usedPromoCodes: [],
-      };
-      setCurrentUID(uid);
-      await saveUser(newUser);
-      onAuthComplete(newUser);
-    }
-    if (enableHaptics) vibrate(100);
+  const validatePassword = (pass: string) => {
+    if (pass.length < 8) return "Le mot de passe doit faire au moins 8 caractères";
+    if (!/\d/.test(pass)) return "Le mot de passe doit contenir au moins un chiffre";
+    return null;
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -77,6 +53,13 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
         setError('Veuillez remplir tous les champs');
         return;
       }
+
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        setError(passwordError);
+        return;
+      }
+
       if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
         setError('Ce pseudo est déjà utilisé');
         return;
@@ -167,10 +150,10 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
           </div>
 
           <h2 className="text-3xl font-black text-white text-center mb-2 uppercase tracking-tighter italic">
-            {mode === 'platform' ? 'Compte Global' : mode === 'signup' ? 'Créer un compte' : mode === 'login' ? 'Connexion' : 'Jouer en Invité'}
+            {mode === 'signup' ? 'Créer un compte' : mode === 'login' ? 'Connexion' : 'Jouer en Invité'}
           </h2>
           <p className="text-xs text-gray-500 text-center mb-8 uppercase tracking-[0.2em] font-bold">
-            {mode === 'platform' ? 'Synchronisé avec la plateforme' : mode === 'signup' ? 'Rejoignez l\'élite du casino' : mode === 'login' ? 'Bon retour parmi nous' : 'Accès rapide sans inscription'}
+            {mode === 'signup' ? 'Rejoignez l\'élite du casino' : mode === 'login' ? 'Bon retour parmi nous' : 'Accès rapide sans inscription'}
           </p>
 
           {error && (
@@ -182,7 +165,6 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
 
           <div className="flex flex-wrap gap-2 mb-8 bg-white/5 p-1 rounded-2xl border border-white/5">
             {[
-              { id: 'platform', label: 'Global', icon: Globe },
               { id: 'signup', label: 'Inscrire', icon: UserPlus },
               { id: 'login', label: 'Login', icon: LogIn },
               { id: 'guest', label: 'Invité', icon: UserCircle },
@@ -205,38 +187,11 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
             ))}
           </div>
 
-          {mode === 'platform' ? (
-            <div className="space-y-6">
-              <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
-                {isLoading ? (
-                  <div className="animate-pulse flex flex-col items-center gap-4">
-                    <div className="size-12 rounded-full bg-white/10" />
-                    <div className="h-4 w-32 bg-white/10 rounded" />
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-gray-400 text-sm mb-4">Connecté en tant que</p>
-                    <div className="text-2xl font-black text-white italic tracking-wider mb-2">
-                      {platformUsername || 'Anonyme'}
-                    </div>
-                    <div className="text-[10px] text-gray-600 font-mono uppercase">UID: {uid?.slice(0, 8)}...</div>
-                  </>
-                )}
-              </div>
-              <button
-                onClick={handlePlatformAuth}
-                disabled={isLoading || !uid}
-                className="w-full py-4 rounded-2xl font-black text-black transition-all active:scale-95 shadow-xl hover:brightness-110 disabled:opacity-50"
-                style={{ backgroundColor: primaryAccent }}
-              >
-                {isLoading ? 'CHARGEMENT...' : 'CONTINUER AVEC MON COMPTE'}
-              </button>
-            </div>
-          ) : mode === 'guest' ? (
+          {mode === 'guest' ? (
             <div className="space-y-6">
               <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
                 <p className="text-gray-400 text-sm mb-4">
-                  En mode invité, votre progression est locale. Utilisez un compte Global pour jouer sur tous vos appareils.
+                  En mode invité, votre progression est locale. Créez un compte pour sauvegarder vos gains.
                 </p>
                 <div className="text-2xl font-black text-white italic opacity-50 tracking-widest">
                   player-XXXXXX
@@ -297,7 +252,7 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
 
           <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-center gap-2">
             <Shield className="size-4 text-gray-600" />
-            <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Synchronisation Cloud Sécurisée</span>
+            <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Sauvegarde Cloud Sécurisée</span>
           </div>
         </div>
       </div>

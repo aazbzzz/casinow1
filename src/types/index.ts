@@ -90,7 +90,7 @@ export type GameType = 'coinflip' | 'mines' | 'dice' | 'plinko' | 'crash' | 'slo
 
 export interface VIPLevel {
   level: number;
-  multiplier: number;
+  maxBet: number;
   wagerRequired: number;
   benefits: string[];
 }

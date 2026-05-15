@@ -30,7 +30,7 @@ import tweaksConfig from '@/config/tweaksConfig.json';
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 function App() {
-  const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, refreshUser } = useGameState();
+  const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, updateBankBalance, refreshUser } = useGameState();
   const [activeSection, setActiveSection] = useState<'casino' | 'wallet' | 'vip' | 'quests' | 'settings' | 'leaderboard'>('casino');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState(() => !getCurrentUID());
@@ -268,7 +268,13 @@ function App() {
             />
           )}
           {activeSection === 'wallet' && (
-            <WalletSection user={user} onDeposit={depositToBank} onWithdraw={withdrawFromBank} onRefreshUser={refreshUser} />
+            <WalletSection 
+              user={user} 
+              onDeposit={depositToBank} 
+              onWithdraw={withdrawFromBank} 
+              onUpdateBank={updateBankBalance}
+              onRefreshUser={refreshUser} 
+            />
           )}
           {activeSection === 'vip' && (
             <VIPSection user={user} />

@@ -1,16 +1,16 @@
 import { VIPLevel } from '@/types';
 
 export const VIP_LEVELS: VIPLevel[] = [
-  { level: 1, multiplier: 1.00, wagerRequired: 0, benefits: ['Standard gains', 'Cashback 1%'] },
-  { level: 2, multiplier: 1.10, wagerRequired: 10000, benefits: ['10% bonus gains', 'Cashback 2%'] },
-  { level: 3, multiplier: 1.20, wagerRequired: 50000, benefits: ['20% bonus gains', 'Cashback 3%'] },
-  { level: 4, multiplier: 1.30, wagerRequired: 200000, benefits: ['30% bonus gains', 'Cashback 4%'] },
-  { level: 5, multiplier: 1.40, wagerRequired: 1000000, benefits: ['40% bonus gains', 'Cashback 5%'] },
-  { level: 6, multiplier: 1.50, wagerRequired: 5000000, benefits: ['50% bonus gains', 'Cashback 7%'] },
-  { level: 7, multiplier: 1.60, wagerRequired: 20000000, benefits: ['60% bonus gains', 'Cashback 10%'] },
-  { level: 8, multiplier: 1.80, wagerRequired: 100000000, benefits: ['80% bonus gains', 'Cashback 15%'] },
-  { level: 9, multiplier: 2.00, wagerRequired: 500000000, benefits: ['100% bonus gains', 'Cashback 20%'] },
-  { level: 10, multiplier: 2.50, wagerRequired: 1000000000, benefits: ['150% bonus gains', 'Cashback 25%', 'Max Bet Unlocked'] },
+  { level: 1, maxBet: 10000, wagerRequired: 0, benefits: ['Mise max: 10K', 'Cashback 1%'] },
+  { level: 2, maxBet: 25000, wagerRequired: 10000, benefits: ['Mise max: 25K', 'Cashback 2%'] },
+  { level: 3, maxBet: 50000, wagerRequired: 50000, benefits: ['Mise max: 50K', 'Cashback 3%'] },
+  { level: 4, maxBet: 100000, wagerRequired: 200000, benefits: ['Mise max: 100K', 'Cashback 4%'] },
+  { level: 5, maxBet: 250000, wagerRequired: 1000000, benefits: ['Mise max: 250K', 'Cashback 5%'] },
+  { level: 6, maxBet: 500000, wagerRequired: 5000000, benefits: ['Mise max: 500K', 'Cashback 7%'] },
+  { level: 7, maxBet: 1000000, wagerRequired: 20000000, benefits: ['Mise max: 1M', 'Cashback 10%'] },
+  { level: 8, maxBet: 5000000, wagerRequired: 100000000, benefits: ['Mise max: 5M', 'Cashback 15%'] },
+  { level: 9, maxBet: 10000000, wagerRequired: 500000000, benefits: ['Mise max: 10M', 'Cashback 20%'] },
+  { level: 10, maxBet: Infinity, wagerRequired: 1000000000, benefits: ['Mise Illimitée', 'Cashback 25%'] },
 ];
 
 export function getVIPLevel(totalWagered: number): VIPLevel {

@@ -30,6 +30,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  * CREATE TABLE public.users (
  *   id TEXT PRIMARY KEY, -- TEXT pour supporter guest-XXXXXX et custom IDs
  *   username TEXT NOT NULL,
+ *   password TEXT, -- Ajouté pour la connexion
  *   balance BIGINT DEFAULT 1000,
  *   bank_balance BIGINT DEFAULT 0,
  *   vip_level INT DEFAULT 1,

@@ -165,6 +165,13 @@ export function useGameState() {
       return false;
     }
 
+    const currentWagered = Number(user.totalWagered) || 0;
+    const currentVIP = getVIPLevel(currentWagered);
+    if (numericAmount > currentVIP.maxBet) {
+      alert("Vous n’avez pas le VIP requis pour miser cette somme.");
+      return false;
+    }
+
     const cheats = getCheats();
     const currentBalance = cleanAmount(user.balance);
     
@@ -366,6 +373,25 @@ export function useGameState() {
     });
   }, []);
 
+  const updateBankBalance = useCallback(async (amount: number) => {
+    const numAmount = Number(amount);
+    if (isNaN(numAmount)) return;
+
+    setUser(prev => {
+      const currentBankBalance = Number(prev.bankBalance) || 0;
+      const newBankBalance = currentBankBalance + numAmount;
+      
+      const newUser = {
+        ...prev,
+        bankBalance: newBankBalance,
+      };
+
+      saveUser(newUser).catch(err => console.error("[useGameState] updateBankBalance saveUser error:", err));
+      
+      return newUser;
+    });
+  }, []);
+
   return {
     user,
     quests,
@@ -376,6 +402,7 @@ export function useGameState() {
     claimQuest,
     depositToBank,
     withdrawFromBank,
+    updateBankBalance,
     refreshUser,
   };
 }

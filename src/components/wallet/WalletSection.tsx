@@ -13,12 +13,13 @@ interface WalletSectionProps {
   user: User;
   onDeposit: (amount: number) => void;
   onWithdraw: (amount: number) => void;
+  onUpdateBank?: (amount: number) => void;
   onRefreshUser?: () => void;
 }
 
 const CRYPTO_SYMBOLS = ['BTC', 'ETH', 'SOL', 'USDT', 'BNB', 'XRP'];
 
-export function WalletSection({ user, onDeposit, onWithdraw, onRefreshUser }: WalletSectionProps) {
+export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRefreshUser }: WalletSectionProps) {
   const [activeTab, setActiveTab] = useState<'balance' | 'trade' | 'trading' | 'transactions' | 'history'>('balance');
   const [amount, setAmount] = useState(100);
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
@@ -140,8 +141,9 @@ export function WalletSection({ user, onDeposit, onWithdraw, onRefreshUser }: Wa
   
   const buyCrypto = (symbol: string) => {
     const crypto = cryptoPrices.find(c => c.symbol === symbol);
-    // Use user.balance instead of user.bankBalance to use wallet funds
-    if (!crypto || tradeAmount > user.balance) {
+    // Use bankBalance instead of user.balance
+    const currentBank = Number(user.bankBalance) || 0;
+    if (!crypto || tradeAmount > currentBank) {
       if (enableHaptics) vibrate([100, 50, 100]);
       return;
     }
@@ -165,8 +167,8 @@ export function WalletSection({ user, onDeposit, onWithdraw, onRefreshUser }: Wa
       }
     });
     
-    // Deduct from wallet balance (not bank)
-    onDeposit(-tradeAmount); 
+    // Deduct from bank balance
+    if (onUpdateBank) onUpdateBank(-tradeAmount); 
     if (enableHaptics) vibrate(100);
     setSelectedCrypto(null);
   };
@@ -189,8 +191,8 @@ export function WalletSection({ user, onDeposit, onWithdraw, onRefreshUser }: Wa
       ));
     }
     
-    // Return to wallet balance (not bank)
-    onDeposit(sellValue); 
+    // Return to bank balance
+    if (onUpdateBank) onUpdateBank(sellValue); 
     if (enableHaptics) vibrate(100);
     setSelectedCrypto(null);
   };

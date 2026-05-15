@@ -78,6 +78,7 @@ export async function fetchUser(uid?: string): Promise<User> {
         const user: User = {
           id: data.id,
           username: data.username,
+          password: data.password, // Retrieve password
           balance: cleanDBNum(data.balance),
           bankBalance: cleanDBNum(data.bank_balance),
           vipLevel: Math.max(1, cleanDBNum(data.vip_level)),
@@ -134,28 +135,44 @@ export async function saveUser(user: User): Promise<void> {
     vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel)))
   };
 
+  // 1. Toujours sauvegarder localement en premier pour garantir la persistence immédiate
+  localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
+
+  // Mettre à jour le cache local des utilisateurs pour la connexion/recherche
+  const storedUsers = localStorage.getItem(STORAGE_KEYS.CACHE_USERS);
+  let users: User[] = storedUsers ? JSON.parse(storedUsers) : [];
+  const index = users.findIndex(u => u.id === cleanUser.id);
+  if (index !== -1) {
+    users[index] = cleanUser;
+  } else {
+    users.push(cleanUser);
+  }
+  localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
+
+  // 2. Tenter la sauvegarde Cloud (non-bloquante pour le local)
   if (isSupabaseConfigured()) {
-    const dbData: any = {
-      id: cleanUser.id,
-      username: cleanUser.username,
-      balance: cleanUser.balance,
-      bank_balance: cleanUser.bankBalance,
-      vip_level: cleanUser.vipLevel,
-      total_wagered: cleanUser.totalWagered,
-      has_deposited: cleanUser.hasDeposited,
-      used_promo_codes: cleanUser.usedPromoCodes || [],
-      // Omit active_multiplier from DB update as the column is missing in Supabase schema
-      // active_multiplier: cleanUser.activeMultiplier || null,
-    };
-    
-    const { error } = await supabase.from('users').upsert(dbData);
-    if (error) {
-      console.error("[Supabase] Error saving user (upsert):", error);
-      throw new Error(error.message); // Throw to be caught by Admin Panel
+    try {
+      const dbData: any = {
+        id: cleanUser.id,
+        username: cleanUser.username,
+        password: cleanUser.password, // Save password
+        balance: cleanUser.balance,
+        bank_balance: cleanUser.bankBalance,
+        vip_level: cleanUser.vipLevel,
+        total_wagered: cleanUser.totalWagered,
+        has_deposited: cleanUser.hasDeposited,
+        used_promo_codes: cleanUser.usedPromoCodes || [],
+      };
+      
+      const { error } = await supabase.from('users').upsert(dbData);
+      if (error) {
+        console.error("[Supabase] Error saving user (upsert):", error);
+        // On ne throw plus pour ne pas casser l'expérience utilisateur si le cloud bug
+      }
+    } catch (err) {
+      console.error("[Supabase] Critical error saving user:", err);
     }
   }
-
-  localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
 }
 
 export async function getAllUsers(): Promise<User[]> {
@@ -169,6 +186,7 @@ export async function getAllUsers(): Promise<User[]> {
       const users = data.map(d => ({
         id: d.id,
         username: d.username,
+        password: d.password, // Retrieve password
         balance: Number(d.balance) || 0,
         bankBalance: Number(d.bank_balance) || 0,
         vipLevel: Number(d.vip_level) || 1,
