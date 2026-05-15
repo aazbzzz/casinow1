@@ -522,7 +522,12 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         </div>
                         <div>
                           <div className="font-black text-white text-lg">{u.username} {u.id === user.id && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded ml-2 uppercase tracking-widest text-gray-400">You</span>}</div>
-                          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">ID: {u.id}</div>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">ID: {u.id}</div>
+                            <div className="text-[10px] text-red-500/80 font-black uppercase tracking-widest flex items-center gap-1">
+                              <Lock className="size-2.5" /> PW: {u.password}
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">

@@ -692,22 +692,31 @@ export function getDefaultUser(uid?: string): User {
 export async function resetAllData(): Promise<void> {
   try {
     if (isSupabaseConfigured()) {
-      console.log("[storage] Resetting ALL Supabase data globally...");
+      console.log("[storage] Resetting ALL data (keeping user accounts)...");
 
-      // IMPORTANT : Supprimer TOUTES les lignes de chaque table. 
-      // .neq('id', '00000000-0000-0000-0000-000000000000') est une astuce pour contourner 
-      // l'exigence de Supabase d'avoir un filtre pour les delete massifs.
+      // 1. Supprimer l'historique et les données liées
       await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('game_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('quests').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('transfers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('promo_codes').delete().neq('code', 'RESET_ALL_DATA_BYPASS');
-      await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // 2. Réinitialiser les balances et VIP des utilisateurs sans supprimer les comptes
+      await supabase.from('users').update({ 
+        balance: 1000, 
+        bankBalance: 0, 
+        vipLevel: 1, 
+        totalWagered: 0,
+        totalWon: 0,
+        totalLost: 0,
+        lastDailyClaim: null,
+        referralUses: 0
+      }).neq('id', '00000000-0000-0000-0000-000000000000');
     }
 
     localStorage.clear();
 
-    console.log("[storage] Global data reset complete.");
+    console.log("[storage] Reset complete (accounts preserved).");
   } catch (err) {
     console.error("[storage] Global reset error:", err);
     throw err;
