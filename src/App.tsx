@@ -83,7 +83,7 @@ function App() {
     return () => clearInterval(interval);
   }, [refreshLeaderboard]);
 
-  const handleAuthComplete = (newUser: any) => {
+  const handleAuthComplete = async (newUser: any) => {
     const cleanUser = {
       ...newUser,
       balance: Number(newUser.balance) || 0,
@@ -91,7 +91,7 @@ function App() {
       totalWagered: Number(newUser.totalWagered) || 0,
       vipLevel: Number(newUser.vipLevel) || 1,
     };
-    saveUser(cleanUser);
+    await saveUser(cleanUser);
     refreshUser();
     setShowAuth(false);
   };
