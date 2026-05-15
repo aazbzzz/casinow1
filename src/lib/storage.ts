@@ -690,40 +690,24 @@ export function getDefaultUser(uid?: string): User {
 }
 
 export async function resetAllData(): Promise<void> {
-  if (isSupabaseConfigured()) {
-    try {
-      console.log("[storage] Resetting all data in Supabase...");
-      
-      // Delete all users (cascade will handle some things if configured, but let's be explicit)
-      const { error: usersError } = await supabase.from('users').delete().neq('id', 'dummy_prevent_empty');
-      if (usersError) console.error("[Supabase] Error deleting users:", usersError);
-      
-      // Delete all promo codes
-      const { error: promoError } = await supabase.from('promo_codes').delete().neq('code', 'dummy_prevent_empty');
-      if (promoError) console.error("[Supabase] Error deleting promo codes:", promoError);
+  try {
+    if (isSupabaseConfigured()) {
+      console.log("[storage] Resetting Supabase data...");
 
-      // Delete all transactions
-      const { error: txError } = await supabase.from('transactions').delete().neq('type', 'dummy_prevent_empty');
-      if (txError) console.error("[Supabase] Error deleting transactions:", txError);
-
-      // Delete all game history
-      const { error: historyError } = await supabase.from('game_history').delete().neq('game', 'dummy_prevent_empty');
-      if (historyError) console.error("[Supabase] Error deleting game history:", historyError);
-
-      // Delete all quests
-      const { error: questsError } = await supabase.from('quests').delete().neq('quest_id', 'dummy_prevent_empty');
-      if (questsError) console.error("[Supabase] Error deleting quests:", questsError);
-
-      // Delete all transfers
-      const { error: transfersError } = await supabase.from('transfers').delete().neq('sender_id', 'dummy_prevent_empty');
-      if (transfersError) console.error("[Supabase] Error deleting transfers:", transfersError);
-
-    } catch (err) {
-      console.error("[storage] Critical error during Supabase reset:", err);
+      // IMPORTANT : supprimer les tables enfants avant users pour respecter les contraintes de clés étrangères
+      await supabase.from('transactions').delete().neq('user_id', '');
+      await supabase.from('game_history').delete().neq('user_id', '');
+      await supabase.from('quests').delete().neq('user_id', '');
+      await supabase.from('transfers').delete().neq('sender_id', '');
+      await supabase.from('promo_codes').delete().neq('code', '');
+      await supabase.from('users').delete().neq('id', '');
     }
+
+    localStorage.clear();
+
+    console.log("[storage] All data reset complete.");
+  } catch (err) {
+    console.error("[storage] Reset error:", err);
+    throw err;
   }
-  
-  // Toujours vider le localStorage
-  localStorage.clear();
-  console.log("[storage] Local data cleared.");
 }

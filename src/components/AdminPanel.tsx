@@ -349,10 +349,16 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     if (enableHaptics) vibrate(50);
   };
   
-  const handleResetData = () => {
-    resetAllData();
-    if (enableHaptics) vibrate([100, 50, 100]);
-    window.location.reload();
+  const handleResetData = async () => {
+    try {
+      await resetAllData();
+      if (enableHaptics) vibrate([100, 50, 100]);
+      alert("All data has been reset.");
+      window.location.reload();
+    } catch (err) {
+      console.error("Reset failed:", err);
+      alert("Failed to reset data.");
+    }
   };
 
   const renderFileTree = (nodes: FileNode[], path = '') => {
