@@ -28,12 +28,7 @@ const translations = {
     promoErrorLimit: 'Limite d\'utilisation atteinte.',
     version: 'Version',
     versionText: 'Casino v1.0.0',
-    reset: 'Réinitialiser toutes les données',
     logout: 'Déconnexion',
-    confirmTitle: 'Êtes-vous sûr ?',
-    confirmDesc: 'Toutes vos données (solde, historique, progression) seront définitivement supprimées.',
-    yes: 'Oui, réinitialiser',
-    no: 'Annuler',
   },
   de: {
     title: '⚙️ Einstellungen',
@@ -54,12 +49,7 @@ const translations = {
     promoErrorLimit: 'Nutzungslimit erreicht.',
     version: 'Version',
     versionText: 'Casino v1.0.0',
-    reset: 'Alle Daten zurücksetzen',
     logout: 'Abmelden',
-    confirmTitle: 'Sind Sie sicher?',
-    confirmDesc: 'Alle Ihre Daten (Guthaben, Verlauf, Fortschritt) werden dauerhaft gelöscht.',
-    yes: 'Ja, zurücksetzen',
-    no: 'Abbrechen',
   },
   en: {
     title: '⚙️ Settings',
@@ -80,12 +70,7 @@ const translations = {
     promoErrorLimit: 'Usage limit reached.',
     version: 'Version',
     versionText: 'Casino v1.0.0',
-    reset: 'Reset all data',
     logout: 'Log Out',
-    confirmTitle: 'Are you sure?',
-    confirmDesc: 'All your data (balance, history, progress) will be permanently deleted.',
-    yes: 'Yes, reset',
-    no: 'No, cancel',
   },
 };
 
@@ -98,7 +83,6 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
 }) {
   const [language, setLanguage] = useState(() => localStorage.getItem('app_language') || 'en');
   const [t, setT] = useState(translations[language as keyof typeof translations]);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoInput, setPromoInput] = useState('');
   const [promoStatus, setPromoStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -119,12 +103,6 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     localStorage.setItem('app_language', lang);
   };
   
-  const handleReset = () => {
-    resetAllData();
-    if (enableHaptics) vibrate([100, 50, 100]);
-    window.location.reload();
-  };
-
   const toggleSounds = () => {
     // Les tweaks sont gérés par la plateforme
     if (enableHaptics) vibrate(50);
@@ -405,14 +383,6 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
           <XCircle className="size-6" />
           {t.logout}
         </button>
-
-        <button
-          onClick={() => setShowConfirm(true)}
-          className="w-full p-4 rounded-xl flex items-center justify-center gap-3 bg-red-500/20 text-red-500 font-semibold transition-all active:scale-95"
-        >
-          <Trash2 className="size-6" />
-          {t.reset}
-        </button>
       </div>
 
       {showPromoModal && (
@@ -479,33 +449,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
         </div>
       )}
 
-      {showConfirm && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-[#111] border-2 border-red-500/50 rounded-3xl p-8 text-center animate-in zoom-in-95 duration-200 shadow-[0_0_50px_rgba(239,68,68,0.2)]">
-            <div className="size-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
-              <AlertTriangle className="size-8 text-red-500" />
-            </div>
-            <h3 className="text-2xl font-black text-white mb-2">{t.confirmTitle}</h3>
-            <p className="text-gray-400 text-sm mb-8 leading-relaxed">
-              {t.confirmDesc}
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={handleReset}
-                className="w-full py-4 rounded-xl bg-red-500 text-white font-black uppercase tracking-wider transition-all active:scale-95"
-              >
-                {t.yes}
-              </button>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="w-full py-4 rounded-xl bg-white/5 text-gray-400 font-bold uppercase tracking-wider transition-all active:scale-95 border border-white/10"
-              >
-                {t.no}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
