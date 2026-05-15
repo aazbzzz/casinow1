@@ -27,8 +27,8 @@ interface Ball {
   radius: number;
 }
 
-const MULTIPLIERS = [16, 9, 4, 2, 1.2, 0.7, 0.1, 0.7, 1.2, 2, 4, 9, 16];
-const ROWS = 14;
+const MULTIPLIERS = [16, 12, 9, 4, 2, 1.2, 0.7, 0.1, 0.7, 1.2, 2, 4, 9, 12, 16];
+const ROWS = 12;
 
 export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGameProps) {
   const [betAmount, setBetAmount] = useState(10);
