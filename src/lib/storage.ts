@@ -704,13 +704,13 @@ export async function resetAllData(): Promise<void> {
       // 2. Réinitialiser les balances et VIP des utilisateurs sans supprimer les comptes
       await supabase.from('users').update({ 
         balance: 1000, 
-        bankBalance: 0, 
-        vipLevel: 1, 
-        totalWagered: 0,
-        totalWon: 0,
-        totalLost: 0,
-        lastDailyClaim: null,
-        referralUses: 0
+        bank_balance: 0, 
+        vip_level: 1, 
+        total_wagered: 0,
+        total_won: 0,
+        total_lost: 0,
+        last_daily_claim: null,
+        referral_uses: 0
       }).neq('id', '00000000-0000-0000-0000-000000000000');
     }
 
