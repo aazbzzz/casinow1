@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
-import { ArrowLeft, Coins, Info } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ArrowLeft, Coins, Info, AlertCircle } from 'lucide-react';
 import { vibrate } from '@aippy/runtime/device';
 import { useGameSounds } from '@/hooks/useGameSounds';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
+import { getVIPLevelByNumber } from '@/lib/vip';
+import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
@@ -24,7 +26,17 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
   const [lastWin, setLastWin] = useState<number | null>(null);
   const [rotation, setRotation] = useState(0);
   const [showRules, setShowRules] = useState(false);
+  const [gameError, setGameError] = useState<string | null>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleError = (e: any) => {
+      setGameError(e.detail.message);
+      setTimeout(() => setGameError(null), 3000);
+    };
+    window.addEventListener('casino_game_error', handleError);
+    return () => window.removeEventListener('casino_game_error', handleError);
+  }, []);
   
   const { playConfirm, playWin, playError } = useGameSounds();
   const cardBg = tweaks.cardBackground.useState();
@@ -191,7 +203,13 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-semibold" style={{ color: primaryAccent }}>Bet Amount</label>
               <button 
-                onClick={() => setBetAmount(balance)}
+                onClick={() => {
+                  const user = getUser();
+                  const vip = getVIPLevelByNumber(user.vipLevel);
+                  const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
+                  setBetAmount(maxAllowed);
+                  if (enableHaptics) vibrate(30);
+                }}
                 className="text-xs font-black px-2 py-1 rounded bg-gray-800 text-white active:scale-90"
                 style={{ color: primaryAccent, borderColor: primaryAccent, borderWidth: 1 }}
               >
@@ -204,8 +222,14 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
               onChange={(e) => setBetAmount(Math.max(0, Number(e.target.value)))}
               disabled={isFlipping}
               className="w-full px-4 py-3 rounded-xl bg-black/30 border-2 text-white font-semibold text-lg"
-              style={{ borderColor: primaryAccent }}
+              style={{ borderColor: gameError ? '#ff1a1a' : primaryAccent }}
             />
+            {gameError && (
+              <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="size-4 text-red-500" />
+                <p className="text-red-500 text-[10px] font-bold uppercase">{gameError}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

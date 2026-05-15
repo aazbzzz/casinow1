@@ -436,8 +436,11 @@ function App() {
       {showAdminPanel && (
         <AdminPanel 
           onClose={() => setShowAdminPanel(false)} 
-          onUpdatePromoCodes={handleUpdatePromoCodes}
           promoCodes={syncedPromoCodes}
+          onUpdatePromoCodes={handleUpdatePromoCodes}
+          onUpdateBalance={updateBalance}
+          user={user}
+          onRefreshUser={refreshUser}
         />
       )}
 

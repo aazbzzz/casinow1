@@ -53,6 +53,8 @@ interface AdminPanelProps {
   onUpdateBalance?: (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => void;
   promoCodes: PromoCode[];
   onUpdatePromoCodes: (codes: PromoCode[]) => void;
+  user: User;
+  onRefreshUser: () => void;
 }
 
 interface FileNode {
@@ -201,7 +203,7 @@ const projectFiles: FileNode[] = [
   { name: '.env', type: 'file', content: '// .env - Environment variables' },
 ];
 
-export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes }: AdminPanelProps) {
+export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'master' | 'reset'>('promo');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src/components', 'src/components/casino', 'src/components/casino/games']));
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
@@ -242,6 +244,11 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       // Feedback visuel et rafraîchissement
       setEditingUser(null);
       await fetchUsers(); // Recharger la liste depuis Supabase
+      
+      // Si c'est l'utilisateur actuel, on force le rafraîchissement de l'état global
+      if (userId === user.id) {
+        onRefreshUser();
+      }
       
       // Force global sync and state refresh for all tabs
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
@@ -284,8 +291,6 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
-  
-  const user = getUser();
   
   const handleCopyFile = (fileName: string, content: string) => {
     navigator.clipboard.writeText(content);

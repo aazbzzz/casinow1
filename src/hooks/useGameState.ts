@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { User, Quest } from '@/types';
 import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured } from '@/lib/storage';
-import { getVIPLevel } from '@/lib/vip';
+import { getVIPLevel, VIP_LEVELS } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
 import { getCheats } from '@/lib/cheats';
@@ -106,7 +106,7 @@ export function useGameState() {
   }, [user.balance, user.totalWagered, user.vipLevel]); // On restreint les triggers
   
   const refreshUser = useCallback(async () => {
-    await fetchLatestData();
+    await fetchLatestData(true);
   }, [fetchLatestData]);
 
   const updateBalance = useCallback(async (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
@@ -165,8 +165,7 @@ export function useGameState() {
       return false;
     }
 
-    const currentWagered = Number(user.totalWagered) || 0;
-    const currentVIP = getVIPLevel(currentWagered);
+    const currentVIP = VIP_LEVELS.find(l => l.level === user.vipLevel) || VIP_LEVELS[0];
     if (numericAmount > currentVIP.maxBet) {
       // Dispatch custom event instead of alert
       window.dispatchEvent(new CustomEvent('casino_game_error', { 

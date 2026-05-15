@@ -1,9 +1,11 @@
-import { useState, useRef } from 'react';
-import { ArrowLeft, Coins, Info, Lock } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ArrowLeft, Coins, Info, Lock, AlertCircle } from 'lucide-react';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
+import { getVIPLevelByNumber } from '@/lib/vip';
+import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
@@ -31,7 +33,17 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
   const [result, setResult] = useState<number | null>(null);
   const [lastWin, setLastWin] = useState<number | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [gameError, setGameError] = useState<string | null>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleError = (e: any) => {
+      setGameError(e.detail.message);
+      setTimeout(() => setGameError(null), 3000);
+    };
+    window.addEventListener('casino_game_error', handleError);
+    return () => window.removeEventListener('casino_game_error', handleError);
+  }, []);
   
   const cardBg = tweaks.cardBackground.useState();
   const primaryAccent = tweaks.primaryAccent.useState();
@@ -340,6 +352,19 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
                     {val}
                   </button>
                 ))}
+                <button 
+                  onClick={() => {
+                    const user = getUser();
+                    const vip = getVIPLevelByNumber(user.vipLevel);
+                    const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
+                    setBetAmount(maxAllowed);
+                    if (enableHaptics) vibrate(30);
+                  }}
+                  className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 text-[10px] font-black text-white active:scale-90"
+                  style={{ color: primaryAccent, borderColor: primaryAccent }}
+                >
+                  MAX
+                </button>
               </div>
             </div>
             <div className="relative">
@@ -349,12 +374,18 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
                 onChange={(e) => setBetAmount(Math.max(0, Number(e.target.value)))}
                 disabled={isSpinning}
                 className="w-full px-6 py-4 rounded-2xl bg-white/5 border-2 text-white font-black text-2xl tracking-tighter italic text-center outline-none transition-all"
-                style={{ borderColor: primaryAccent }}
+                style={{ borderColor: gameError ? '#ff1a1a' : primaryAccent }}
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20">
                 <Coins className="size-6 text-white" />
               </div>
             </div>
+            {gameError && (
+              <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="size-4 text-red-500" />
+                <p className="text-red-500 text-[10px] font-bold uppercase">{gameError}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Coins, Target, Info } from 'lucide-react';
+import { ArrowLeft, Coins, Target, Info, AlertCircle } from 'lucide-react';
 import { vibrate } from '@aippy/runtime/device';
 import { useGameSounds } from '@/hooks/useGameSounds';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
+import { getVIPLevelByNumber } from '@/lib/vip';
+import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
@@ -34,7 +36,18 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
   const [lastMultiplier, setLastMultiplier] = useState<number | null>(null);
   const [lastPayout, setLastPayout] = useState<number | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [gameError, setGameError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const handleError = (e: any) => {
+      setGameError(e.detail.message);
+      setTimeout(() => setGameError(null), 3000);
+    };
+    window.addEventListener('casino_game_error', handleError);
+    return () => window.removeEventListener('casino_game_error', handleError);
+  }, []);
+  
   const ballRef = useRef<Ball | null>(null);
   const animFrameRef = useRef<number>(0);
   const pegsRef = useRef<{ x: number; y: number }[]>([]);
@@ -314,14 +327,20 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           </div>
         )}
         
-        <div className="w-full max-w-sm p-6 rounded-2xl border-2" style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}40`, boxShadow: `0 0 30px ${primaryAccent}20` }}>
+        <div className="w-full max-w-sm p-6 rounded-2xl border-2" style={{ backgroundColor: cardBg, borderColor: gameError ? '#ff1a1a' : `${primaryAccent}40`, boxShadow: `0 0 30px ${primaryAccent}20` }}>
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-bold text-white flex items-center gap-2">
               <Coins className="size-4" style={{ color: primaryAccent }} />
               Bet Amount
             </label>
             <button 
-              onClick={() => setBetAmount(balance)}
+              onClick={() => {
+                const user = getUser();
+                const vip = getVIPLevelByNumber(user.vipLevel);
+                const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
+                setBetAmount(maxAllowed);
+                if (enableHaptics) vibrate(30);
+              }}
               className="text-xs font-black px-2 py-1 rounded bg-gray-800 text-white active:scale-90"
               style={{ color: primaryAccent, borderColor: primaryAccent, borderWidth: 1 }}
             >
@@ -334,8 +353,14 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
             onChange={(e) => setBetAmount(Math.max(0, Number(e.target.value)))}
             disabled={isDropping}
             className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold text-lg focus:outline-none focus:ring-2 transition-all"
-            style={{ borderColor: `${primaryAccent}60`, boxShadow: `0 0 15px ${primaryAccent}20` }}
+            style={{ borderColor: gameError ? '#ff1a1a' : `${primaryAccent}60`, boxShadow: `0 0 15px ${primaryAccent}20` }}
           />
+          {gameError && (
+            <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+              <AlertCircle className="size-4 text-red-500" />
+              <p className="text-red-500 text-[10px] font-bold uppercase">{gameError}</p>
+            </div>
+          )}
         </div>
       </div>
       

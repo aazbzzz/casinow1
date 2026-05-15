@@ -48,7 +48,8 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   const handleMaxBet = () => {
     const user = getUser();
     const vip = getVIPLevelByNumber(user.vipLevel);
-    const maxAllowed = Math.min(balance, vip.maxBet);
+    // Si VIP 10, le max est la balance entière, sinon c'est le maxBet du VIP
+    const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
     setBetAmount(maxAllowed);
     if (enableHaptics) vibrate(30);
   };
