@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
-import { ArrowLeft, Coins, Trophy, Bomb, Gem } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ArrowLeft, Coins, Trophy, Bomb, Gem, AlertCircle } from 'lucide-react';
 import { vibrate } from '@aippy/runtime/device';
 import { useGameSounds } from '@/hooks/useGameSounds';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
+import { getVIPLevel } from '@/lib/vip';
+import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
@@ -25,13 +27,31 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   const [gameOver, setGameOver] = useState(false);
   const [lastWin, setLastWin] = useState<number | null>(null);
   const [currentMultiplier, setCurrentMultiplier] = useState(1);
+  const [gameError, setGameError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleError = (e: any) => {
+      setGameError(e.detail.message);
+      setTimeout(() => setGameError(null), 3000);
+    };
+    window.addEventListener('casino_game_error', handleError);
+    return () => window.removeEventListener('casino_game_error', handleError);
+  }, []);
   
   const { playConfirm, playWin, playError } = useGameSounds();
   const cardBg = tweaks.cardBackground.useState();
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
   const enableSounds = tweaks.enableSounds.useState();
+  
+  const handleMaxBet = () => {
+    const user = getUser();
+    const vip = getVIPLevel(user.totalWagered);
+    const maxAllowed = Math.min(balance, vip.maxBet);
+    setBetAmount(maxAllowed);
+    if (enableHaptics) vibrate(30);
+  };
   
   const startGame = () => {
     if (!onBet(betAmount, 'Mines')) {
@@ -169,7 +189,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
                   Bet
                 </label>
                 <button 
-                  onPointerDown={(e) => { e.preventDefault(); setBetAmount(balance); }}
+                  onPointerDown={(e) => { e.preventDefault(); handleMaxBet(); }}
                   className="text-[10px] font-black px-3 py-1.5 rounded-lg border transition-all active:scale-90"
                   style={{ color: primaryAccent, borderColor: primaryAccent }}
                 >
@@ -181,8 +201,14 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
                 value={betAmount}
                 onChange={(e) => setBetAmount(Math.max(0, Number(e.target.value)))}
                 className="w-full px-6 py-4 rounded-2xl bg-white/5 border-2 text-white font-black text-2xl focus:outline-none transition-all"
-                style={{ borderColor: `${primaryAccent}30` }}
+                style={{ borderColor: gameError ? '#ff1a1a' : `${primaryAccent}30` }}
               />
+              {gameError && (
+                <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                  <AlertCircle className="size-4 text-red-500" />
+                  <p className="text-red-500 text-[10px] font-bold uppercase">{gameError}</p>
+                </div>
+              )}
             </div>
             
             <div>

@@ -213,7 +213,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [dbTransactions, setDbTransactions] = useState<any[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
-  const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0 });
+  const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1 });
 
   const fetchUsers = async () => {
     const users = await getAllUsers();
@@ -232,10 +232,11 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       const updatedUser = { 
         ...userToUpdate, 
         balance: Number(editBalances.balance), 
-        bankBalance: Number(editBalances.bankBalance) 
+        bankBalance: Number(editBalances.bankBalance),
+        vipLevel: Number(editBalances.vipLevel)
       };
 
-      console.log(`[AdminPanel] Updating balances for user ${userId}:`, updatedUser);
+      console.log(`[AdminPanel] Updating user ${userId}:`, updatedUser);
       await saveUser(updatedUser);
       
       // Feedback visuel et rafraîchissement
@@ -246,9 +247,9 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
       
       if (enableHaptics) vibrate(100);
-      alert(`Balances updated for ${userToUpdate.username}!`);
+      alert(`User ${userToUpdate.username} updated!`);
     } catch (err: any) {
-      console.error("[AdminPanel] Error updating balances:", err);
+      console.error("[AdminPanel] Error updating user:", err);
       alert(`Error: ${err.message || 'Failed to save changes'}`);
     }
   };
@@ -541,6 +542,17 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                               className="w-full px-3 py-2 rounded-lg bg-black border border-white/20 text-white font-bold text-sm"
                             />
                           </div>
+                          <div className="col-span-2">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">VIP Level (1-10)</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={editBalances.vipLevel}
+                              onChange={(e) => setEditBalances({ ...editBalances, vipLevel: Number(e.target.value) })}
+                              className="w-full px-3 py-2 rounded-lg bg-black border border-white/20 text-white font-bold text-sm"
+                            />
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <button
@@ -562,12 +574,12 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                       <button
                         onClick={() => {
                           setEditingUser(u.id);
-                          setEditBalances({ balance: u.balance, bankBalance: u.bankBalance });
+                          setEditBalances({ balance: u.balance, bankBalance: u.bankBalance, vipLevel: u.vipLevel });
                           if (enableHaptics) vibrate(30);
                         }}
                         className="w-full mt-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
                       >
-                        Edit Balances
+                        Edit User Data
                       </button>
                     )}
 

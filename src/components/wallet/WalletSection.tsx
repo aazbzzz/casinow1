@@ -571,7 +571,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-bold text-gray-400">Amount (in $)</label>
                       <button 
-                        onClick={() => setTradeAmount(user.balance)}
+                        onClick={() => setTradeAmount(bankMax)}
                         className="text-xs font-black px-2 py-1 rounded bg-gray-700 text-white active:scale-90"
                         style={{ color: primaryAccent }}
                       >
@@ -589,7 +589,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <button
                       onClick={() => buyCrypto(selectedCrypto)}
-                      disabled={tradeAmount > user.balance}
+                      disabled={tradeAmount > bankMax}
                       className="py-3 rounded-xl font-black text-black transition-all active:scale-95 disabled:opacity-50"
                       style={{ backgroundColor: primaryAccent }}
                     >

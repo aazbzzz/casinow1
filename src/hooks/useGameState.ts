@@ -168,7 +168,10 @@ export function useGameState() {
     const currentWagered = Number(user.totalWagered) || 0;
     const currentVIP = getVIPLevel(currentWagered);
     if (numericAmount > currentVIP.maxBet) {
-      alert("Vous n’avez pas le VIP requis pour miser cette somme.");
+      // Dispatch custom event instead of alert
+      window.dispatchEvent(new CustomEvent('casino_game_error', { 
+        detail: { message: "Vous n’avez pas le VIP requis pour miser cette somme." } 
+      }));
       return false;
     }
 
