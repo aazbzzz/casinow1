@@ -34,6 +34,7 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
   const [selectedParity, setSelectedParity] = useState<ParityBet | null>(null);
   const [selectedRange, setSelectedRange] = useState<RangeBet | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [showNumberSelection, setShowNumberSelection] = useState(false);
   
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<number | null>(null);
@@ -61,7 +62,7 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
 
   const currentMultiplier = (() => {
     if (selectedNumber !== null) {
-      return selectedColor ? 100 : 50;
+      return 50;
     }
     let mult = 1;
     if (selectedColor) mult *= 2;
@@ -144,10 +145,6 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
         if (finalNumber === selectedNumber) {
           won = true;
           baseMultiplier = 50;
-          const colorOfResult = finalNumber === 0 ? 'green' : RED_NUMBERS.includes(finalNumber) ? 'red' : 'black';
-          if (selectedColor === colorOfResult) {
-            baseMultiplier = 100;
-          }
         }
       } else {
         won = true;
@@ -277,87 +274,54 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
         
         <div className="w-full max-w-sm space-y-4">
           <div className="grid grid-cols-1 gap-4">
-            {/* Number Selection */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-white/40 uppercase tracking-widest px-1 flex items-center justify-between">
-                <span>1. Specific Number (Optional)</span>
-                <span style={{ color: primaryAccent }}>x50 Payout</span>
-              </label>
-              <div className="grid grid-cols-6 gap-1 bg-black/30 p-2 rounded-2xl border border-white/5">
-                {[...Array(37)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      if (selectedNumber === i) {
-                        setSelectedNumber(null);
-                      } else {
-                        setSelectedNumber(i);
-                        setSelectedParity(null);
-                        setSelectedRange(null);
-                      }
-                      if (enableHaptics) vibrate(20);
-                    }}
-                    disabled={isSpinning}
-                    className={`aspect-square rounded-lg text-[10px] font-bold transition-all border ${selectedNumber === i ? 'border-white bg-white/20' : 'border-transparent hover:bg-white/5'}`}
-                    style={{ 
-                      backgroundColor: selectedNumber === i ? undefined : getNumberColor(i),
-                      color: i === 0 ? '#000' : '#fff'
-                    }}
-                  >
-                    {i}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Color Selection */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-white/40 uppercase tracking-widest px-1">2. Color</label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => { setSelectedColor(selectedColor === 'red' ? null : 'red'); if (enableHaptics) vibrate(20); }}
-                  disabled={isSpinning}
-                  className="py-3 rounded-xl font-black text-sm transition-all active:scale-95 border-2 flex items-center justify-center gap-2"
-                  style={{
-                    backgroundColor: selectedColor === 'red' ? '#FF0000' : 'transparent',
-                    borderColor: selectedColor === 'red' ? '#fff' : '#FF000040',
-                    color: selectedColor === 'red' ? '#fff' : '#FF0000',
-                  }}
-                >
-                  RED
-                </button>
-                <button
-                  onClick={() => { setSelectedColor(selectedColor === 'black' ? null : 'black'); if (enableHaptics) vibrate(20); }}
-                  disabled={isSpinning}
-                  className="py-3 rounded-xl font-black text-sm transition-all active:scale-95 border-2 flex items-center justify-center gap-2"
-                  style={{
-                    backgroundColor: selectedColor === 'black' ? '#fff' : 'transparent',
-                    borderColor: selectedColor === 'black' ? '#fff' : '#ffffff20',
-                    color: selectedColor === 'black' ? '#000' : '#fff',
-                  }}
-                >
-                  BLACK
-                </button>
-                <button
-                  onClick={() => { setSelectedNumber(0); setSelectedColor(null); setSelectedParity(null); setSelectedRange(null); if (enableHaptics) vibrate(20); }}
-                  disabled={isSpinning}
-                  className="py-3 rounded-xl font-black text-sm transition-all active:scale-95 border-2 flex items-center justify-center gap-2"
-                  style={{
-                    backgroundColor: selectedNumber === 0 ? '#00FF00' : 'transparent',
-                    borderColor: selectedNumber === 0 ? '#fff' : '#00FF0040',
-                    color: selectedNumber === 0 ? '#000' : '#00FF00',
-                  }}
-                >
-                  ZERO
-                </button>
-              </div>
-            </div>
-
             {selectedNumber === null && (
               <>
+                {/* Color Selection */}
+                <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest px-1">1. Color</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => { setSelectedColor(selectedColor === 'red' ? null : 'red'); if (enableHaptics) vibrate(20); }}
+                      disabled={isSpinning}
+                      className="py-3 rounded-xl font-black text-sm transition-all active:scale-95 border-2 flex items-center justify-center gap-2"
+                      style={{
+                        backgroundColor: selectedColor === 'red' ? '#FF0000' : 'transparent',
+                        borderColor: selectedColor === 'red' ? '#fff' : '#FF000040',
+                        color: selectedColor === 'red' ? '#fff' : '#FF0000',
+                      }}
+                    >
+                      RED
+                    </button>
+                    <button
+                      onClick={() => { setSelectedColor(selectedColor === 'black' ? null : 'black'); if (enableHaptics) vibrate(20); }}
+                      disabled={isSpinning}
+                      className="py-3 rounded-xl font-black text-sm transition-all active:scale-95 border-2 flex items-center justify-center gap-2"
+                      style={{
+                        backgroundColor: selectedColor === 'black' ? '#fff' : 'transparent',
+                        borderColor: selectedColor === 'black' ? '#fff' : '#ffffff20',
+                        color: selectedColor === 'black' ? '#000' : '#fff',
+                      }}
+                    >
+                      BLACK
+                    </button>
+                    <button
+                      onClick={() => { setSelectedNumber(0); setSelectedColor(null); setSelectedParity(null); setSelectedRange(null); if (enableHaptics) vibrate(20); }}
+                      disabled={isSpinning}
+                      className="py-3 rounded-xl font-black text-sm transition-all active:scale-95 border-2 flex items-center justify-center gap-2"
+                      style={{
+                        backgroundColor: selectedNumber === 0 ? '#00FF00' : 'transparent',
+                        borderColor: selectedNumber === 0 ? '#fff' : '#00FF0040',
+                        color: selectedNumber === 0 ? '#000' : '#00FF00',
+                      }}
+                    >
+                      ZERO
+                    </button>
+                  </div>
+                </div>
+
                 {/* Parity Selection */}
                 <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
-                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest px-1">3. Parity</label>
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest px-1">2. Parity</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => { setSelectedParity(selectedParity === 'even' ? null : 'even'); if (enableHaptics) vibrate(20); }}
@@ -388,7 +352,7 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
 
                 {/* Range Selection */}
                 <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
-                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest px-1">4. Range</label>
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest px-1">3. Range</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => { setSelectedRange(selectedRange === 'low' ? null : 'low'); if (enableHaptics) vibrate(20); }}
@@ -418,6 +382,52 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
                 </div>
               </>
             )}
+
+            {/* Precise Number Selection Toggle */}
+             <div className="space-y-2">
+               <button
+                 onClick={() => { setShowNumberSelection(!showNumberSelection); if (enableHaptics) vibrate(20); }}
+                 disabled={isSpinning}
+                 className="w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-2 flex items-center justify-center gap-2 bg-white/5 border-white/10 text-white"
+               >
+                 {selectedNumber !== null && selectedNumber !== 0 ? `Selected Number: ${selectedNumber}` : 'Choisir valeur précise'}
+                 {showNumberSelection ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+               </button>
+ 
+               {showNumberSelection && (
+                 <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                   <div className="flex items-center gap-3">
+                     <input
+                       type="number"
+                       min="1"
+                       max="36"
+                       value={selectedNumber === null || selectedNumber === 0 ? '' : selectedNumber}
+                       onChange={(e) => {
+                         const val = e.target.value === '' ? null : Math.min(36, Math.max(1, Number(e.target.value)));
+                         setSelectedNumber(val);
+                         if (val !== null) {
+                           setSelectedColor(null);
+                           setSelectedParity(null);
+                           setSelectedRange(null);
+                         }
+                         if (enableHaptics) vibrate(10);
+                       }}
+                       placeholder="1-36"
+                       className="flex-1 px-4 py-3 rounded-xl bg-black border-2 border-white/10 text-white font-black text-xl text-center focus:border-white/30 transition-all outline-none"
+                     />
+                     <button
+                        onClick={() => { setSelectedNumber(null); if (enableHaptics) vibrate(20); }}
+                        className="px-4 py-3 rounded-xl bg-red-500/20 text-red-500 font-black text-xs uppercase border border-red-500/30"
+                     >
+                        Clear
+                     </button>
+                   </div>
+                   <div className="text-[10px] font-bold text-center text-white/40 uppercase tracking-widest">
+                     Precise number pays <span style={{ color: primaryAccent }}>x50</span>
+                   </div>
+                 </div>
+               )}
+             </div>
           </div>
           
           <div className="pt-4 border-t border-white/5">
