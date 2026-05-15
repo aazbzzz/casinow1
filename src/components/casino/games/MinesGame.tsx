@@ -5,7 +5,7 @@ import { useGameSounds } from '@/hooks/useGameSounds';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
-import { getVIPLevel } from '@/lib/vip';
+import { getVIPLevelByNumber } from '@/lib/vip';
 import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -47,7 +47,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   
   const handleMaxBet = () => {
     const user = getUser();
-    const vip = getVIPLevel(user.totalWagered);
+    const vip = getVIPLevelByNumber(user.vipLevel);
     const maxAllowed = Math.min(balance, vip.maxBet);
     setBetAmount(maxAllowed);
     if (enableHaptics) vibrate(30);

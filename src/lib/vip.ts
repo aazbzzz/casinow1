@@ -22,6 +22,10 @@ export function getVIPLevel(totalWagered: number): VIPLevel {
   return VIP_LEVELS[0];
 }
 
+export function getVIPLevelByNumber(level: number): VIPLevel {
+  return VIP_LEVELS.find(l => l.level === level) || VIP_LEVELS[0];
+}
+
 export function getNextVIPLevel(currentLevel: number): VIPLevel | null {
   return VIP_LEVELS.find(l => l.level === currentLevel + 1) || null;
 }

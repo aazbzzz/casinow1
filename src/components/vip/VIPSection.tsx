@@ -14,7 +14,7 @@ export function VIPSection({
   const cardBg = tweaks.cardBackground.useState();
   const primaryAccent = tweaks.primaryAccent.useState();
   const secondaryAccent = tweaks.secondaryAccent.useState();
-  const currentVIP = getVIPLevel(user.totalWagered);
+  const currentVIP = VIP_LEVELS.find(l => l.level === user.vipLevel) || VIP_LEVELS[0];
   const nextVIP = getNextVIPLevel(user.vipLevel);
   const progress = getVIPProgress(user.totalWagered, user.vipLevel);
 

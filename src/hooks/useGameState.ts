@@ -202,7 +202,7 @@ export function useGameState() {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
-        vipLevel: vipLevel.level,
+        vipLevel: Math.max(prev.vipLevel || 1, vipLevel.level),
       };
 
       addTransaction({
