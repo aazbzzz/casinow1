@@ -692,22 +692,24 @@ export function getDefaultUser(uid?: string): User {
 export async function resetAllData(): Promise<void> {
   try {
     if (isSupabaseConfigured()) {
-      console.log("[storage] Resetting Supabase data...");
+      console.log("[storage] Resetting ALL Supabase data globally...");
 
-      // IMPORTANT : supprimer les tables enfants avant users pour respecter les contraintes de clés étrangères
-      await supabase.from('transactions').delete().neq('user_id', '');
-      await supabase.from('game_history').delete().neq('user_id', '');
-      await supabase.from('quests').delete().neq('user_id', '');
-      await supabase.from('transfers').delete().neq('sender_id', '');
-      await supabase.from('promo_codes').delete().neq('code', '');
-      await supabase.from('users').delete().neq('id', '');
+      // IMPORTANT : Supprimer TOUTES les lignes de chaque table. 
+      // .neq('id', '00000000-0000-0000-0000-000000000000') est une astuce pour contourner 
+      // l'exigence de Supabase d'avoir un filtre pour les delete massifs.
+      await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('game_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quests').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('transfers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('promo_codes').delete().neq('code', 'RESET_ALL_DATA_BYPASS');
+      await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     }
 
     localStorage.clear();
 
-    console.log("[storage] All data reset complete.");
+    console.log("[storage] Global data reset complete.");
   } catch (err) {
-    console.error("[storage] Reset error:", err);
+    console.error("[storage] Global reset error:", err);
     throw err;
   }
 }

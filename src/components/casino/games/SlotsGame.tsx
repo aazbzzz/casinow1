@@ -24,8 +24,8 @@ const PAYOUTS: Record<string, number> = {
   '🍊': 4,
   '🍇': 5,
   '💎': 10,
-  '7️⃣': 20,
-  '⭐': 50,
+  '7️⃣': 32,
+  '⭐': 128,
 };
 
 export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGameProps) {

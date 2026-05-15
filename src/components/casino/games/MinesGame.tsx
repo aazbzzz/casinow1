@@ -268,6 +268,10 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
             const showMine = isRevealed && isMine;
             const showSafe = isRevealed && !isMine;
             
+            // Cheat: Show mines
+            const cheats = getCheats();
+            const shouldShowCheatMine = gameActive && !isRevealed && isMine && cheats.forceMinesSafe;
+
             return (
               <button
                 key={i}
@@ -276,13 +280,14 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
                 className="aspect-square rounded-2xl flex items-center justify-center transition-all active:scale-90 disabled:scale-100 relative overflow-hidden group touch-manipulation"
                 style={{
                   backgroundColor: isRevealed ? (isMine ? '#ff1a1a' : primaryAccent) : 'rgba(255,255,255,0.05)',
-                  border: `2px solid ${isRevealed ? (isMine ? '#ff1a1a' : '#fff') : 'rgba(255,255,255,0.1)'}`,
-                  boxShadow: isRevealed ? `0 0 25px ${isMine ? '#ff1a1a' : primaryAccent}60` : 'none',
+                  border: `2px solid ${isRevealed ? (isMine ? '#ff1a1a' : '#fff') : (shouldShowCheatMine ? '#ff1a1a60' : 'rgba(255,255,255,0.1)')}`,
+                  boxShadow: isRevealed ? `0 0 25px ${isMine ? '#ff1a1a' : primaryAccent}60` : (shouldShowCheatMine ? `inset 0 0 15px #ff1a1a40` : 'none'),
                   pointerEvents: !gameActive || isRevealed ? 'none' : 'auto'
                 }}
               >
                 {showMine && <Bomb className="size-7 text-white" />}
                 {showSafe && <Gem className="size-7 text-black" />}
+                {shouldShowCheatMine && <Bomb className="size-5 text-red-500/40" />}
                 {!isRevealed && (
                   <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent group-active:from-white/20" />
                 )}
