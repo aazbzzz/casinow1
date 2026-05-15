@@ -270,14 +270,42 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     }
 
     try {
-      const updatedUser = { ...userToUpdate, isBanned: !userToUpdate.isBanned };
+      const isBanned = !userToUpdate.isBanned;
+      const updatedUser = { ...userToUpdate, isBanned };
+      
+      // Update local list state immediately for UI responsiveness
+      setDbUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      
+      console.log(`[AdminPanel] Toggling ban for ${userId} to ${isBanned}`);
+      
+      // 1. Sauvegarde via saveUser (local + global upsert)
       await saveUser(updatedUser);
-      await fetchUsers();
+      
+      // 2. Force l'update spécifique du champ is_banned dans Supabase par précaution
+      if (isSupabaseConfigured()) {
+        const { error } = await supabase
+          .from('users')
+          .update({ is_banned: isBanned })
+          .eq('id', userId);
+        
+        if (error) {
+          console.error("[AdminPanel] Supabase error during ban toggle:", error);
+          throw error;
+        }
+      }
+      
+      // Si c'est l'utilisateur actuel
+      if (userId === user.id) {
+        onRefreshUser();
+      }
+
       if (enableHaptics) vibrate(100);
-      alert(`User ${userToUpdate.username} ${updatedUser.isBanned ? 'BANNED' : 'UNBANNED'}!`);
+      alert(`User ${userToUpdate.username} ${isBanned ? 'BANNED' : 'UNBANNED'}!`);
     } catch (err: any) {
       console.error("[AdminPanel] Error toggling ban:", err);
       alert(`Error: ${err.message || 'Failed to update ban status'}`);
+      // Rollback local state on error
+      await fetchUsers();
     }
   };
 

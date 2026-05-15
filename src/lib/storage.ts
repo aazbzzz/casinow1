@@ -372,6 +372,7 @@ export async function getQuests(): Promise<Quest[]> {
       .eq('user_id', uid);
     
     if (!error && data && data.length > 0) {
+      console.log(`[storage] Quests loaded from DB for ${uid}:`, data.length);
       return data.map(q => ({
         id: q.quest_id,
         title: q.title,
@@ -383,7 +384,8 @@ export async function getQuests(): Promise<Quest[]> {
         completed: q.completed,
         claimed: q.claimed
       }));
-    } else if (!error && (!data || data.length === 0)) {
+    } else {
+      console.log(`[storage] No quests in DB for ${uid}, loading initial quests...`);
       // No quests in DB yet, return initial quests
       const { INITIAL_QUESTS } = await import('./quests');
       const initial = INITIAL_QUESTS.map((q, i) => ({
@@ -402,6 +404,7 @@ export async function getQuests(): Promise<Quest[]> {
 
   // Default fallback if no DB and no LocalStorage
   const { INITIAL_QUESTS } = await import('./quests');
+  console.log(`[storage] Loading default fallback quests`);
   return INITIAL_QUESTS.map((q, i) => ({
     ...q,
     id: `q-${i}`,
@@ -716,17 +719,21 @@ export function getDefaultUser(uid?: string): User {
 export async function resetAllData(): Promise<void> {
   try {
     if (isSupabaseConfigured()) {
-      console.log("[storage] Resetting ALL data (keeping user accounts)...");
+      console.log("[storage] Resetting ALL data (keeping user accounts & unbanning)...");
 
-      // 1. Supprimer l'historique et les données liées
-      await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('game_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('quests').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('transfers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('promo_codes').delete().neq('code', 'RESET_ALL_DATA_BYPASS');
+      // 1. Supprimer l'historique et les données liées de TOUS les utilisateurs
+      // Utilisation d'un filtre bidon pour autoriser la suppression massive sur Supabase
+      const dummyFilter = '00000000-0000-0000-0000-000000000000';
+      await Promise.all([
+        supabase.from('transactions').delete().neq('id', dummyFilter),
+        supabase.from('game_history').delete().neq('id', dummyFilter),
+        supabase.from('quests').delete().neq('id', dummyFilter),
+        supabase.from('transfers').delete().neq('id', dummyFilter),
+        supabase.from('promo_codes').delete().neq('code', 'RESET_ALL_DATA_BYPASS')
+      ]);
 
-      // 2. Réinitialiser les balances et VIP des utilisateurs sans supprimer les comptes
-      await supabase.from('users').update({ 
+      // 2. Réinitialiser les comptes : 1000 Credits, VIP 1, Bank 0, Débannir
+      const { error: userResetError } = await supabase.from('users').update({ 
         balance: 1000, 
         bank_balance: 0, 
         vip_level: 1, 
@@ -734,13 +741,26 @@ export async function resetAllData(): Promise<void> {
         total_won: 0,
         total_lost: 0,
         last_daily_claim: null,
-        referral_uses: 0
-      }).neq('id', '00000000-0000-0000-0000-000000000000');
+        referral_uses: 0,
+        is_banned: false
+      }).neq('id', dummyFilter);
+
+      if (userResetError) {
+        console.error("[storage] Error during global user reset:", userResetError);
+        throw userResetError;
+      }
     }
 
-    localStorage.clear();
+    // On ne clear que les données de jeu locales pour éviter de déconnecter l'admin si possible
+    // mais pour être sûr que tout est synchro, on peut vider les préfixes spécifiques
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('casino_') || key === 'app_cheats') {
+        localStorage.removeItem(key);
+      }
+    });
 
-    console.log("[storage] Reset complete (accounts preserved).");
+    console.log("[storage] Reset complete. Database cleaned, users unbanned and reset to 1000 credits.");
   } catch (err) {
     console.error("[storage] Global reset error:", err);
     throw err;
