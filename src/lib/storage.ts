@@ -733,7 +733,8 @@ export async function resetAllData(): Promise<void> {
       ]);
 
       // 2. Réinitialiser les comptes : 1000 Credits, VIP 1, Bank 0, Débannir
-      const { error: userResetError } = await supabase.from('users').update({ 
+      // Note: On fait l'update champ par champ ou on capture l'erreur pour identifier la colonne manquante
+      const resetPayload: any = { 
         balance: 1000, 
         bank_balance: 0, 
         vip_level: 1, 
@@ -743,10 +744,17 @@ export async function resetAllData(): Promise<void> {
         last_daily_claim: null,
         referral_uses: 0,
         is_banned: false
-      }).neq('id', dummyFilter);
+      };
+
+      console.log("[storage] Sending reset update to users table...");
+      const { error: userResetError } = await supabase.from('users').update(resetPayload).neq('id', dummyFilter);
 
       if (userResetError) {
-        console.error("[storage] Error during global user reset:", userResetError);
+        console.error("[storage] Supabase Reset Error details:", userResetError);
+        // Si l'erreur est liée à une colonne manquante, on affiche un message clair
+        if (userResetError.message?.includes("column")) {
+          alert(`Database Schema Error: ${userResetError.message}. Please run the SQL migration in Supabase dashboard.`);
+        }
         throw userResetError;
       }
     }
