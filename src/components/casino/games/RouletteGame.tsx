@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Coins, Info, Lock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Coins, Info, Lock, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
