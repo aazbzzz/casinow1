@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe, Lock } from 'lucide-react';
+import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck } from 'lucide-react';
 import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
@@ -258,6 +258,26 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     } catch (err: any) {
       console.error("[AdminPanel] Error updating user:", err);
       alert(`Error: ${err.message || 'Failed to save changes'}`);
+    }
+  };
+
+  const handleToggleBan = async (userId: string) => {
+    const userToUpdate = dbUsers.find(u => u.id === userId);
+    if (!userToUpdate) return;
+    if (userId === user.id) {
+      alert("You cannot ban yourself!");
+      return;
+    }
+
+    try {
+      const updatedUser = { ...userToUpdate, isBanned: !userToUpdate.isBanned };
+      await saveUser(updatedUser);
+      await fetchUsers();
+      if (enableHaptics) vibrate(100);
+      alert(`User ${userToUpdate.username} ${updatedUser.isBanned ? 'BANNED' : 'UNBANNED'}!`);
+    } catch (err: any) {
+      console.error("[AdminPanel] Error toggling ban:", err);
+      alert(`Error: ${err.message || 'Failed to update ban status'}`);
     }
   };
 
@@ -521,10 +541,14 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                           {u.username[0].toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-black text-white text-lg">{u.username} {u.id === user.id && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded ml-2 uppercase tracking-widest text-gray-400">You</span>}</div>
+                          <div className="font-black text-white text-lg flex items-center gap-2">
+                            {u.username} 
+                            {u.id === user.id && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded uppercase tracking-widest text-gray-400">You</span>}
+                            {u.isBanned && <span className="text-[10px] bg-red-500/20 px-2 py-0.5 rounded uppercase tracking-widest text-red-500 font-black flex items-center gap-1"><Ban className="size-2.5" /> BANNED</span>}
+                          </div>
                           <div className="flex flex-col gap-0.5">
                             <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">ID: {u.id}</div>
-                            <div className="text-[10px] text-red-500/80 font-black uppercase tracking-widest flex items-center gap-1">
+                            <div className="text-[10px] text-red-500/80 font-medium tracking-widest flex items-center gap-1">
                               <Lock className="size-2.5" /> PW: {u.password}
                             </div>
                           </div>
@@ -577,6 +601,13 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             style={{ backgroundColor: primaryAccent }}
                           >
                             Save Changes
+                          </button>
+                          <button
+                            onClick={() => handleToggleBan(u.id)}
+                            className={`px-4 py-2 rounded-lg font-black text-xs uppercase border-2 flex items-center gap-2 ${u.isBanned ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-red-500/20 border-red-500 text-red-500'}`}
+                          >
+                            {u.isBanned ? <ShieldCheck className="size-3" /> : <Ban className="size-3" />}
+                            {u.isBanned ? 'Unban' : 'Ban'}
                           </button>
                           <button
                             onClick={() => setEditingUser(null)}

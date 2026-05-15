@@ -10,6 +10,7 @@ export interface User {
   createdAt: string;
   hasDeposited: boolean;
   usedPromoCodes?: string[];
+  isBanned?: boolean;
   activeMultiplier?: {
     value: number;
     expiresAt: number;

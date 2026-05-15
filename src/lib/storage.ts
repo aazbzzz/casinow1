@@ -86,6 +86,7 @@ export async function fetchUser(uid?: string): Promise<User> {
           createdAt: data.created_at,
           hasDeposited: !!data.has_deposited,
           usedPromoCodes: data.used_promo_codes || [],
+          isBanned: !!data.is_banned,
           activeMultiplier: data.active_multiplier || null,
         };
         
@@ -161,6 +162,7 @@ export async function saveUser(user: User): Promise<void> {
         vip_level: cleanUser.vipLevel,
         total_wagered: cleanUser.totalWagered,
         has_deposited: cleanUser.hasDeposited,
+        is_banned: cleanUser.isBanned || false,
         used_promo_codes: cleanUser.usedPromoCodes || [],
       };
       
@@ -193,6 +195,7 @@ export async function getAllUsers(): Promise<User[]> {
         totalWagered: Number(d.total_wagered) || 0,
         createdAt: d.created_at,
         hasDeposited: d.has_deposited,
+        isBanned: !!d.is_banned,
         usedPromoCodes: d.used_promo_codes || [],
         activeMultiplier: d.active_multiplier || null,
       }));
@@ -380,11 +383,32 @@ export async function getQuests(): Promise<Quest[]> {
         completed: q.completed,
         claimed: q.claimed
       }));
+    } else if (!error && (!data || data.length === 0)) {
+      // No quests in DB yet, return initial quests
+      const { INITIAL_QUESTS } = await import('./quests');
+      const initial = INITIAL_QUESTS.map((q, i) => ({
+        ...q,
+        id: `q-${i}`,
+        progress: 0,
+        completed: false,
+        claimed: false
+      }));
+      return initial;
     }
   }
 
   const stored = localStorage.getItem(`casino_quests_${uid}`);
-  return stored ? JSON.parse(stored) : [];
+  if (stored) return JSON.parse(stored);
+
+  // Default fallback if no DB and no LocalStorage
+  const { INITIAL_QUESTS } = await import('./quests');
+  return INITIAL_QUESTS.map((q, i) => ({
+    ...q,
+    id: `q-${i}`,
+    progress: 0,
+    completed: false,
+    claimed: false
+  }));
 }
 
 export async function saveQuests(quests: Quest[]): Promise<void> {

@@ -98,6 +98,12 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
         return;
       }
 
+      if (user.isBanned) {
+        setError('Votre compte a été banni par un administrateur.');
+        if (enableHaptics) vibrate([100, 50, 100]);
+        return;
+      }
+
       if (rememberMe) {
         localStorage.setItem('casino_remembered_account', JSON.stringify({ u: username, p: password }));
       } else {
