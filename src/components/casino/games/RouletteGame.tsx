@@ -29,6 +29,9 @@ const getNumberColor = (num: number) => {
 };
 
 export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: RouletteGameProps) {
+  const user = getUser();
+  const cheats = getCheats(user);
+
   const [betAmount, setBetAmount] = useState(10);
   const [selectedColor, setSelectedColor] = useState<ColorBet | null>(null);
   const [selectedParity, setSelectedParity] = useState<ParityBet | null>(null);
@@ -72,9 +75,6 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
   const secondaryAccent = tweaks.secondaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
   const animSpeed = tweaks.animationSpeed.useState();
-  
-  const user = getUser();
-  const cheats = getCheats(user);
   
   const isReady = selectedNumber !== null || selectedColor !== null || selectedParity !== null || selectedRange !== null;
 

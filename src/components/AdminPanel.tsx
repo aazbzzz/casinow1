@@ -54,7 +54,8 @@ interface AdminPanelProps {
   promoCodes: PromoCode[];
   onUpdatePromoCodes: (codes: PromoCode[]) => void;
   user: User;
-  onRefreshUser: () => void;
+  onRefreshUser: () => void | Promise<void>;
+  cheatOnlyMode?: boolean;
 }
 
 interface FileNode {
