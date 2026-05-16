@@ -170,7 +170,7 @@ interface AdminPanelProps {
         // Player role: remove special access
         updatedUser.hasCheatAccess = false;
         updatedUser.cheatExpiresAt = null;
-        updatedUser.cheats = null;
+        updatedUser.cheats = undefined;
       } else {
         // Admin & Moderator: roles provide access via getCheats()
         // We preserve existing hasCheatAccess if they have it from a promo code

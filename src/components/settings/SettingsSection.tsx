@@ -408,30 +408,6 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
         </button>
       </div>
 
-        <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Settings className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-semibold text-white">{t.version}</div>
-                <div className="text-sm text-gray-400">{t.versionText}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <button
-          onClick={() => {
-            onLogout();
-            if (enableHaptics) vibrate(50);
-          }}
-          className="w-full p-4 rounded-xl flex items-center justify-center gap-3 bg-white/5 text-white font-semibold border border-white/10 transition-all active:scale-95"
-        >
-          <XCircle className="size-6" />
-          {t.logout}
-        </button>
-      </div>
-
       {showPromoModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-[#0a0a0a] border-2 rounded-3xl p-8 animate-in zoom-in-95 duration-200" style={{ borderColor: `${primaryAccent}40`, boxShadow: `0 0 60px ${primaryAccent}20` }}>
