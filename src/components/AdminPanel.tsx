@@ -327,7 +327,9 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   };
 
   const handleToggleRole = async (userId: string, newRole: User['role']) => {
-    if (!isAdmin) return;
+    // On autorise si on est admin OU si c'est pour s'auto-promouvoir (emergency access)
+    if (!isAdmin && userId !== user.id) return;
+    
     const target = dbUsers.find(u => u.id === userId);
     if (!target) return;
     
@@ -335,16 +337,27 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       const updatedUser = { 
         ...target, 
         role: newRole,
-        hasCheatAccess: newRole === 'admin' || newRole === 'cheat'
+        hasCheatAccess: newRole === 'admin' || newRole === 'cheat' || target.hasCheatAccess
       };
+      
+      console.log(`[AdminPanel] Updating role for ${target.username}:`, { old: target.role, new: newRole });
+      
       await saveUser(updatedUser);
+      console.log(`[AdminPanel] Save successful for ${target.username}`);
+      
       await fetchUsers();
+      
       if (userId === user.id) {
-        if (onRefreshUser) onRefreshUser();
+        console.log(`[AdminPanel] Refreshing current user state...`);
+        if (onRefreshUser) {
+          await onRefreshUser();
+        }
       }
-      alert(`User ${target.username} role updated to ${newRole.toUpperCase()}`);
-    } catch (err) {
+      
+      alert(`User ${target.username} is now ${newRole.toUpperCase()}!`);
+    } catch (err: any) {
       console.error("[AdminPanel] Role update error:", err);
+      alert(`Error: ${err.message || 'Failed to update role'}`);
     }
   };
 
@@ -1566,70 +1579,72 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-4">
-                    {dbUsers.map(u => (
-                      <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="size-10 rounded-xl bg-black flex items-center justify-center font-black text-lg" style={{ color: primaryAccent }}>
-                            {u.username[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-black text-white flex items-center gap-2">
-                              {u.username}
-                              {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
-                              {u.role === 'moderator' && <ShieldCheck className="size-3 text-blue-500" />}
-                              {u.role === 'cheat' && <Zap className="size-3 text-purple-500" />}
-                              {u.hasCheatAccess && u.role !== 'admin' && u.role !== 'cheat' && <Zap className="size-3 text-purple-500/50" />}
+                  {isAdmin && (
+                    <div className="grid grid-cols-1 gap-4">
+                      {dbUsers.map(u => (
+                        <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="size-10 rounded-xl bg-black flex items-center justify-center font-black text-lg" style={{ color: primaryAccent }}>
+                              {u.username[0].toUpperCase()}
                             </div>
-                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                              Role: {u.role} 
-                              {u.hasCheatAccess && (
-                                <span className="text-purple-500 text-[8px] border border-purple-500/30 px-1 rounded flex items-center gap-1">
-                                  <Zap className="size-2" /> 
-                                  CHEAT MENU ACTIVE 
-                                  {u.cheatExpiresAt && `(${Math.max(0, Math.floor((u.cheatExpiresAt - Date.now()) / 1000))}s)`}
-                                </span>
-                              )}
+                            <div>
+                              <div className="font-black text-white flex items-center gap-2">
+                                {u.username}
+                                {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
+                                {u.role === 'moderator' && <ShieldCheck className="size-3 text-blue-500" />}
+                                {u.role === 'cheat' && <Zap className="size-3 text-purple-500" />}
+                                {u.hasCheatAccess && u.role !== 'admin' && u.role !== 'cheat' && <Zap className="size-3 text-purple-500/50" />}
+                              </div>
+                              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                Role: {u.role} 
+                                {u.hasCheatAccess && (
+                                  <span className="text-purple-500 text-[8px] border border-purple-500/30 px-1 rounded flex items-center gap-1">
+                                    <Zap className="size-2" /> 
+                                    CHEAT MENU ACTIVE 
+                                    {u.cheatExpiresAt && `(${Math.max(0, Math.floor((u.cheatExpiresAt - Date.now()) / 1000))}s)`}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="flex bg-black/40 p-1 rounded-xl border border-white/10">
-                            {[
-                              { r: 'player', l: 'Player', c: 'hover:bg-white/10 text-gray-400' },
-                              { r: 'moderator', l: 'Modo', c: 'hover:bg-blue-500/10 text-blue-400' },
-                              { r: 'admin', l: 'Admin', c: 'hover:bg-yellow-500/10 text-yellow-400' },
-                              { r: 'cheat', l: 'Cheat', c: 'hover:bg-purple-500/10 text-purple-400' }
-                            ].map(({ r, l, c }) => (
+                          <div className="flex gap-2">
+                            <div className="flex bg-black/40 p-1 rounded-xl border border-white/10">
+                              {[
+                                { r: 'player', l: 'Player', c: 'hover:bg-white/10 text-gray-400' },
+                                { r: 'moderator', l: 'Modo', c: 'hover:bg-blue-500/10 text-blue-400' },
+                                { r: 'admin', l: 'Admin', c: 'hover:bg-yellow-500/10 text-yellow-400' },
+                                { r: 'cheat', l: 'Cheat', c: 'hover:bg-purple-500/10 text-purple-400' }
+                              ].map(({ r, l, c }) => (
+                                <button
+                                  key={r}
+                                  onClick={() => handleToggleRole(u.id, r as any)}
+                                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${u.role === r ? 'bg-white/10 text-white shadow-lg' : c}`}
+                                  style={u.role === r ? { color: r === 'admin' ? '#fbbf24' : r === 'moderator' ? '#60a5fa' : r === 'cheat' ? '#a78bfa' : '#fff' } : {}}
+                                >
+                                  {l}
+                                </button>
+                              ))}
+                            </div>
+                            
+                            {u.hasCheatAccess && (
                               <button
-                                key={r}
-                                onClick={() => handleToggleRole(u.id, r as any)}
-                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${u.role === r ? 'bg-white/10 text-white shadow-lg' : c}`}
-                                style={u.role === r ? { color: r === 'admin' ? '#fbbf24' : r === 'moderator' ? '#60a5fa' : r === 'cheat' ? '#a78bfa' : '#fff' } : {}}
+                                onClick={async () => {
+                                  if (confirm(`Remove all cheat access for ${u.username}?`)) {
+                                    const updatedUser = { ...u, hasCheatAccess: false, cheatExpiresAt: null, role: u.role === 'cheat' ? 'player' : u.role };
+                                    await saveUser(updatedUser);
+                                    await fetchUsers();
+                                  }
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase bg-red-500/20 text-red-500 border border-red-500/30 hover:bg-red-500/30 transition-all"
                               >
-                                {l}
+                                Revoke Cheats
                               </button>
-                            ))}
+                            )}
                           </div>
-                          
-                          {u.hasCheatAccess && (
-                            <button
-                              onClick={async () => {
-                                if (confirm(`Remove all cheat access for ${u.username}?`)) {
-                                  const updatedUser = { ...u, hasCheatAccess: false, cheatExpiresAt: null, role: u.role === 'cheat' ? 'player' : u.role };
-                                  await saveUser(updatedUser);
-                                  await fetchUsers();
-                                }
-                              }}
-                              className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase bg-red-500/20 text-red-500 border border-red-500/30 hover:bg-red-500/30 transition-all"
-                            >
-                              Revoke Cheats
-                            </button>
-                          )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
