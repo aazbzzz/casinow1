@@ -79,14 +79,46 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   }, []);
 
   const handleToggleRole = async (userId: string, newRole: 'admin' | 'moderator' | 'player' | 'cheat') => {
-    const targetUser = dbUsers.find(u => u.id === userId);
-    if (targetUser) {
-      const updatedUser = { ...targetUser, role: newRole };
-      if (newRole === 'cheat') updatedUser.hasCheatAccess = true;
-      await saveUser(updatedUser);
-      await fetchUsers();
-      if (userId === user.id) onRefreshUser?.();
-      if (enableHaptics) vibrate(100);
+    try {
+      const targetUser = dbUsers.find(u => u.id === userId);
+      if (targetUser) {
+        const updatedUser = { ...targetUser, role: newRole };
+        if (newRole === 'cheat') {
+          updatedUser.hasCheatAccess = true;
+        } else if (newRole === 'player') {
+          updatedUser.hasCheatAccess = false;
+        }
+        await saveUser(updatedUser);
+        await fetchUsers();
+        if (userId === user.id) onRefreshUser?.();
+        if (enableHaptics) vibrate(100);
+      }
+    } catch (err) {
+      console.error("[AdminPanel] Error toggling role:", err);
+      alert("Erreur lors de la modification du rôle.");
+    }
+  };
+
+  const handleUpdateUserData = async () => {
+    if (!editingUser) return;
+    try {
+      const targetUser = dbUsers.find(u => u.id === editingUser);
+      if (targetUser) {
+        const updatedUser = { 
+          ...targetUser, 
+          balance: Number(editBalances.balance), 
+          bankBalance: Number(editBalances.bankBalance),
+          vipLevel: Number(editBalances.vipLevel)
+        };
+        await saveUser(updatedUser);
+        await fetchUsers();
+        setEditingUser(null);
+        if (editingUser === user.id) onRefreshUser?.();
+        if (enableHaptics) vibrate(200);
+      }
+    } catch (err) {
+      console.error("[AdminPanel] Error updating user data:", err);
+      alert("Erreur lors de la mise à jour des données.");
     }
   };
 
@@ -164,9 +196,9 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         <div className="flex gap-2 px-6 py-4 border-b-2 shrink-0 overflow-x-auto" style={{ borderColor: `${primaryAccent}20` }}>
           {[
             { key: 'users', label: 'User Database', icon: Users, show: !cheatOnlyMode },
+            { key: 'promo', label: 'Promo Code Creation', icon: Ticket, show: !cheatOnlyMode },
             { key: 'cheats', label: 'Cheats', icon: Zap, show: true },
             { key: 'roles', label: 'User Role Management', icon: Shield, show: !cheatOnlyMode },
-            { key: 'promo', label: 'Promo Code Creation', icon: Ticket, show: isAdmin },
           ].filter(tab => tab.show).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -189,7 +221,76 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
 
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'users' && (
-            <div className="space-y-6">
+            <div className="space-y-6 relative">
+              {editingUser && (
+                <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md rounded-[2rem] p-8 flex flex-col items-center justify-center border-2" style={{ borderColor: primaryAccent }}>
+                  <div className="w-full max-w-md space-y-6">
+                    <div className="flex items-center justify-between mb-8">
+                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Edit User Data</h3>
+                      <button onClick={() => setEditingUser(null)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400"><X /></button>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Username</label>
+                      <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold opacity-50">
+                        {dbUsers.find(u => u.id === editingUser)?.username}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Balance</label>
+                        <input
+                          type="number"
+                          value={editBalances.balance}
+                          onChange={(e) => setEditBalances({ ...editBalances, balance: Number(e.target.value) })}
+                          className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                          style={{ borderColor: `${primaryAccent}40` }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Bank Balance</label>
+                        <input
+                          type="number"
+                          value={editBalances.bankBalance}
+                          onChange={(e) => setEditBalances({ ...editBalances, bankBalance: Number(e.target.value) })}
+                          className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                          style={{ borderColor: `${primaryAccent}40` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-black text-gray-500 uppercase mb-2 block">VIP Level (1-10)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={editBalances.vipLevel}
+                        onChange={(e) => setEditBalances({ ...editBalances, vipLevel: Number(e.target.value) })}
+                        className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                        style={{ borderColor: `${primaryAccent}40` }}
+                      />
+                    </div>
+
+                    <div className="pt-4 flex gap-4">
+                      <button
+                        onClick={handleUpdateUserData}
+                        className="flex-1 py-4 rounded-xl font-black text-black transition-all active:scale-95"
+                        style={{ backgroundColor: primaryAccent }}
+                      >
+                        SAVE CHANGES
+                      </button>
+                      <button
+                        onClick={() => setEditingUser(null)}
+                        className="px-8 py-4 rounded-xl font-black text-white bg-white/5 border-2 border-white/10 transition-all active:scale-95"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {dbUsers.map((u) => (
                   <div key={u.id} className="p-6 rounded-[2rem] bg-black/40 border-2 transition-all hover:border-white/20" style={{ borderColor: `${primaryAccent}10` }}>
@@ -215,28 +316,44 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         <div className="text-white font-black">Lvl {u.vipLevel}</div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setCheatTargetUserId(u.id);
-                          setActiveTab('cheats');
-                          if (enableHaptics) vibrate(50);
-                        }}
-                        className="flex-1 py-3 rounded-xl bg-white/5 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/10 border border-white/10"
-                      >
-                        Control
-                      </button>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingUser(u.id);
+                            setEditBalances({ 
+                              balance: u.balance, 
+                              bankBalance: u.bankBalance || 0, 
+                              vipLevel: u.vipLevel 
+                            });
+                            if (enableHaptics) vibrate(50);
+                          }}
+                          className="flex-1 py-3 rounded-xl bg-blue-500/10 text-blue-400 font-black text-[10px] uppercase tracking-widest hover:bg-blue-500/20 border border-blue-500/30"
+                        >
+                          Edit Data
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCheatTargetUserId(u.id);
+                            setActiveTab('cheats');
+                            if (enableHaptics) vibrate(50);
+                          }}
+                          className="flex-1 py-3 rounded-xl bg-purple-500/10 text-purple-400 font-black text-[10px] uppercase tracking-widest hover:bg-purple-500/20 border border-purple-500/30"
+                        >
+                          Cheats
+                        </button>
+                      </div>
                       <button
                         onClick={async () => {
-                          if (confirm(`Ban user ${u.username}?`)) {
+                          if (confirm(`${u.isBanned ? 'Unban' : 'Ban'} user ${u.username}?`)) {
                             const updatedUser = { ...u, isBanned: !u.isBanned };
                             await saveUser(updatedUser);
                             await fetchUsers();
                           }
                         }}
-                        className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest border transition-all ${u.isBanned ? 'bg-red-500 text-white border-red-500' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}`}
+                        className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest border transition-all ${u.isBanned ? 'bg-red-500 text-white border-red-500' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}`}
                       >
-                        {u.isBanned ? 'Unban' : 'Ban'}
+                        {u.isBanned ? 'Unban User' : 'Ban User'}
                       </button>
                     </div>
                   </div>
@@ -650,38 +767,39 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                   User Roles & System Management
                 </h3>
                 
-                {isAdmin && (
-                  <div className="grid grid-cols-1 gap-4">
-                    {dbUsers.map(u => (
-                      <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="size-10 rounded-xl bg-black flex items-center justify-center font-black text-lg" style={{ color: primaryAccent }}>
-                            {u.username[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-black text-white flex items-center gap-2">
-                              {u.username}
-                              {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
-                            </div>
-                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">Role: {u.role}</div>
-                          </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {dbUsers.map(u => (
+                    <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between transition-all hover:bg-white/10">
+                      <div className="flex items-center gap-4">
+                        <div className="size-10 rounded-xl bg-black flex items-center justify-center font-black text-lg border border-white/10" style={{ color: primaryAccent }}>
+                          {u.username[0].toUpperCase()}
                         </div>
-                        <div className="flex gap-2">
-                          {['player', 'moderator', 'admin', 'cheat'].map((r) => (
-                            <button
-                              key={r}
-                              onClick={() => handleToggleRole(u.id, r as any)}
-                              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${u.role === r ? 'bg-white/10 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}
-                              style={u.role === r ? { color: r === 'admin' ? '#fbbf24' : r === 'moderator' ? '#60a5fa' : r === 'cheat' ? '#a78bfa' : '#fff' } : {}}
-                            >
-                              {r}
-                            </button>
-                          ))}
+                        <div>
+                          <div className="font-black text-white flex items-center gap-2">
+                            {u.username}
+                            {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
+                          </div>
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">Role: {u.role}</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div className="flex gap-2 bg-black/40 p-1 rounded-xl border border-white/10">
+                        {['player', 'moderator', 'admin', 'cheat'].map((r) => (
+                          <button
+                            key={r}
+                            onClick={() => handleToggleRole(u.id, r as any)}
+                            className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all active:scale-95 ${u.role === r ? 'bg-white/20 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                            style={u.role === r ? { 
+                              color: r === 'admin' ? '#fbbf24' : r === 'moderator' ? '#60a5fa' : r === 'cheat' ? '#a78bfa' : '#fff',
+                              backgroundColor: r === 'admin' ? 'rgba(251, 191, 36, 0.1)' : r === 'moderator' ? 'rgba(96, 165, 250, 0.1)' : r === 'cheat' ? 'rgba(167, 139, 250, 0.1)' : 'rgba(255, 255, 255, 0.1)'
+                            } : {}}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
