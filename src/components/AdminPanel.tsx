@@ -40,7 +40,7 @@ interface AdminPanelProps {
   promoCodes: PromoCode[];
   onUpdatePromoCodes: (codes: PromoCode[]) => void;
   user: User;
-  onRefreshUser?: () => void;
+  onRefreshUser?: (updatedUser?: User) => void;
   cheatOnlyMode?: boolean;
   staffMode?: 'admin' | 'mod';
 }
