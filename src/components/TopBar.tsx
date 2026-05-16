@@ -47,7 +47,7 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
                 }}
               >
                 {user.role === 'admin' && <Crown className="size-3 text-black" fill="currentColor" />}
-                {user.role === 'moderator' && <ShieldCheck className="size-3 text-white" />}
+                {user.role === 'moderator' && <ShieldCheck className="size-3 text-white" fill="currentColor" />}
                 {user.role === 'cheat' && <Zap className="size-3 text-white" fill="currentColor" />}
               </div>
             )}

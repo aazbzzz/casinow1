@@ -56,7 +56,7 @@ export async function fetchUser(uid?: string): Promise<User> {
 
   if (isSupabaseConfigured()) {
     try {
-      console.log(`[storage] fetchUser from Supabase:`, { targetUid });
+      // On force la récupération depuis le serveur sans cache
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -98,11 +98,14 @@ export async function fetchUser(uid?: string): Promise<User> {
           activeMultiplier: data.active_multiplier || null,
         };
         
+        // Mettre à jour le cache local avec la version du serveur
         localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
         return user;
+      } else if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+        console.error("[storage] fetchUser Supabase error:", error);
       }
     } catch (err) {
-      console.error("[storage] fetchUser error:", err);
+      console.error("[storage] fetchUser critical error:", err);
     }
   }
 
@@ -111,65 +114,57 @@ export async function fetchUser(uid?: string): Promise<User> {
 }
 
 export async function saveUser(user: User): Promise<void> {
-  if (!user.id) return;
+  if (!user.id || user.id === 'guest') return;
 
   const cleanNum = (val: any): number => {
     if (val === null || val === undefined) return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
     if (typeof val === 'string') {
-      // Remove spaces and handle both dot and comma
-      let cleaned = val.replace(/\s/g, '');
-      if (cleaned.includes(',') && cleaned.includes('.')) {
-        // Assume format like 1,234.56 or 1.234,56
-        if (cleaned.indexOf(',') < cleaned.indexOf('.')) {
-          cleaned = cleaned.replace(/,/g, ''); // 1,234.56 -> 1234.56
-        } else {
-          cleaned = cleaned.replace(/\./g, '').replace(',', '.'); // 1.234,56 -> 1234.56
-        }
-      } else {
-        cleaned = cleaned.replace(',', '.');
-      }
-      const parsed = parseFloat(cleaned.replace(/[^0-9.-]/g, ''));
+      let cleaned = val.replace(/\s/g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
+      const parsed = parseFloat(cleaned);
       return isNaN(parsed) ? 0 : parsed;
     }
     return 0;
   };
 
-  // On conserve les décimales car nous passons en NUMERIC/DOUBLE PRECISION
   const cleanUser = {
     ...user,
     balance: cleanNum(user.balance),
     bankBalance: cleanNum(user.bankBalance),
     totalWagered: cleanNum(user.totalWagered),
-    vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel)))
+    vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel))),
+    version: (user.version || 0)
   };
 
-  // 1. Toujours sauvegarder localement en premier pour garantir la persistence immédiate
+  // 1. Sauvegarde locale immédiate (optimistic UI / fallback)
   localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
 
-  // Mettre à jour le cache local des utilisateurs pour la connexion/recherche
+  // Mettre à jour le cache local des utilisateurs pour la recherche/connexion
   const storedUsers = localStorage.getItem(STORAGE_KEYS.CACHE_USERS);
-  let users: User[] = storedUsers ? JSON.parse(storedUsers) : [];
-  const index = users.findIndex(u => u.id === cleanUser.id);
-  if (index !== -1) {
-    users[index] = cleanUser;
-  } else {
-    users.push(cleanUser);
+  if (storedUsers) {
+    let users: User[] = JSON.parse(storedUsers);
+    const index = users.findIndex(u => u.id === cleanUser.id);
+    if (index !== -1) {
+      users[index] = cleanUser;
+    } else {
+      users.push(cleanUser);
+    }
+    localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
   }
-  localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
 
-  // 2. Tenter la sauvegarde Cloud
+  // 2. Tenter la sauvegarde Cloud avec protection de version
   if (isSupabaseConfigured()) {
     try {
-      // Fetch current version to prevent rollbacks
+      // Récupérer la version actuelle en DB pour éviter les rollbacks
       const { data: current, error: fetchError } = await supabase
         .from('users')
         .select('version')
         .eq('id', cleanUser.id)
         .single();
       
-      if (!fetchError && current && (current.version || 0) > (cleanUser.version || 0)) {
-        console.warn(`[Supabase] Save aborted for ${cleanUser.username}: Cloud version (${current.version}) is newer than Local version (${cleanUser.version})`);
+      // Si la version en DB est strictement supérieure, on n'écrase pas (conflit résolu par fetchLatestData plus tard)
+      if (!fetchError && current && (current.version || 0) > cleanUser.version) {
+        console.warn(`[storage] saveUser ignored: DB version (${current.version}) > Local version (${cleanUser.version})`);
         return;
       }
 
@@ -192,18 +187,17 @@ export async function saveUser(user: User): Promise<void> {
         cheats: cleanUser.cheats || null,
         used_promo_codes: cleanUser.usedPromoCodes || [],
         active_multiplier: cleanUser.activeMultiplier || null,
-        version: cleanUser.version || 0,
+        version: cleanUser.version,
       };
       
-      console.log(`[storage] Saving user ${cleanUser.username} (v${cleanUser.version}) to Supabase...`);
       const { error } = await supabase.from('users').upsert(dbData, { onConflict: 'id' });
       
-      if (error) {
-        console.error("[Supabase] Upsert error:", error);
-        throw error;
-      }
+      if (error) throw error;
+      
+      console.log(`[storage] User ${cleanUser.username} saved successfully (v${cleanUser.version})`);
     } catch (err) {
-      console.error("[Supabase] Critical save error:", err);
+      console.error("[storage] saveUser Cloud error:", err);
+      // On ne throw pas pour laisser l'app continuer en local si le cloud est down
     }
   }
 }

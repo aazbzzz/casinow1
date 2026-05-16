@@ -253,23 +253,28 @@ function App() {
   const handleAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (adminInput === '190608') {
-      // Devenir admin dans la DB
-      const updatedUser = { 
-        ...user, 
-        role: 'admin' as const,
-        hasCheatAccess: true,
-        showBadge: true,
-        version: (user.version || 0) + 1
-      };
-      await saveUser(updatedUser);
-      refreshUser(updatedUser);
-      
-      setShowAdminPanel(true);
-      setShowAdminCode(false);
-      setAdminInput('');
-      localStorage.setItem('admin_panel_unlocked', 'true');
-      if (enableHaptics) vibrate(100);
-      alert("Accès Administrateur Complet Activé !");
+      try {
+        const freshUser = await fetchUser(user.id);
+        const updatedUser = { 
+          ...freshUser, 
+          role: 'admin' as const,
+          hasCheatAccess: true,
+          showBadge: true,
+          hideFromLeaderboard: false,
+          version: (freshUser.version || 0) + 1
+        };
+        await saveUser(updatedUser);
+        refreshUser(updatedUser);
+        
+        setShowAdminPanel(true);
+        setShowAdminCode(false);
+        setAdminInput('');
+        localStorage.setItem('admin_panel_unlocked', 'true');
+        if (enableHaptics) vibrate(100);
+        alert("Accès Administrateur Complet Activé !");
+      } catch (err) {
+        console.error("Admin Auth Error:", err);
+      }
     } else {
       setAdminInput('');
       if (enableHaptics) vibrate([50, 50]);
@@ -393,9 +398,15 @@ function App() {
                       <div>
                         <div className="font-black text-white uppercase tracking-tight flex items-center gap-2">
                           {entry.username || 'Anonyme'}
-                          {entry.role === 'admin' && entry.showBadge && <Crown className="size-3 text-yellow-500" fill="currentColor" />}
-                          {entry.role === 'moderator' && entry.showModBadge && <ShieldCheck className="size-3 text-blue-500" fill="currentColor" />}
-                          {entry.role === 'cheat' && <Zap className="size-3 text-purple-500" fill="currentColor" />}
+                          {entry.role === 'admin' && entry.showBadge && (
+                            <Crown className="size-3 text-yellow-500" fill="currentColor" />
+                          )}
+                          {entry.role === 'moderator' && entry.showModBadge && (
+                            <ShieldCheck className="size-3 text-blue-500" fill="currentColor" />
+                          )}
+                          {entry.role === 'cheat' && (
+                            <Zap className="size-3 text-purple-500" fill="currentColor" />
+                          )}
                         </div>
                         <div className="text-[10px] text-gray-500 font-bold uppercase">
                           {entry.role === 'admin' && entry.showBadge ? 'Administrator' : 

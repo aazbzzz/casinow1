@@ -15,13 +15,10 @@ export function useGameState() {
 
   const fetchLatestData = useCallback(async (force = false) => {
     const uid = getCurrentUID();
-    if (!uid) return;
+    if (!uid || uid === 'guest') return;
 
-    // Ne pas écraser si une mise à jour locale est en attente (race condition protection)
-    if (!force && isPendingSync.current && Date.now() - lastUpdateRef.current < 2000) {
-      console.log(`[useGameState] fetchLatestData skipped: local update pending`);
-      return;
-    }
+    // Ne pas écraser si une mise à jour locale est en cours
+    if (!force && isPendingSync.current) return;
 
     const [remoteUser, remoteQuests] = await Promise.all([
       fetchUser(uid),
@@ -30,23 +27,11 @@ export function useGameState() {
     
     if (remoteUser) {
       setUser(prev => {
-        // Si c'est un refresh forcé (ex: Realtime), on vérifie la version
-        if (force) {
-          // On n'écrase que si la version distante est plus récente
-          if (remoteUser.version >= prev.version) {
-            console.log(`[useGameState] Syncing state: Remote version (${remoteUser.version}) >= Local version (${prev.version})`);
-            return remoteUser;
-          } else {
-            console.log(`[useGameState] Sync skipped: Local version (${prev.version}) is newer than Remote version (${remoteUser.version})`);
-            return prev;
-          }
-        }
-
-        // Protection supplémentaire pour les fetchs normaux
+        // On n'écrase QUE si la version distante est strictement plus récente
         if (remoteUser.version > prev.version) {
+          console.log(`[useGameState] State updated from server: Remote (v${remoteUser.version}) > Local (v${prev.version})`);
           return remoteUser;
         }
-        
         return prev;
       });
     }
@@ -58,10 +43,9 @@ export function useGameState() {
     fetchLatestData(true);
 
     const uid = getCurrentUID();
-    if (!uid || !isSupabaseConfigured()) return;
+    if (!uid || !isSupabaseConfigured() || uid === 'guest') return;
 
     // REALTIME: Écouter les changements spécifiques à CET utilisateur
-    console.log(`[useGameState] Subscribing to self-updates for ${uid}...`);
     const userChannel = supabase
       .channel(`user-sync-${uid}`)
       .on('postgres_changes', { 
@@ -70,18 +54,35 @@ export function useGameState() {
         table: 'users', 
         filter: `id=eq.${uid}` 
       }, (payload: any) => {
-        console.log(`[useGameState] Realtime self-update detected:`, payload.new);
-        // On rafraîchit les données depuis la source de vérité
-        fetchLatestData(true);
-      })
-      .subscribe((status) => {
-        console.log(`[useGameState] Self-sync subscription status: ${status}`);
-      });
+        const newUser = payload.new;
+        if (!newUser) return;
 
-    // Listener pour les mises à jour de solde externes (ex: promo codes locaux)
-    const handleBalanceUpdate = () => {
-      fetchLatestData(true);
-    };
+        setUser(prev => {
+          if (newUser.version > prev.version) {
+            console.log(`[useGameState] Realtime sync: v${newUser.version} > v${prev.version}`);
+            return {
+              ...prev,
+              balance: Number(newUser.balance) || 0,
+              bankBalance: Number(newUser.bank_balance) || 0,
+              vipLevel: Number(newUser.vip_level) || 1,
+              totalWagered: Number(newUser.total_wagered) || 0,
+              role: newUser.role,
+              hasCheatAccess: !!newUser.has_cheat_access,
+              cheatExpiresAt: newUser.cheat_expires_at,
+              showBadge: !!newUser.show_badge,
+              showModBadge: !!newUser.show_mod_badge,
+              hideFromLeaderboard: !!newUser.hide_from_leaderboard,
+              isBanned: !!newUser.is_banned,
+              cheats: newUser.cheats,
+              version: newUser.version
+            };
+          }
+          return prev;
+        });
+      })
+      .subscribe();
+
+    const handleBalanceUpdate = () => fetchLatestData(true);
     window.addEventListener('casino_balance_update', handleBalanceUpdate);
 
     return () => {
@@ -111,26 +112,22 @@ export function useGameState() {
     };
 
     const numericAmount = cleanAmount(amount);
+    if (numericAmount === 0 && type !== 'bet') return;
+
+    isPendingSync.current = true;
     
     setUser(prev => {
       const currentBalance = cleanAmount(prev.balance);
       const newBalance = currentBalance + numericAmount;
       const newUser = { ...prev, balance: newBalance, version: prev.version + 1 };
       
-      console.log(`[useGameState] Balance update check:`, {
-        type,
-        game,
-        old: currentBalance,
-        change: numericAmount,
-        new: newBalance,
-        version: newUser.version
+      // Sauvegarde Cloud immédiate
+      saveUser(newUser).finally(() => {
+        isPendingSync.current = false;
+        window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
-      
-      // Save inside functional update to ensure we have the right state
-      saveUser(newUser).catch(err => console.error("[useGameState] updateBalance saveUser error:", err));
 
       if (type === 'win' || type === 'deposit' || type === 'withdraw') {
-        // Sync leaderboard
         reportScore(newUser.balance);
       }
       
@@ -151,46 +148,26 @@ export function useGameState() {
     };
 
     const numericAmount = cleanAmount(amount);
-    console.log(`[useGameState] placeBet start:`, { game, amount, numericAmount });
-
-    if (numericAmount <= 0) {
-      console.warn(`[useGameState] placeBet: Invalid amount`, { amount, numericAmount });
-      return false;
-    }
-
-    const currentVIP = VIP_LEVELS.find(l => l.level === user.vipLevel) || VIP_LEVELS[0];
-    const cheats = getCheats(user);
-
-    if (!cheats.maxBetOverride && numericAmount > currentVIP.maxBet) {
-      // Dispatch custom event instead of alert
-      window.dispatchEvent(new CustomEvent('casino_game_error', { 
-        detail: { message: "Vous n’avez pas le VIP requis pour miser cette somme." } 
-      }));
-      return false;
-    }
+    if (numericAmount <= 0) return false;
 
     const currentBalance = cleanAmount(user.balance);
+    const cheats = getCheats(user);
+
+    if (!cheats.infiniteBalance && currentBalance < numericAmount) return false;
     
-    if (!cheats.infiniteBalance && currentBalance < numericAmount) {
-      console.warn(`[useGameState] placeBet: Insufficient balance`, { currentBalance, numericAmount });
-      return false;
-    }
-    
+    isPendingSync.current = true;
+
     setUser(prev => {
       const prevBalance = cleanAmount(prev.balance);
-      if (!cheats.infiniteBalance && prevBalance < numericAmount) return prev;
+      if (!cheats.infiniteBalance && prevBalance < numericAmount) {
+        isPendingSync.current = false;
+        return prev;
+      }
 
       const newBalance = cheats.infiniteBalance ? prevBalance : prevBalance - numericAmount;
       const newWagered = cleanAmount(prev.totalWagered) + numericAmount;
       const vipLevel = getVIPLevel(newWagered);
       
-      console.log(`[useGameState] placeBet execution:`, { 
-        oldBalance: prevBalance, 
-        bet: numericAmount, 
-        newBalance, 
-        newWagered 
-      });
-
       const updatedUser = {
         ...prev,
         balance: newBalance,
@@ -199,7 +176,11 @@ export function useGameState() {
         version: prev.version + 1,
       };
 
-      saveUser(updatedUser).catch(err => console.error("[useGameState] placeBet saveUser error:", err));
+      saveUser(updatedUser).finally(() => {
+        isPendingSync.current = false;
+        window.dispatchEvent(new CustomEvent('leaderboard_update'));
+      });
+      
       reportScore(updatedUser.balance);
 
       addTransaction({
@@ -250,10 +231,6 @@ export function useGameState() {
     if (user.activeMultiplier && user.activeMultiplier.expiresAt > Date.now()) {
       const bonusMult = cleanAmount(user.activeMultiplier.value) || 1;
       calculatedPayout *= bonusMult;
-      console.log(`[useGameState] Multiplier applied: x${bonusMult}`, { 
-        before: numPayout, 
-        after: calculatedPayout 
-      });
     }
     
     const cheats = getCheats(user);
@@ -261,14 +238,6 @@ export function useGameState() {
     if (cheats.tripleWinnings) calculatedPayout *= 3;
     const safeFinalAmount = cheats.freezeBalance ? 0 : Math.max(0, calculatedPayout);
     
-    console.log('WIN CALCULATION EXECUTION', { 
-      game,
-      numBet,
-      numMultiplier,
-      calculatedPayout, 
-      finalAmount: safeFinalAmount 
-    });
-
     updateBalance(safeFinalAmount, 'win', game);
     
     addGameHistory({ 
@@ -280,10 +249,10 @@ export function useGameState() {
     }).catch(console.error);
     
     return safeFinalAmount;
-  }, [updateBalance]);
+  }, [updateBalance, user.activeMultiplier]);
 
   const recordLoss = useCallback((amount: number | string, game: string) => {
-    const cheats = getCheats();
+    const cheats = getCheats(user);
     if (cheats.infiniteBalance) return;
     
     const cleanAmount = (val: any): number => {
@@ -305,8 +274,8 @@ export function useGameState() {
       multiplier: 0,
       payout: 0,
       outcome: 'loss',
-    });
-  }, []);
+    }).catch(console.error);
+  }, [user]);
 
   const claimQuest = useCallback((questId: string) => {
     const quest = quests.find(q => q.id === questId);
@@ -314,7 +283,6 @@ export function useGameState() {
 
     setQuests(prev => prev.map(q => q.id === questId ? { ...q, claimed: true } : q));
     
-    // We update balance which will increment version
     updateBalance(quest.reward, 'deposit', `Quest: ${quest.title}`);
     
     if (onRewardClaimed) onRewardClaimed();
@@ -324,9 +292,13 @@ export function useGameState() {
     const numAmount = Number(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
 
+    isPendingSync.current = true;
     setUser(prev => {
       const currentBalance = Number(prev.balance) || 0;
-      if (currentBalance < numAmount) return prev;
+      if (currentBalance < numAmount) {
+        isPendingSync.current = false;
+        return prev;
+      }
 
       const newBalance = currentBalance - numAmount;
       const newBankBalance = (Number(prev.bankBalance) || 0) + numAmount;
@@ -338,7 +310,11 @@ export function useGameState() {
         version: prev.version + 1,
       };
 
-      saveUser(newUser).catch(err => console.error("[useGameState] bankDeposit saveUser error:", err));
+      saveUser(newUser).finally(() => {
+        isPendingSync.current = false;
+        window.dispatchEvent(new CustomEvent('leaderboard_update'));
+      });
+      
       reportScore(newUser.balance);
 
       addTransaction({
@@ -357,9 +333,13 @@ export function useGameState() {
     const numAmount = Number(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
 
+    isPendingSync.current = true;
     setUser(prev => {
       const currentBankBalance = Number(prev.bankBalance) || 0;
-      if (currentBankBalance < numAmount) return prev;
+      if (currentBankBalance < numAmount) {
+        isPendingSync.current = false;
+        return prev;
+      }
 
       const newBalance = (Number(prev.balance) || 0) + numAmount;
       const newBankBalance = currentBankBalance - numAmount;
@@ -371,7 +351,11 @@ export function useGameState() {
         version: prev.version + 1,
       };
 
-      saveUser(newUser).catch(err => console.error("[useGameState] bankWithdraw saveUser error:", err));
+      saveUser(newUser).finally(() => {
+        isPendingSync.current = false;
+        window.dispatchEvent(new CustomEvent('leaderboard_update'));
+      });
+      
       reportScore(newUser.balance);
 
       addTransaction({
@@ -390,6 +374,7 @@ export function useGameState() {
     const numAmount = Number(amount);
     if (isNaN(numAmount)) return;
 
+    isPendingSync.current = true;
     setUser(prev => {
       const currentBankBalance = Number(prev.bankBalance) || 0;
       const newBankBalance = currentBankBalance + numAmount;
@@ -400,7 +385,9 @@ export function useGameState() {
         version: prev.version + 1,
       };
 
-      saveUser(newUser).catch(err => console.error("[useGameState] updateBankBalance saveUser error:", err));
+      saveUser(newUser).finally(() => {
+        isPendingSync.current = false;
+      });
       
       return newUser;
     });
