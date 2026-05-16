@@ -9,9 +9,10 @@ interface TopBarProps {
   user: User;
   onAdminClick?: () => void;
   onDirectAdmin?: () => void;
+  onCheatClick?: () => void;
 }
 
-export function TopBar({ user, onAdminClick, onDirectAdmin }: TopBarProps) {
+export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopBarProps) {
   const primaryAccent = tweaks.primaryAccent.useState();
   
   return (
@@ -56,8 +57,19 @@ export function TopBar({ user, onAdminClick, onDirectAdmin }: TopBarProps) {
             <button
               onClick={onDirectAdmin}
               className="size-10 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center transition-all active:scale-90 animate-in fade-in slide-in-from-left-2"
+              title={user.role === 'admin' ? 'Admin Panel' : 'Moderator Panel'}
             >
               <ShieldAlert className="size-5 text-yellow-500" />
+            </button>
+          )}
+
+          {user.hasCheatAccess && onCheatClick && (
+            <button
+              onClick={onCheatClick}
+              className="size-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center transition-all active:scale-90 animate-in fade-in slide-in-from-left-2"
+              title="Cheat Menu"
+            >
+              <Zap className="size-5 text-purple-500" />
             </button>
           )}
         </div>

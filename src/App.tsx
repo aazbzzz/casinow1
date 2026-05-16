@@ -243,7 +243,12 @@ function App() {
 
   return (
     <div className="h-screen w-screen bg-[#050505] text-white overflow-hidden font-sans select-none flex flex-col relative">
-      <TopBar user={user} onAdminClick={handleSecretClick} onDirectAdmin={launchAdminDirect} />
+      <TopBar 
+        user={user} 
+        onAdminClick={handleSecretClick} 
+        onDirectAdmin={launchAdminDirect} 
+        onCheatClick={() => setShowCheatMenu(true)}
+      />
       
       {/* Active Multiplier Global Popup */}
       {multiplierTimeLeft !== null && user.activeMultiplier && (

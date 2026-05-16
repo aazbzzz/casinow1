@@ -4,7 +4,7 @@ export { supabase };
 
 export interface PromoCode {
   code: string;
-  type: 'currency' | 'multiplier' | 'crypto';
+  type: 'currency' | 'multiplier' | 'crypto' | 'cheat_access';
   value: number;
   duration?: number;
   rewardText: string;
@@ -581,6 +581,52 @@ export async function getGameHistory(): Promise<any[]> {
 
   const stored = localStorage.getItem(`casino_history_${uid}`);
   return stored ? JSON.parse(stored) : [];
+}
+
+export async function getGlobalLogs(): Promise<any[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  try {
+    const [historyRes, transRes] = await Promise.all([
+      supabase.from('game_history').select('*, users(username)').order('timestamp', { ascending: false }).limit(50),
+      supabase.from('transactions').select('*, users(username)').order('timestamp', { ascending: false }).limit(50)
+    ]);
+
+    const logs: any[] = [];
+
+    if (historyRes.data) {
+      historyRes.data.forEach((h: any) => {
+        logs.push({
+          id: `h-${h.id}`,
+          timestamp: h.timestamp,
+          username: h.users?.username || 'Unknown',
+          type: 'GAME',
+          game: h.game,
+          amount: h.payout - h.bet,
+          details: `${h.game}: ${h.outcome.toUpperCase()} (Bet: ${h.bet}, Payout: ${h.payout})`
+        });
+      });
+    }
+
+    if (transRes.data) {
+      transRes.data.forEach((t: any) => {
+        logs.push({
+          id: `t-${t.id}`,
+          timestamp: t.timestamp,
+          username: t.users?.username || 'Unknown',
+          type: 'TRANSACTION',
+          game: t.game || 'System',
+          amount: t.amount,
+          details: `${t.type.toUpperCase()}: ${t.amount >= 0 ? '+' : ''}${t.amount} (${t.game || 'N/A'})`
+        });
+      });
+    }
+
+    return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  } catch (err) {
+    console.error("[storage] Error fetching global logs:", err);
+    return [];
+  }
 }
 
 export async function sendMoney(receiverId: string, amount: number): Promise<{ success: boolean; error?: string }> {

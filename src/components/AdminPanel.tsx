@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck, Shield, Eye, EyeOff, Crown, Award } from 'lucide-react';
-import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured } from '@/lib/storage';
+import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured, getGlobalLogs } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
@@ -205,7 +205,7 @@ const projectFiles: FileNode[] = [
 ];
 
 export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset' | 'master'>(cheatOnlyMode ? 'cheats' : 'promo');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset' | 'master' | 'logs'>(cheatOnlyMode ? 'cheats' : 'promo');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src/components', 'src/components/casino', 'src/components/casino/games']));
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
@@ -216,6 +216,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [dbTransactions, setDbTransactions] = useState<any[]>([]);
+  const [globalLogs, setGlobalLogs] = useState<any[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1 });
   
@@ -230,6 +231,16 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'logs' && isAdmin) {
+      const fetchLogs = async () => {
+        const logs = await getGlobalLogs();
+        setGlobalLogs(logs);
+      };
+      fetchLogs();
+    }
+  }, [activeTab, isAdmin]);
 
   const handleUpdateUserBalances = async (userId: string) => {
     const userToUpdate = dbUsers.find(u => u.id === userId);
@@ -541,8 +552,10 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
               <Code className="size-6" style={{ color: primaryAccent }} />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Admin Panel</h2>
-              <p className="text-xs text-gray-400 uppercase tracking-widest">System Control</p>
+              <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">
+                {cheatOnlyMode ? 'Cheat Menu' : isMod && !isAdmin ? 'Moderator Panel' : 'Admin Panel'}
+              </h2>
+              <p className="text-xs text-gray-400 uppercase tracking-widest">{cheatOnlyMode ? 'Personal Cheats' : 'System Control'}</p>
             </div>
           </div>
           <button
@@ -556,26 +569,30 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         
         <div className="flex gap-2 px-6 py-4 border-b-2 shrink-0 overflow-x-auto" style={{ borderColor: `${primaryAccent}20` }}>
           {[
-            ...(cheatOnlyMode ? [] : [
+            // Mode Cheat uniquement (via code)
+            ...(cheatOnlyMode ? [
+              { key: 'cheats', label: 'Cheats', icon: Zap },
+            ] : []),
+
+            // Mode Modérateur (non Admin)
+            ...(isMod && !isAdmin && !cheatOnlyMode ? [
+              { key: 'users', label: 'Users', icon: Users },
+              { key: 'roles', label: 'My Settings', icon: Shield },
+            ] : []),
+
+            // Mode Admin
+            ...(isAdmin && !cheatOnlyMode ? [
               { key: 'overview', label: 'Overview', icon: Settings },
               { key: 'users', label: 'Users', icon: Users },
               { key: 'transactions', label: 'History', icon: FileText },
+              { key: 'logs', label: 'Logs', icon: FileCode },
               { key: 'manage', label: 'Manage', icon: Plus },
               { key: 'promo', label: 'Codes', icon: Ticket },
-            ]),
-            ...(isAdmin && !cheatOnlyMode ? [
               { key: 'cheats', label: 'Cheats', icon: Zap },
               { key: 'roles', label: 'Roles/Admin', icon: Shield },
               { key: 'master', label: 'Master Script', icon: FileCode },
               { key: 'files', label: 'Files', icon: Code },
               { key: 'reset', label: 'Reset', icon: AlertTriangle },
-            ] : []),
-            ...(isMod && !isAdmin && !cheatOnlyMode ? [
-              { key: 'cheats', label: 'Cheats', icon: Zap },
-              { key: 'roles', label: 'Settings', icon: Shield },
-            ] : []),
-            ...(cheatOnlyMode ? [
-              { key: 'cheats', label: 'Cheats', icon: Zap },
             ] : [])
           ].map(({ key, label, icon: Icon }) => (
             <button
@@ -654,19 +671,52 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             {u.username} 
                             {u.id === user.id && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded uppercase tracking-widest text-gray-400">You</span>}
                             {u.isBanned && <span className="text-[10px] bg-red-500/20 px-2 py-0.5 rounded uppercase tracking-widest text-red-500 font-black flex items-center gap-1"><Ban className="size-2.5" /> BANNED</span>}
+                            {u.hasCheatAccess && <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded uppercase tracking-widest text-purple-400 font-black flex items-center gap-1"><Zap className="size-2.5" /> CHEATER</span>}
                           </div>
                           <div className="flex flex-col gap-0.5">
-                            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">ID: {u.id}</div>
+                            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                              ID: {u.id}
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] border ${u.role === 'admin' ? 'border-yellow-500/50 text-yellow-500' : u.role === 'moderator' ? 'border-blue-500/50 text-blue-500' : 'border-gray-500/50 text-gray-500'}`}>
+                                {u.role.toUpperCase()}
+                              </span>
+                            </div>
                             <div className="text-[10px] text-red-500/80 font-medium tracking-widest flex items-center gap-1">
                               <Lock className="size-2.5" /> PW: {u.password}
                             </div>
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="flex flex-col items-end">
                         <div className="text-xl font-black text-white italic">{u.balance.toLocaleString()}</div>
                         <div className="text-[10px] font-black uppercase tracking-widest" style={{ color: primaryAccent }}>Credits</div>
-                        <div className="text-xs font-bold text-gray-500 mt-1">Bank: {u.bankBalance.toLocaleString()}</div>
+                        <div className="flex gap-2 mt-1">
+                          {isAdmin && u.hasCheatAccess && (
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Disable cheats for ${u.username}?`)) {
+                                  const updatedUser = { ...u, hasCheatAccess: false };
+                                  await saveUser(updatedUser);
+                                  fetchUsers();
+                                }
+                              }}
+                              className="text-[9px] bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded font-black hover:bg-red-500/20 transition-all"
+                            >
+                              DISABLE CHEATS
+                            </button>
+                          )}
+                          {!u.hasCheatAccess && isAdmin && (
+                             <button
+                             onClick={async () => {
+                               const updatedUser = { ...u, hasCheatAccess: true };
+                               await saveUser(updatedUser);
+                               fetchUsers();
+                             }}
+                             className="text-[9px] bg-purple-500/10 text-purple-500 border border-purple-500/20 px-2 py-0.5 rounded font-black hover:bg-purple-500/20 transition-all"
+                           >
+                             ENABLE CHEATS
+                           </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
@@ -845,11 +895,20 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Value (Amount/Mult)</label>
+                    <label className="text-xs font-black text-gray-500 uppercase mb-2 block">
+                      {newPromo.type === 'cheat_access' ? 'Duration (Seconds)' : 'Value (Amount/Mult)'}
+                    </label>
                     <input
                       type="number"
-                      value={newPromo.value}
-                      onChange={(e) => setNewPromo({ ...newPromo, value: Number(e.target.value) })}
+                      value={newPromo.type === 'cheat_access' ? newPromo.duration : newPromo.value}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (newPromo.type === 'cheat_access') {
+                          setNewPromo({ ...newPromo, duration: val });
+                        } else {
+                          setNewPromo({ ...newPromo, value: val });
+                        }
+                      }}
                       className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
                       style={{ borderColor: `${primaryAccent}40` }}
                     />
@@ -920,7 +979,11 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     } else if (newPromo.type === 'crypto') {
                       rewardText = `${newPromo.value} ${newPromo.cryptoSymbol}`;
                     } else if (newPromo.type === 'cheat_access') {
-                      rewardText = `Full Cheat Menu Access`;
+                      const h = Math.floor((newPromo.duration || 3600) / 3600);
+                      const m = Math.floor(((newPromo.duration || 3600) % 3600) / 60);
+                      const s = (newPromo.duration || 3600) % 60;
+                      const timeStr = h > 0 ? `${h}h ` : m > 0 ? `${m}m ` : `${s}s`;
+                      rewardText = `Full Cheat Menu Access (${timeStr})`;
                     }
                     
                     const codeObj: PromoCode = {
@@ -1565,6 +1628,59 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     </div>
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'logs' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-black text-white flex items-center gap-2">
+                  <FileCode className="size-6 text-blue-500" />
+                  Global Activity Logs
+                </h3>
+                <button 
+                  onClick={async () => {
+                    const logs = await getGlobalLogs();
+                    setGlobalLogs(logs);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                >
+                  Refresh Logs
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-2">
+                {globalLogs.length === 0 ? (
+                  <div className="p-12 text-center text-gray-500 bg-black/30 rounded-3xl border-2 border-dashed border-gray-800">
+                    No activity logs found in database.
+                  </div>
+                ) : (
+                  globalLogs.map((log) => (
+                    <div key={log.id} className="p-4 rounded-2xl bg-[#0a0a0a] border border-white/5 flex items-center justify-between gap-4 transition-all hover:border-white/10">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          log.type === 'GAME' ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'
+                        }`}>
+                          {log.type === 'GAME' ? <Zap className="size-5" /> : <DollarSign className="size-5" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-black text-white text-sm">{log.username}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500 font-bold uppercase">{log.type}</span>
+                          </div>
+                          <div className="text-xs text-gray-400 font-medium truncate">{log.details}</div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className={`font-black text-sm ${log.amount > 0 ? 'text-green-500' : log.amount < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                          {log.amount > 0 ? '+' : ''}{log.amount.toLocaleString()}
+                        </div>
+                        <div className="text-[9px] text-gray-600 font-bold uppercase">{new Date(log.timestamp).toLocaleTimeString()}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
