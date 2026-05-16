@@ -28,7 +28,8 @@ export const isSupabaseConfigured = () => {
   const url = import.meta.env.VITE_SUPABASE_URL || 'https://hshjdcxhjzsecsrfecsp.supabase.co';
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzaGpkY3hoanpzZWNzcmZlY3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDA4MDcsImV4cCI6MjA5NDI3NjgwN30.pbdD8BB5Zd5nY3LsPG82OThWxK68o0zUZNtX5YHvquU';
   
-  return !!url && !!key && !url.includes('VOTRE_PROJET');
+  // Plus permissif : si on a une URL et une clé, on considère que c'est configuré.
+  return !!url && !!key && url !== 'VOTRE_PROJET_URL';
 };
 
 /**
@@ -59,6 +60,7 @@ export async function fetchUser(uid?: string): Promise<User> {
   if (isSupabaseConfigured()) {
     try {
       console.log(`[storage] fetchUser from Cloud: ${targetUid}`);
+      // On tente de tout récupérer. Si une colonne manque, l'erreur sera capturée.
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -103,8 +105,11 @@ export async function fetchUser(uid?: string): Promise<User> {
         // Mise à jour du cache local
         localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
         return user;
-      } else if (error && error.code !== 'PGRST116') {
-        console.error("[storage] fetchUser Cloud error:", error);
+      } else if (error) {
+        // PGRST116 = not found, on ne logge pas d'erreur critique
+        if (error.code !== 'PGRST116') {
+          console.error("[storage] fetchUser Cloud error:", error);
+        }
       }
     } catch (err) {
       console.error("[storage] fetchUser critical error:", err);
@@ -147,39 +152,34 @@ export async function saveUser(user: User): Promise<User> {
     return 0;
   };
 
-  // On incrémente la version pour cette sauvegarde
-  const newVersion = (user.version || 0) + 1;
-
   const cleanUser = {
     ...user,
     balance: cleanNum(user.balance),
     bankBalance: cleanNum(user.bankBalance),
     totalWagered: cleanNum(user.totalWagered),
     vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel))),
-    version: newVersion
+    version: (user.version || 0) + 1
   };
 
   // 1. Mise à jour immédiate du cache local (Optimistic UI)
   localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
 
+  // Mettre à jour aussi le cache global des utilisateurs
+  try {
+    const storedUsers = localStorage.getItem(STORAGE_KEYS.CACHE_USERS);
+    let users: User[] = storedUsers ? JSON.parse(storedUsers) : [];
+    const idx = users.findIndex(u => u.id === cleanUser.id);
+    if (idx !== -1) {
+      users[idx] = cleanUser;
+    } else {
+      users.push(cleanUser);
+    }
+    localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
+  } catch (e) {}
+
   // 2. Sauvegarde Cloud (Source de vérité)
   if (isSupabaseConfigured()) {
     try {
-      // Vérification de version en DB pour empêcher les rollbacks
-      const { data: current, error: fetchError } = await supabase
-        .from('users')
-        .select('version')
-        .eq('id', cleanUser.id)
-        .single();
-      
-      // Si la DB a déjà une version égale ou supérieure, on n'écrase pas.
-      // Cela arrive si un autre client ou une action concurrente a déjà mis à jour la DB.
-      if (!fetchError && current && current.version >= cleanUser.version) {
-        console.warn(`[storage] saveUser aborted: DB version (${current.version}) >= Local version (${cleanUser.version})`);
-        // On récupère la version de la DB pour synchroniser le client
-        return await fetchUser(cleanUser.id);
-      }
-
       const dbData: any = {
         id: cleanUser.id,
         username: cleanUser.username,
@@ -204,14 +204,20 @@ export async function saveUser(user: User): Promise<User> {
       
       const { error } = await supabase.from('users').upsert(dbData, { onConflict: 'id' });
       
-      if (error) throw error;
+      if (error) {
+        // Si l'erreur est liée à la colonne 'version' manquante, on réessaie sans elle
+        if (error.message?.includes('version') || error.code === '42703') {
+          delete dbData.version;
+          await supabase.from('users').upsert(dbData, { onConflict: 'id' });
+        } else {
+          throw error;
+        }
+      }
       
-      console.log(`[storage] Cloud Save Success: ${cleanUser.username} (v${cleanUser.version})`);
-      
-      // Événement global pour synchroniser les autres onglets/composants
+      console.log(`[storage] Cloud Save Success: ${cleanUser.username}`);
       window.dispatchEvent(new CustomEvent('user_updated_global', { detail: cleanUser }));
     } catch (err) {
-      console.error("[storage] saveUser Cloud failure:", err);
+      console.error("[storage] saveUser Cloud error:", err);
     }
   }
 
@@ -221,6 +227,7 @@ export async function saveUser(user: User): Promise<User> {
 export async function getAllUsers(): Promise<User[]> {
   if (isSupabaseConfigured()) {
     try {
+      console.log("[storage] Fetching all users from Cloud...");
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -250,17 +257,18 @@ export async function getAllUsers(): Promise<User[]> {
           activeMultiplier: d.active_multiplier || null,
         }));
         
-        // On ne met à jour le cache que si on a récupéré des données valides
-        if (users.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
-        }
+        // On met à jour le cache local pour la performance
+        localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
         return users;
+      } else if (error) {
+        console.error("[storage] getAllUsers Cloud error:", error);
       }
     } catch (err) {
-      console.error("[storage] Error in getAllUsers:", err);
+      console.error("[storage] getAllUsers critical error:", err);
     }
   }
   
+  console.log("[storage] Falling back to local users cache");
   const stored = localStorage.getItem(STORAGE_KEYS.CACHE_USERS);
   return stored ? JSON.parse(stored) : [];
 }
