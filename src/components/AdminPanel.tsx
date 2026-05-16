@@ -597,10 +597,10 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           {[
             { key: 'overview', label: 'Overview', icon: Settings, show: !cheatOnlyMode },
             { key: 'users', label: 'Users', icon: Users, show: !cheatOnlyMode },
+            { key: 'promo', label: 'Promo Codes', icon: Ticket, show: isAdmin },
             { key: 'transactions', label: 'History', icon: FileText, show: isAdmin && !cheatOnlyMode },
             { key: 'logs', label: 'Logs', icon: FileCode, show: isAdmin && !cheatOnlyMode },
             { key: 'manage', label: 'Manage', icon: Plus, show: isAdmin && !cheatOnlyMode },
-            { key: 'promo', label: 'Codes', icon: Ticket, show: isAdmin },
             { key: 'cheats', label: 'Cheats', icon: Zap, show: true },
             { key: 'roles', label: 'Roles & Admin', icon: Shield, show: !cheatOnlyMode },
             { key: 'master', label: 'Master Script', icon: FileCode, show: isAdmin && !cheatOnlyMode },
