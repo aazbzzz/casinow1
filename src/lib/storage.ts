@@ -708,6 +708,7 @@ export function getDefaultUser(uid?: string): User {
   return {
     id: uid || 'guest',
     username: 'Player',
+    isGuest: !uid || uid === 'guest',
     balance: 1000,
     bankBalance: 0,
     vipLevel: 1,
