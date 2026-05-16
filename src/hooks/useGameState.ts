@@ -154,8 +154,9 @@ export function useGameState() {
       });
       
       // Save inside functional update to ensure we have the right state
+      saveUser(newUser).catch(err => console.error("[useGameState] updateBalance saveUser error:", err));
+
       if (type === 'win' || type === 'deposit' || type === 'withdraw') {
-        saveUser(newUser).catch(err => console.error("[useGameState] updateBalance saveUser error:", err));
         // Sync leaderboard
         reportScore(newUser.balance);
       }

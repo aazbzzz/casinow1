@@ -304,13 +304,13 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                 {isMod && (
                   <button
                     onClick={() => {
-                      window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'mod' } }));
+                      window.dispatchEvent(new CustomEvent('open_admin_panel'));
                       if (enableHaptics) vibrate(50);
                     }}
                     className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-blue-500/10 border-blue-500/30 flex flex-col items-center gap-2"
                   >
                     <Shield className="size-6 text-blue-500" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Modo Panel</span>
+                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Moderator Control</span>
                   </button>
                 )}
               </div>
@@ -321,10 +321,18 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                     onShowCheatMenu?.();
                     if (enableHaptics) vibrate(50);
                   }}
-                  className="w-full p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-purple-500/10 border-purple-500/30 flex items-center justify-center gap-3 group"
+                  className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2 border-purple-500/30 bg-purple-500/10 relative overflow-hidden"
                 >
-                  <Zap className="size-6 text-purple-500 group-hover:animate-pulse" />
-                  <span className="font-black text-white uppercase tracking-widest italic">Cheat Menu - Utiliser la triche</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Zap className="size-6 text-purple-500" />
+                      <div>
+                        <div className="font-semibold text-white">Cheat Menu</div>
+                        <div className="text-sm text-gray-400">Accéder aux options de triche</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="size-5 text-purple-500" />
+                  </div>
                 </button>
               )}
             </div>

@@ -158,7 +158,7 @@ export async function saveUser(user: User): Promise<void> {
   }
   localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
 
-  // 2. Tenter la sauvegarde Cloud (non-bloquante pour le local)
+  // 2. Tenter la sauvegarde Cloud (bloquante pour garantir la cohérence)
   if (isSupabaseConfigured()) {
     try {
       const dbData: any = {
@@ -178,21 +178,21 @@ export async function saveUser(user: User): Promise<void> {
         has_deposited: cleanUser.hasDeposited,
         is_banned: cleanUser.isBanned || false,
         cheats: cleanUser.cheats || null,
-        version: cleanUser.version || 0,
         used_promo_codes: cleanUser.usedPromoCodes || [],
         active_multiplier: cleanUser.activeMultiplier || null,
+        version: cleanUser.version || 0,
       };
       
-      console.log(`[storage] Upserting user ${cleanUser.username} (${cleanUser.id}) to Supabase...`, dbData);
-      const { error } = await supabase.from('users').upsert(dbData);
+      console.log(`[storage] Saving user ${cleanUser.username} (v${cleanUser.version}) to Supabase...`);
+      const { error } = await supabase.from('users').upsert(dbData, { onConflict: 'id' });
       
       if (error) {
-        console.error("[Supabase] Error saving user (upsert):", error);
-      } else {
-        console.log(`[Supabase] User ${cleanUser.username} saved successfully.`);
+        console.error("[Supabase] Upsert error:", error);
+        throw error; // On throw pour que l'appelant sache que ça a échoué
       }
     } catch (err) {
-      console.error("[Supabase] Critical error saving user:", err);
+      console.error("[Supabase] Critical save error:", err);
+      // En cas d'erreur réseau, on garde au moins le local storage
     }
   }
 }

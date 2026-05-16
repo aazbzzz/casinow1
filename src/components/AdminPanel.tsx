@@ -45,8 +45,13 @@ interface AdminPanelProps {
   staffMode?: 'admin' | 'mod';
 }
 
-export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false, staffMode = 'admin' }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'cheats' | 'promo' | 'roles'>(cheatOnlyMode ? 'cheats' : 'users');
+  export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false }: AdminPanelProps) {
+    const isModOnly = user.role === 'moderator';
+    const isAdmin = user.role === 'admin';
+    const isMod = isAdmin || isModOnly;
+    const staffMode = isAdmin ? 'admin' : 'mod';
+
+    const [activeTab, setActiveTab] = useState<'users' | 'cheats' | 'promo' | 'roles'>(cheatOnlyMode ? 'cheats' : 'users');
   const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1, username: '' });
@@ -88,8 +93,6 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
 
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
-  const isAdmin = user.role === 'admin';
-  const isMod = user.role === 'admin' || user.role === 'moderator';
 
   const fetchUsers = async () => {
     const users = await getAllUsers();
@@ -409,8 +412,13 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                       </div>
                       <div className="p-2 sm:p-3 rounded-xl bg-black/30 border border-white/5">
                         <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase mb-1">Cheat Status</div>
-                        <div className={`font-black text-[9px] sm:text-[10px] uppercase ${u.hasCheatAccess ? 'text-purple-400' : 'text-gray-600'}`}>
-                          {u.hasCheatAccess ? (u.cheatExpiresAt ? formatTimeDetailed(Math.max(0, Math.floor((u.cheatExpiresAt - Date.now()) / 1000))) : 'Permanent') : 'No Access'}
+                        <div className={`font-black text-[9px] sm:text-[10px] uppercase flex flex-col ${u.hasCheatAccess ? 'text-purple-400' : 'text-gray-600'}`}>
+                          <span>{u.hasCheatAccess ? 'Access' : 'No Access'}</span>
+                          {u.hasCheatAccess && (
+                            <span className="text-[8px] opacity-70">
+                              {u.cheatExpiresAt ? formatTimeDetailed(Math.max(0, Math.floor((u.cheatExpiresAt - Date.now()) / 1000))) : 'Permanent'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -433,12 +441,13 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                           </button>
                           <button
                             onClick={async () => {
-                              if (confirm(`${u.hasCheatAccess ? 'Revoke' : 'Give'} cheat access for ${u.username}?`)) {
+                              if (confirm(`${u.hasCheatAccess ? 'Revoke cheat access' : 'Give cheat access'} for ${u.username}?`)) {
                                 const updatedUser = { 
                                   ...u, 
                                   hasCheatAccess: !u.hasCheatAccess, 
                                   cheatExpiresAt: !u.hasCheatAccess ? Date.now() + 86400000 : null,
-                                  version: (u.version || 0) + 1
+                                  version: (u.version || 0) + 1,
+                                  cheats: !u.hasCheatAccess ? u.cheats : getCheats(null) // Reset cheats if revoked
                                 };
                                 await saveUser(updatedUser);
                                 if (u.id === user.id) onRefreshUser?.(updatedUser);
@@ -448,7 +457,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             }}
                             className={`flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${u.hasCheatAccess ? 'bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20'}`}
                           >
-                            {u.hasCheatAccess ? 'Revoke Cheat' : 'Give Cheat'}
+                            {u.hasCheatAccess ? 'Remove Cheat Access' : 'Give Cheat'}
                           </button>
                         </div>
                         <div className="flex gap-2">
@@ -468,9 +477,22 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             <button
                               onClick={async () => {
                                 if (confirm(`${u.isBanned ? 'Unban' : 'Ban'} user ${u.username}?`)) {
-                                  const updatedUser = { ...u, isBanned: !u.isBanned };
+                                  const updatedUser = { 
+                                    ...u, 
+                                    isBanned: !u.isBanned,
+                                    version: (u.version || 0) + 1 
+                                  };
                                   await saveUser(updatedUser);
-                                  await fetchUsers();
+                                  
+                                  // Update local list immediately
+                                  setDbUsers(prev => prev.map(usr => usr.id === u.id ? updatedUser : usr));
+                                  
+                                  if (u.id === user.id) onRefreshUser?.(updatedUser);
+                                  
+                                  // Background sync
+                                  setTimeout(() => fetchUsers(), 2000);
+                                  
+                                  if (enableHaptics) vibrate(100);
                                 }
                               }}
                               className={`flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${u.isBanned ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}`}
@@ -925,8 +947,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
             </div>
           )}
           
-          {activeTab === 'roles' && (
-            <div className="space-y-6">
+              {activeTab === 'roles' && isAdmin && (
+                <div className="space-y-6">
               <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
                 <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
                   <Shield className="size-6 text-yellow-500" />
@@ -975,16 +997,27 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                   My Personal Settings
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    onClick={() => handleToggleAdminSetting(user.id, user.role === 'admin' ? 'showBadge' : 'showModBadge')}
-                    className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${((user.role === 'admin' && user.showBadge) || (user.role === 'moderator' && user.showModBadge)) ? 'bg-yellow-500/20 border-yellow-500' : 'bg-white/5 border-white/10'}`}
-                  >
-                    <ShieldCheck className={`size-8 ${((user.role === 'admin' && user.showBadge) || (user.role === 'moderator' && user.showModBadge)) ? 'text-yellow-500' : 'text-gray-500'}`} />
-                    <div className="text-center">
-                      <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Display {user.role === 'admin' ? 'Admin' : 'Modo'} Badge</div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase">{((user.role === 'admin' && user.showBadge) || (user.role === 'moderator' && user.showModBadge)) ? 'VISIBLE' : 'HIDDEN'}</div>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleToggleAdminSetting(user.id, 'showBadge')}
+                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${user.showBadge ? 'bg-yellow-500/20 border-yellow-500' : 'bg-white/5 border-white/10'}`}
+                    >
+                      <ShieldCheck className={`size-8 ${user.showBadge ? 'text-yellow-500' : 'text-gray-500'}`} />
+                      <div className="text-center">
+                        <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Display Admin Badge</div>
+                        <div className="text-[10px] text-gray-500 font-bold uppercase">{user.showBadge ? 'VISIBLE' : 'HIDDEN'}</div>
+                      </div>
+                    </button>
+                  )}
+                  {isModOnly && (
+                    <div className="p-6 rounded-2xl border-2 bg-blue-500/10 border-blue-500/30 flex flex-col items-center gap-3 opacity-80 cursor-not-allowed">
+                      <Shield className="size-8 text-blue-500" />
+                      <div className="text-center">
+                        <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Mod Badge Always Visible</div>
+                        <div className="text-[10px] text-blue-500 font-bold uppercase">FORCE VISIBLE</div>
+                      </div>
                     </div>
-                  </button>
+                  )}
                   <button
                     onClick={() => handleToggleAdminSetting(user.id, 'hideFromLeaderboard')}
                     className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${user.hideFromLeaderboard ? 'bg-red-500/20 border-red-500' : 'bg-white/5 border-white/10'}`}

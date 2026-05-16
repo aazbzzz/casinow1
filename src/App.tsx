@@ -517,7 +517,6 @@ function App() {
           user={user}
           onRefreshUser={refreshUser}
           cheatOnlyMode={false}
-          staffMode={adminPanelMode}
         />
       )}
 
