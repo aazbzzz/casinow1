@@ -94,7 +94,8 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
     }, 100);
     
     setTimeout(() => {
-      const cheats = getCheats();
+      const user = getUser();
+      const cheats = getCheats(user);
       let finalNumber: number;
       
       if (cheats.forceRouletteNumber !== null && cheats.forceRouletteNumber >= 0 && cheats.forceRouletteNumber <= 36) {

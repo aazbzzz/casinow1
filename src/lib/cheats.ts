@@ -1,3 +1,5 @@
+import { type User } from '@/types';
+
 export interface CheatSettings {
   // Global Cheats
   alwaysWin: boolean;
@@ -102,7 +104,13 @@ const DEFAULT_CHEATS: CheatSettings = {
   plinkoMaxMultiplier: false,
 };
 
-export function getCheats(): CheatSettings {
+export function getCheats(user?: User | null): CheatSettings {
+  // 1. Priorité aux cheats spécifiques à l'utilisateur (Supabase)
+  if (user && user.cheats) {
+    return { ...DEFAULT_CHEATS, ...user.cheats };
+  }
+
+  // 2. Fallback aux cheats locaux (Admin sur son propre navigateur)
   const stored = localStorage.getItem('admin_cheats');
   return stored ? { ...DEFAULT_CHEATS, ...JSON.parse(stored) } : DEFAULT_CHEATS;
 }
@@ -111,8 +119,8 @@ export function saveCheats(cheats: CheatSettings): void {
   localStorage.setItem('admin_cheats', JSON.stringify(cheats));
 }
 
-export function isCheatsActive(): boolean {
-  const cheats = getCheats();
+export function isCheatsActive(user?: User | null): boolean {
+  const cheats = getCheats(user);
   return Object.entries(cheats).some(([key, value]) => {
     if (key === 'customMultiplier') return value > 1;
     if (typeof value === 'boolean') return value === true;

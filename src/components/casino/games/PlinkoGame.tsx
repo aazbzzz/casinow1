@@ -176,7 +176,8 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
         
         if (ball.y >= slotY - ballRadius) {
           ball.active = false;
-          const cheats = getCheats();
+          const user = getUser();
+          const cheats = getCheats(user);
           let slotIndex = Math.floor(ball.x / slotWidth);
           
           if (cheats.forcePlinkoWin) {

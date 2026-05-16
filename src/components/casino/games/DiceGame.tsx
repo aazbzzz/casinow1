@@ -68,7 +68,8 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
     }, 100);
     
     setTimeout(() => {
-      const cheats = getCheats();
+      const user = getUser();
+      const cheats = getCheats(user);
       let roll: number;
       
       if (cheats.forceDiceResult !== null && cheats.forceDiceResult >= 1 && cheats.forceDiceResult <= 100) {

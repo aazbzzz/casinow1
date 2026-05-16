@@ -1,20 +1,23 @@
+import { CheatSettings } from '@/lib/cheats';
+
 export interface User {
   id: string;
   username: string;
   password?: string;
-  isGuest?: boolean;
   balance: number;
   bankBalance: number;
   vipLevel: number;
   totalWagered: number;
   createdAt: string;
-  hasDeposited: boolean;
+  hasDeposited?: boolean;
   usedPromoCodes?: string[];
   isBanned?: boolean;
+  cheats?: CheatSettings;
   activeMultiplier?: {
     value: number;
     expiresAt: number;
-  };
+  } | null;
+};
 }
 
 export interface CryptoAsset {

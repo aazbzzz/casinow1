@@ -63,7 +63,8 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
       gameAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
     
-    const cheats = getCheats();
+    const user = getUser();
+    const cheats = getCheats(user);
     let coinResult: 'heads' | 'tails';
     
     if (cheats.forceCoinflipSide) {

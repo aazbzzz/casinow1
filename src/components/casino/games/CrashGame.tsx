@@ -97,7 +97,8 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     setHasBet(true);
     setGameState('betting');
     
-    const cheats = getCheats();
+    const user = getUser();
+    const cheats = getCheats(user);
     let crash: number;
     
     if (cheats.forceCrashMultiplier !== null && cheats.forceCrashMultiplier > 1) {
@@ -130,7 +131,8 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
   const cashOut = () => {
     if (gameState !== 'running' || !hasBet || cashedOut) return;
     
-    const cheats = getCheats();
+    const user = getUser();
+    const cheats = getCheats(user);
     const baseMultiplier = cheats.crashMaxMultiplier ? Math.max(currentMultiplier, 100) : currentMultiplier;
     const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
     

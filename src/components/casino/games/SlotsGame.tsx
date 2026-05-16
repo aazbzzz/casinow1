@@ -82,7 +82,8 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
       if (count >= spinCount) {
         clearInterval(interval);
         
-        const cheats = getCheats();
+        const user = getUser();
+        const cheats = getCheats(user);
         let finalReels: string[];
         
         if (cheats.forceSlotsSymbol && SYMBOLS.includes(cheats.forceSlotsSymbol)) {

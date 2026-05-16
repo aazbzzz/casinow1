@@ -89,7 +89,8 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
     newRevealed.add(index);
     setRevealed(newRevealed);
     
-    const cheats = getCheats();
+    const user = getUser();
+    const cheats = getCheats(user);
     const hitMine = cheats.forceMinesSafe ? false : minePositions.has(index);
     
     if (hitMine) {
@@ -269,7 +270,8 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
             const showSafe = isRevealed && !isMine;
             
             // Cheat: Show mines
-            const cheats = getCheats();
+            const user = getUser();
+            const cheats = getCheats(user);
             const shouldShowCheatMine = gameActive && !isRevealed && isMine && cheats.forceMinesSafe;
 
             return (

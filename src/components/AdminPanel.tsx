@@ -210,6 +210,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
   const [addMoneyAmount, setAddMoneyAmount] = useState(1000);
   const [cheats, setCheats] = useState<CheatSettings>(getCheats);
+  const [cheatTargetUserId, setCheatTargetUserId] = useState<string | null>(null);
   const [cheatCategory, setCheatCategory] = useState<'global' | 'roulette' | 'slots' | 'coinflip' | 'dice' | 'mines' | 'crash' | 'plinko'>('global');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [dbUsers, setDbUsers] = useState<User[]>([]);
@@ -395,12 +396,37 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     if (enableHaptics) vibrate(200);
   };
   
-  const handleCheatToggle = (key: keyof CheatSettings, value: boolean | number | null | string) => {
+  const handleCheatToggle = async (key: keyof CheatSettings, value: boolean | number | null | string) => {
     const newCheats = { ...cheats, [key]: value };
     setCheats(newCheats);
-    saveCheats(newCheats);
+    
+    if (cheatTargetUserId) {
+      const targetUser = dbUsers.find(u => u.id === cheatTargetUserId);
+      if (targetUser) {
+        try {
+          const updatedUser = { ...targetUser, cheats: newCheats };
+          await saveUser(updatedUser);
+        } catch (err) {
+          console.error("[AdminPanel] Error saving targeted cheats:", err);
+        }
+      }
+    } else {
+      saveCheats(newCheats);
+    }
+    
     if (enableHaptics) vibrate(50);
   };
+
+  useEffect(() => {
+    if (cheatTargetUserId) {
+      const targetUser = dbUsers.find(u => u.id === cheatTargetUserId);
+      if (targetUser) {
+        setCheats(targetUser.cheats || getCheats(null));
+      }
+    } else {
+      setCheats(getCheats(null));
+    }
+  }, [cheatTargetUserId, dbUsers]);
   
   const handleResetData = async () => {
     try {
@@ -943,6 +969,39 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           
           {activeTab === 'cheats' && (
             <div className="space-y-4">
+              {/* Target User Selection */}
+              <div className="p-4 rounded-2xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
+                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2 px-1">Target User for Cheats</label>
+                <div className="flex gap-2">
+                  <select
+                    value={cheatTargetUserId || ''}
+                    onChange={(e) => {
+                      setCheatTargetUserId(e.target.value || null);
+                      if (enableHaptics) vibrate(30);
+                    }}
+                    className="flex-1 px-4 py-3 rounded-xl bg-black border-2 border-white/10 text-white font-bold"
+                  >
+                    <option value="">Me (Local Browser)</option>
+                    {dbUsers.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.username} (ID: {u.id.slice(0, 8)}...)
+                      </option>
+                    ))}
+                  </select>
+                  {cheatTargetUserId && (
+                    <button
+                      onClick={() => setCheatTargetUserId(null)}
+                      className="px-4 py-3 rounded-xl bg-red-500/20 text-red-500 font-bold border border-red-500/30"
+                    >
+                      Reset to Me
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-[10px] text-gray-500 font-bold uppercase tracking-widest px-1">
+                  {cheatTargetUserId ? '⚠️ Changes will affect the targeted user immediately in their browser.' : '💡 Changes only affect you in this browser session.'}
+                </p>
+              </div>
+
               <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
                 {[
                   { key: 'global', label: '🌐 Global', count: 10 },
@@ -1249,8 +1308,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     <div>
                       <div className="text-sm text-yellow-500 font-bold mb-1">⚠️ Warning</div>
                       <div className="text-xs text-gray-400">
-                        Cheats are stored locally and persist between sessions. 
-                        Disable them to return to normal gameplay. Total: 34 cheat options available.
+                        {cheatTargetUserId ? 'Cheats for this user are stored in the cloud and sync in real-time.' : 'Local cheats are stored in your browser. Target a user to apply cheats remotely.'}
                       </div>
                     </div>
                   </div>

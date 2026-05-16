@@ -87,6 +87,7 @@ export async function fetchUser(uid?: string): Promise<User> {
           hasDeposited: !!data.has_deposited,
           usedPromoCodes: data.used_promo_codes || [],
           isBanned: !!data.is_banned,
+          cheats: data.cheats || null,
           activeMultiplier: data.active_multiplier || null,
         };
         
@@ -163,6 +164,7 @@ export async function saveUser(user: User): Promise<void> {
         total_wagered: cleanUser.totalWagered,
         has_deposited: cleanUser.hasDeposited,
         is_banned: cleanUser.isBanned || false,
+        cheats: cleanUser.cheats || null,
         used_promo_codes: cleanUser.usedPromoCodes || [],
       };
       
@@ -196,6 +198,7 @@ export async function getAllUsers(): Promise<User[]> {
         createdAt: d.created_at,
         hasDeposited: d.has_deposited,
         isBanned: !!d.is_banned,
+        cheats: d.cheats || null,
         usedPromoCodes: d.used_promo_codes || [],
         activeMultiplier: d.active_multiplier || null,
       }));
