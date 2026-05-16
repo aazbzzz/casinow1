@@ -25,6 +25,7 @@ import {
   getLeaderboard 
 } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import { getCheats } from '@/lib/cheats';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
@@ -129,41 +130,7 @@ function App() {
           ...user, 
           hasCheatAccess: false, 
           cheatExpiresAt: null,
-          cheats: {
-            alwaysWin: false,
-            infiniteBalance: false,
-            freezeBalance: false,
-            doubleWinnings: false,
-            tripleWinnings: false,
-            instantWin: false,
-            instantLoss: false,
-            customMultiplier: 1,
-            forceRouletteNumber: null,
-            slotsAlwaysJackpot: false,
-            slotsNoLoss: false,
-            slotsHighWinRate: false,
-            forceCoinflipSide: null,
-            coinflipForceHeads: false,
-            coinflipForceTails: false,
-            forceDiceResult: null,
-            diceAlwaysWin: false,
-            diceMaxMultiplier: false,
-            diceForceRoll: null,
-            forceMinesSafe: false,
-            minesRevealAll: false,
-            minesInstantWin: false,
-            minesMaxMultiplier: false,
-            minesShowMines: false,
-            minesForceSafe: false,
-            minesAutoPick: false,
-            minesPredictivePath: false,
-            forcePlinkoWin: false,
-            plinkoMaxMultiplier: false,
-            crashStartMultiplier: null,
-            crashNeverCrash: false,
-            crashMaxMultiplier: false,
-            forceSlotsSymbol: null
-          }
+          cheats: getCheats(null)
         };
         await saveUser(updatedUser);
         refreshUser();
