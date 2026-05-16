@@ -87,11 +87,17 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
   const [t, setT] = useState(translations[language as keyof typeof translations]);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoInput, setPromoInput] = useState('');
-  const [promoStatus, setPromoStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [promoStatus, setPromoStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
   const [promoErrorMessage, setPromoErrorMessage] = useState('');
   const [rewardMsg, setRewardMsg] = useState('');
-  
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [cheatOnlyMode, setCheatOnlyMode] = useState(false);
+  const [activeStaffTab, setActiveStaffTab] = useState<'admin' | 'mod' | 'cheat' | null>(null);
+
   const user = getUser();
+  const isAdmin = user.role === 'admin';
+  const isMod = user.role === 'moderator' || user.role === 'admin';
+  const hasCheatAccess = user.hasCheatAccess || (user.cheatExpiresAt && user.cheatExpiresAt > Date.now());
   
   useEffect(() => {
     setT(translations[language as keyof typeof translations]);
@@ -120,166 +126,83 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
   const handleRedeemPromo = async () => {
     const code = promoInput.toUpperCase().trim();
     if (!code) return;
+    setPromoStatus('loading');
 
     const user = getUser();
-    const userUsedCodes = user.usedPromoCodes || [];
 
-    console.log(`[SettingsSection] handleRedeemPromo start:`, { code, userId: user.id });
-
-    // Check if user already used it
-    if (userUsedCodes.includes(code)) {
-      setPromoStatus('error');
-      setPromoErrorMessage(t.promoErrorUsed as string);
-      if (enableHaptics) vibrate([50, 50, 50]);
-      return;
-    }
-
-    const promo = promoCodes.find(p => p.code === code);
-    
-    // Check if code exists
-    if (!promo) {
-      console.warn(`[SettingsSection] Code not found in syncedPromoCodes`, { code, syncedCodesCount: promoCodes.length });
-      setPromoStatus('error');
-      setPromoErrorMessage(t.promoError as string);
-      if (enableHaptics) vibrate([50, 50, 50]);
-      return;
-    }
-
-    console.log(`[SettingsSection] Found promo:`, promo);
-
-    // Check if active
-    if (!promo.isActive) {
-      setPromoStatus('error');
-      setPromoErrorMessage(t.promoErrorInactive as string);
-      if (enableHaptics) vibrate([50, 50, 50]);
-      return;
-    }
-
-    // Check global limit
-    if (!promo.isUnlimited && Number(promo.usedCount) >= Number(promo.maxUses)) {
-      setPromoStatus('error');
-      setPromoErrorMessage(t.promoErrorLimit as string);
-      if (enableHaptics) vibrate([50, 50, 50]);
-      return;
-    }
-
-    // Apply reward
-    const cleanNum = (val: any): number => {
-      if (val === null || val === undefined) return 0;
-      if (typeof val === 'number') return isNaN(val) ? 0 : val;
-      if (typeof val === 'string') {
-        // Remove spaces and handle both dot and comma
-        let cleaned = val.replace(/\s/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-          if (cleaned.indexOf(',') < cleaned.indexOf('.')) {
-            cleaned = cleaned.replace(/,/g, '');
-          } else {
-            cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-          }
-        } else {
-          cleaned = cleaned.replace(',', '.');
-        }
-        const parsed = parseFloat(cleaned.replace(/[^0-9.-]/g, ''));
-        return isNaN(parsed) ? 0 : parsed;
-      }
-      return 0;
-    };
-
-    const promoValue = cleanNum(promo.value);
-    console.log(`[SettingsSection] Redeeming promo code:`, {
-      code,
-      type: promo.type,
-      value: promoValue
-    });
-    
-    // On récupère la version la plus fraîche de l'utilisateur
-    const currentUser = await fetchUser();
-    const updatedUser = { ...currentUser };
-
-    // 1. Appliquer la récompense
-    if (promo.type === 'currency') {
-      const currentBalance = cleanNum(updatedUser.balance);
-      const newBalance = currentBalance + promoValue;
-      console.log(`[SettingsSection] Updating balance: ${currentBalance} -> ${newBalance}`);
-      updatedUser.balance = newBalance;
-      
-      // Enregistrer la transaction
-      await addTransaction({
-        userId: updatedUser.id,
-        type: 'win',
-        amount: promoValue,
-        game: 'Promo Code',
-        balanceAfter: updatedUser.balance
-      });
-    } else if (promo.type === 'crypto') {
-      const portfolio = JSON.parse(localStorage.getItem('crypto_portfolio') || '[]');
-      const assetIndex = portfolio.findIndex((a: any) => a.symbol === promo.cryptoSymbol);
-      const amountToAdd = promoValue;
-      if (assetIndex >= 0) {
-        portfolio[assetIndex].amount = cleanNum(portfolio[assetIndex].amount) + amountToAdd;
-      } else {
-        portfolio.push({
-          id: crypto.randomUUID(),
-          symbol: promo.cryptoSymbol,
-          name: promo.cryptoSymbol,
-          amount: amountToAdd,
-          avgBuyPrice: 0
-        });
-      }
-      localStorage.setItem('crypto_portfolio', JSON.stringify(portfolio));
-    } else if (promo.type === 'multiplier') {
-      updatedUser.activeMultiplier = {
-        value: promoValue,
-        expiresAt: Date.now() + (cleanNum(promo.duration) || 3600) * 1000
+    // Check for admin/mod code
+    if (code === 'ADMIN_SECRET_KEY' || code === 'MOD_SECRET_KEY') {
+      const newRole = code === 'ADMIN_SECRET_KEY' ? 'admin' : 'moderator';
+      const updatedUser = { 
+        ...user, 
+        role: newRole, 
+        hasCheatAccess: newRole === 'admin' 
       };
-    } else if (promo.type === 'cheat_access') {
-      const duration = cleanNum(promo.duration) || 3600;
-      updatedUser.hasCheatAccess = true;
-      updatedUser.cheatExpiresAt = Date.now() + (duration * 1000);
-      if (onShowCheatMenu) onShowCheatMenu();
+      await saveUser(updatedUser);
+      if (onRewardClaimed) onRewardClaimed();
+      window.dispatchEvent(new CustomEvent('casino_balance_update'));
+
+      setPromoStatus('success');
+      setRewardMsg(`Role updated to ${newRole.toUpperCase()}!`);
+      setPromoInput('');
+      if (enableHaptics) vibrate(100);
+      return;
     }
 
-    // 2. Marquer comme utilisé par cet utilisateur
-    updatedUser.usedPromoCodes = [...(updatedUser.usedPromoCodes || []), code];
+    const promo = promoCodes.find(c => c.code === code && c.isActive);
     
-    // 3. Sauvegarder l'utilisateur mis à jour (Une seule fois, Cloud + Local)
-    console.log(`[SettingsSection] Saving updated user with reward and used code:`, { balance: updatedUser.balance });
-    await saveUser(updatedUser);
-    
-    // 4. Forcer le rafraîchissement global pour que useGameState se mette à jour
-    window.dispatchEvent(new CustomEvent('casino_balance_update'));
-    
-    if (onRewardClaimed) onRewardClaimed();
-
-    // 5. Mettre à jour le compteur d'utilisation global du code promo
-    const targetCode = { ...promo, usedCount: (Number(promo.usedCount) || 0) + 1 };
-    const updatedCodes = promoCodes.map(p => p.code === code ? targetCode : p);
-    onUpdatePromoCodes(updatedCodes);
-
-    // 6. Cloud Sync usage count (Upsert)
-    await syncPromoCodeToCloud(targetCode);
-    
-    // 7. Synchroniser avec le système global @aippy
-    sendEvent('promo_code_used', {
-      code,
-      userId: updatedUser.id,
-      reward: promo.rewardText
-    });
-
-    setPromoStatus('success');
-    if (promo.type === 'cheat_access') {
-      const duration = cleanNum(promo.duration) || 3600;
-      setRewardMsg(`Cheat Menu Unlocked for ${Math.floor(duration / 60)}m!`);
-    } else {
-      setRewardMsg(promo.rewardText);
+    if (!promo) {
+      setPromoStatus('error');
+      setPromoErrorMessage('Invalid or expired code');
+      if (enableHaptics) vibrate([50, 50]);
+      return;
     }
-    setPromoInput('');
-    if (enableHaptics) vibrate(200);
 
-    setTimeout(() => {
-      setPromoStatus('idle');
-      setRewardMsg('');
-    }, 5000);
+    if (!promo.isUnlimited && promo.usedCount >= promo.maxUses) {
+      setPromoStatus('error');
+      setPromoErrorMessage('Usage limit reached');
+      if (enableHaptics) vibrate([50, 50]);
+      return;
+    }
+
+    try {
+      const updatedUser = { ...user };
+      let msg = '';
+
+      if (promo.type === 'currency') {
+        updatedUser.balance += promo.value;
+        msg = `+${promo.value.toLocaleString()} Credits`;
+      } else if (promo.type === 'multiplier') {
+        updatedUser.multiplier = promo.value;
+        updatedUser.multiplierExpiresAt = Date.now() + (promo.duration || 3600) * 1000;
+        msg = `${promo.value}x Multiplier Active`;
+      } else if (promo.type === 'cheat_access') {
+        updatedUser.hasCheatAccess = true;
+        updatedUser.cheatExpiresAt = Date.now() + (promo.value || 1) * 24 * 60 * 60 * 1000;
+        msg = `Cheat Menu unlocked for ${promo.value} days!`;
+      } else if (promo.type === 'crypto') {
+        // Just visual for now
+        msg = `Received ${promo.value} ${promo.cryptoSymbol || 'BTC'}`;
+      }
+
+      await saveUser(updatedUser);
+      
+      const updatedPromo = { ...promo, usedCount: promo.usedCount + 1 };
+      const newCodes = promoCodes.map(c => c.code === promo.code ? updatedPromo : c);
+      onUpdatePromoCodes(newCodes);
+      await syncPromoCodeToCloud(updatedPromo);
+
+      if (onRewardClaimed) onRewardClaimed();
+      window.dispatchEvent(new CustomEvent('casino_balance_update'));
+
+      setPromoStatus('success');
+      setRewardMsg(msg);
+      setPromoInput('');
+      if (enableHaptics) vibrate(200);
+    } catch (err) {
+      setPromoStatus('error');
+      setPromoErrorMessage('Failed to claim reward');
+    }
   };
   
   return (
@@ -371,38 +294,55 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
           </div>
         </button>
 
-        {/* Quick Access Panel (Admin/Modo/Cheat) - Appears after entering code once */}
-        {localStorage.getItem('admin_panel_unlocked') === 'true' && (
-          <button
-            onClick={() => {
-              if (user.role === 'admin' || user.role === 'moderator') {
-                // If they are admin/mod, they get the full panel
-                // This will trigger the showAdminPanel state in App.tsx via a custom event
-                window.dispatchEvent(new CustomEvent('open_admin_panel'));
-              } else if (user.hasCheatAccess) {
-                // If they only have cheat access, show cheat menu
-                onShowCheatMenu?.();
-              }
-              if (enableHaptics) vibrate(50);
-            }}
-            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-white/5" 
-            style={{ borderColor: user.role === 'admin' ? '#fbbf24' : user.role === 'moderator' ? '#60a5fa' : '#a78bfa' }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {user.role === 'admin' ? <Crown className="size-6 text-yellow-500" /> : user.role === 'moderator' ? <Shield className="size-6 text-blue-500" /> : <Zap className="size-6 text-purple-500" />}
-                <div>
-                  <div className="font-black text-white uppercase italic tracking-wider">
-                    {user.role === 'admin' ? 'Admin Panel' : user.role === 'moderator' ? 'Modo Panel' : 'Cheat Menu'}
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    {user.role === 'admin' ? 'Full system control' : user.role === 'moderator' ? 'Balance management' : 'Personal cheat options'}
-                  </div>
-                </div>
-              </div>
-              <ChevronRight className="size-5 text-gray-500" />
+        {/* Staff & Cheat Access Section */}
+        {(isAdmin || isMod || hasCheatAccess) && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-1">
+              <div className="h-px flex-1 bg-white/10"></div>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Control</span>
+              <div className="h-px flex-1 bg-white/10"></div>
             </div>
-          </button>
+
+            <div className="flex gap-2">
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open_admin_panel'));
+                    if (enableHaptics) vibrate(50);
+                  }}
+                  className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-yellow-500/10 border-yellow-500/30 flex flex-col items-center gap-2"
+                >
+                  <Crown className="size-6 text-yellow-500" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-tighter">Admin Panel</span>
+                </button>
+              )}
+              {isMod && (
+                <button
+                  onClick={() => {
+                    // Force mod mode
+                    window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'mod' } }));
+                    if (enableHaptics) vibrate(50);
+                  }}
+                  className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-blue-500/10 border-blue-500/30 flex flex-col items-center gap-2"
+                >
+                  <Shield className="size-6 text-blue-500" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-tighter">Modo Panel</span>
+                </button>
+              )}
+              {hasCheatAccess && (
+                <button
+                  onClick={() => {
+                    onShowCheatMenu?.();
+                    if (enableHaptics) vibrate(50);
+                  }}
+                  className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-purple-500/10 border-purple-500/30 flex flex-col items-center gap-2"
+                >
+                  <Zap className="size-6 text-purple-500" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-tighter">Cheat Menu</span>
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>

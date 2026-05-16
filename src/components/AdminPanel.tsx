@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, Users, Settings, ChevronRight, Copy, Check, Plus, Zap, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck, Shield, Crown, Award, Eye, EyeOff, AlertTriangle, ChevronDown, FileCode, DollarSign } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Users, Settings, ChevronRight, Copy, Check, Plus, Zap, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck, Shield, Crown, Award, Eye, EyeOff, AlertTriangle, ChevronDown, FileCode, DollarSign, Timer } from 'lucide-react';
 import { saveUser, resetAllData, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured, getAllUsers } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
@@ -42,9 +42,10 @@ interface AdminPanelProps {
   user: User;
   onRefreshUser?: () => void;
   cheatOnlyMode?: boolean;
+  staffMode?: 'admin' | 'mod';
 }
 
-export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false }: AdminPanelProps) {
+export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false, staffMode = 'admin' }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'users' | 'cheats' | 'promo' | 'roles'>(cheatOnlyMode ? 'cheats' : 'users');
   const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
@@ -53,6 +54,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const [cheats, setCheats] = useState<CheatSettings>(getCheats(null));
   const [cheatTargetUserId, setCheatTargetUserId] = useState<string | null>(null);
   const [cheatCategory, setCheatCategory] = useState<'global' | 'roulette' | 'slots' | 'coinflip' | 'dice' | 'mines' | 'crash' | 'plinko'>('global');
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   
   const [newPromo, setNewPromo] = useState({
     code: '',
@@ -77,6 +80,26 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (user.cheatExpiresAt) {
+      const interval = setInterval(() => {
+        const remaining = Math.max(0, Math.floor((user.cheatExpiresAt! - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining <= 0) {
+          clearInterval(interval);
+          onClose();
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [user.cheatExpiresAt, onClose]);
+
+  useEffect(() => {
+    if (editingUser && scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [editingUser]);
 
   const handleToggleRole = async (userId: string, newRole: 'admin' | 'moderator' | 'player' | 'cheat') => {
     try {
@@ -173,32 +196,41 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   }, [cheatTargetUserId, dbUsers]);
 
   return (
-    <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md overflow-hidden">
-      <div className="w-full max-w-6xl h-[90vh] bg-[#050505] rounded-[2.5rem] border-2 flex flex-col relative shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden" style={{ borderColor: `${primaryAccent}20` }}>
-        <div className="p-8 border-b-2 flex items-center justify-between shrink-0" style={{ borderColor: `${primaryAccent}10` }}>
-          <div className="flex items-center gap-4">
-            <div className="size-12 rounded-2xl flex items-center justify-center border-2" style={{ borderColor: primaryAccent, backgroundColor: `${primaryAccent}10` }}>
-              <Settings className="size-6" style={{ color: primaryAccent }} />
+    <div className="fixed inset-0 bg-black/95 z-[200] flex items-start sm:items-center justify-center p-0 sm:p-4 backdrop-blur-md overflow-hidden">
+      <div className="w-full max-w-6xl h-full sm:h-[90vh] bg-[#050505] rounded-none sm:rounded-[2.5rem] border-0 sm:border-2 flex flex-col relative shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden" style={{ borderColor: `${primaryAccent}20` }}>
+        <div className="p-4 sm:p-8 border-b-2 flex items-center justify-between shrink-0" style={{ borderColor: `${primaryAccent}10` }}>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="size-10 sm:size-12 rounded-xl sm:rounded-2xl flex items-center justify-center border-2" style={{ borderColor: primaryAccent, backgroundColor: `${primaryAccent}10` }}>
+              {cheatOnlyMode ? <Zap className="size-5 sm:size-6" style={{ color: primaryAccent }} /> : <Settings className="size-5 sm:size-6" style={{ color: primaryAccent }} />}
             </div>
             <div>
-              <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">Admin Control</h2>
-              <div className="flex items-center gap-2">
-                <div className="size-2 rounded-full animate-pulse bg-green-500" />
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">System Online</span>
+              <h2 className="text-xl sm:text-3xl font-black text-white uppercase tracking-tighter italic leading-none">{cheatOnlyMode ? 'Cheat Menu' : 'Admin Control'}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                {timeLeft !== null ? (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30">
+                    <Timer className="size-3 text-purple-400" />
+                    <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest">{timeLeft}s Left</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="size-1.5 sm:size-2 rounded-full animate-pulse bg-green-500" />
+                    <span className="text-[8px] sm:text-[10px] font-black text-gray-500 uppercase tracking-widest">System Online</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="size-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90">
-            <X className="size-6 text-white" />
+          <button onClick={onClose} className="size-10 sm:size-12 rounded-xl sm:rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90 border border-white/10">
+            <X className="size-5 sm:size-6 text-white" />
           </button>
         </div>
 
-        <div className="flex gap-2 px-6 py-4 border-b-2 shrink-0 overflow-x-auto" style={{ borderColor: `${primaryAccent}20` }}>
+        <div className="flex gap-1 px-4 py-2 sm:px-6 sm:py-4 border-b-2 shrink-0 overflow-x-auto no-scrollbar" style={{ borderColor: `${primaryAccent}20` }}>
           {[
-            { key: 'users', label: 'User Database', icon: Users, show: !cheatOnlyMode },
-            { key: 'promo', label: 'Promo Code Creation', icon: Ticket, show: !cheatOnlyMode },
-            { key: 'cheats', label: 'Cheats', icon: Zap, show: true },
-            { key: 'roles', label: 'User Role Management', icon: Shield, show: !cheatOnlyMode },
+            { key: 'users', label: 'Users', icon: Users, show: !cheatOnlyMode },
+            { key: 'promo', label: 'Promo', icon: Ticket, show: !cheatOnlyMode && staffMode === 'admin' },
+            { key: 'cheats', label: 'Cheats', icon: Zap, show: !cheatOnlyMode && staffMode === 'admin' },
+            { key: 'roles', label: 'Roles', icon: Shield, show: !cheatOnlyMode && staffMode === 'admin' },
           ].filter(tab => tab.show).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -206,84 +238,87 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                 setActiveTab(key as any);
                 if (enableHaptics) vibrate(30);
               }}
-              className="px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all flex items-center gap-3 shrink-0"
+              className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-sm uppercase tracking-widest transition-all flex items-center gap-2 sm:gap-3 shrink-0 border border-transparent"
               style={{
                 backgroundColor: activeTab === key ? primaryAccent : 'transparent',
                 color: activeTab === key ? '#000' : '#888',
-                boxShadow: activeTab === key ? `0 0 30px ${primaryAccent}40` : 'none'
+                borderColor: activeTab === key ? primaryAccent : 'transparent',
+                boxShadow: activeTab === key ? `0 0 20px ${primaryAccent}30` : 'none'
               }}
             >
-              <Icon className="size-4" />
+              <Icon className="size-3.5 sm:size-4" />
               {label}
             </button>
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar">
           {activeTab === 'users' && (
-            <div className="space-y-6 relative">
+            <div className="space-y-4 sm:space-y-6 relative min-h-full">
               {editingUser && (
-                <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md rounded-[2rem] p-8 flex flex-col items-center justify-center border-2" style={{ borderColor: primaryAccent }}>
-                  <div className="w-full max-w-md space-y-6">
-                    <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Edit User Data</h3>
-                      <button onClick={() => setEditingUser(null)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400"><X /></button>
+                <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl rounded-none sm:rounded-[2rem] p-4 sm:p-8 flex flex-col items-center justify-start sm:justify-center border-0 sm:border-2 overflow-y-auto" style={{ borderColor: primaryAccent }}>
+                  <div className="w-full max-w-md space-y-4 sm:space-y-6 mt-4 sm:mt-0">
+                    <div className="flex items-center justify-between mb-2 sm:mb-8">
+                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tighter">Edit User Data</h3>
+                      <button onClick={() => setEditingUser(null)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 border border-white/10"><X size={20}/></button>
                     </div>
                     
-                    <div>
-                      <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Username</label>
-                      <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold opacity-50">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <label className="text-[10px] font-black text-gray-500 uppercase mb-2 block tracking-widest">Username</label>
+                      <div className="text-white font-black text-lg">
                         {dbUsers.find(u => u.id === editingUser)?.username}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Balance</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                        <label className="text-[10px] font-black text-gray-500 uppercase mb-2 block tracking-widest">Balance ($)</label>
                         <input
                           type="number"
                           value={editBalances.balance}
                           onChange={(e) => setEditBalances({ ...editBalances, balance: Number(e.target.value) })}
-                          className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                          className="w-full bg-black/40 border-2 rounded-xl px-4 py-3 text-white font-black outline-none transition-all"
                           style={{ borderColor: `${primaryAccent}40` }}
                         />
                       </div>
-                      <div>
-                        <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Bank Balance</label>
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                        <label className="text-[10px] font-black text-gray-500 uppercase mb-2 block tracking-widest">Bank ($)</label>
                         <input
                           type="number"
                           value={editBalances.bankBalance}
                           onChange={(e) => setEditBalances({ ...editBalances, bankBalance: Number(e.target.value) })}
-                          className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                          className="w-full bg-black/40 border-2 rounded-xl px-4 py-3 text-white font-black outline-none transition-all"
                           style={{ borderColor: `${primaryAccent}40` }}
                         />
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-xs font-black text-gray-500 uppercase mb-2 block">VIP Level (1-10)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={editBalances.vipLevel}
-                        onChange={(e) => setEditBalances({ ...editBalances, vipLevel: Number(e.target.value) })}
-                        className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
-                        style={{ borderColor: `${primaryAccent}40` }}
-                      />
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <label className="text-[10px] font-black text-gray-500 uppercase mb-2 block tracking-widest">VIP Level (1-10)</label>
+                      <div className="flex gap-3">
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          value={editBalances.vipLevel}
+                          onChange={(e) => setEditBalances({ ...editBalances, vipLevel: Number(e.target.value) })}
+                          className="flex-1 accent-white"
+                        />
+                        <span className="size-12 rounded-xl bg-white/10 flex items-center justify-center font-black text-white border border-white/20">{editBalances.vipLevel}</span>
+                      </div>
                     </div>
 
-                    <div className="pt-4 flex gap-4">
+                    <div className="pt-4 flex flex-col sm:flex-row gap-3">
                       <button
                         onClick={handleUpdateUserData}
-                        className="flex-1 py-4 rounded-xl font-black text-black transition-all active:scale-95"
+                        className="flex-1 py-4 rounded-xl font-black text-black transition-all active:scale-95 shadow-lg"
                         style={{ backgroundColor: primaryAccent }}
                       >
                         SAVE CHANGES
                       </button>
                       <button
                         onClick={() => setEditingUser(null)}
-                        className="px-8 py-4 rounded-xl font-black text-white bg-white/5 border-2 border-white/10 transition-all active:scale-95"
+                        className="py-4 px-8 rounded-xl font-black text-white bg-white/5 border border-white/10 transition-all active:scale-95"
                       >
                         CANCEL
                       </button>
@@ -291,29 +326,29 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {dbUsers.map((u) => (
-                  <div key={u.id} className="p-6 rounded-[2rem] bg-black/40 border-2 transition-all hover:border-white/20" style={{ borderColor: `${primaryAccent}10` }}>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="size-12 rounded-2xl bg-white/5 flex items-center justify-center font-black text-xl text-white">
+                  <div key={u.id} className="p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] bg-black/40 border-2 transition-all hover:border-white/20" style={{ borderColor: `${primaryAccent}10` }}>
+                    <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                      <div className="size-10 sm:size-12 rounded-xl bg-white/5 flex items-center justify-center font-black text-lg sm:text-xl text-white border border-white/10">
                         {u.username[0].toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-black text-white truncate flex items-center gap-2">
+                        <div className="font-black text-white truncate flex items-center gap-2 text-sm sm:text-base">
                           {u.username}
                           {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
                         </div>
-                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{u.id.slice(0, 8)}...</div>
+                        <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-widest">{u.id.slice(0, 12)}</div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mb-4">
-                      <div className="p-3 rounded-xl bg-black/30 border border-white/5">
-                        <div className="text-[10px] font-bold text-gray-500 uppercase mb-1">Balance</div>
-                        <div className="text-white font-black">${u.balance.toLocaleString()}</div>
+                      <div className="p-2 sm:p-3 rounded-xl bg-black/30 border border-white/5">
+                        <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase mb-1">Balance</div>
+                        <div className="text-white font-black text-xs sm:text-sm">${u.balance.toLocaleString()}</div>
                       </div>
-                      <div className="p-3 rounded-xl bg-black/30 border border-white/5">
-                        <div className="text-[10px] font-bold text-gray-500 uppercase mb-1">VIP</div>
-                        <div className="text-white font-black">Lvl {u.vipLevel}</div>
+                      <div className="p-2 sm:p-3 rounded-xl bg-black/30 border border-white/5">
+                        <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase mb-1">VIP</div>
+                        <div className="text-white font-black text-xs sm:text-sm">Level {u.vipLevel}</div>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -328,33 +363,37 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             });
                             if (enableHaptics) vibrate(50);
                           }}
-                          className="flex-1 py-3 rounded-xl bg-blue-500/10 text-blue-400 font-black text-[10px] uppercase tracking-widest hover:bg-blue-500/20 border border-blue-500/30"
+                          className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-blue-500/10 text-blue-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-blue-500/20 border border-blue-500/30 transition-all active:scale-95"
                         >
                           Edit Data
                         </button>
-                        <button
-                          onClick={() => {
-                            setCheatTargetUserId(u.id);
-                            setActiveTab('cheats');
-                            if (enableHaptics) vibrate(50);
-                          }}
-                          className="flex-1 py-3 rounded-xl bg-purple-500/10 text-purple-400 font-black text-[10px] uppercase tracking-widest hover:bg-purple-500/20 border border-purple-500/30"
-                        >
-                          Cheats
-                        </button>
+                        {!cheatOnlyMode && staffMode === 'admin' && (
+                          <button
+                            onClick={() => {
+                              setCheatTargetUserId(u.id);
+                              setActiveTab('cheats');
+                              if (enableHaptics) vibrate(50);
+                            }}
+                            className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-purple-500/10 text-purple-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-purple-500/20 border border-purple-500/30 transition-all active:scale-95"
+                          >
+                            Cheats
+                          </button>
+                        )}
                       </div>
-                      <button
-                        onClick={async () => {
-                          if (confirm(`${u.isBanned ? 'Unban' : 'Ban'} user ${u.username}?`)) {
-                            const updatedUser = { ...u, isBanned: !u.isBanned };
-                            await saveUser(updatedUser);
-                            await fetchUsers();
-                          }
-                        }}
-                        className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest border transition-all ${u.isBanned ? 'bg-red-500 text-white border-red-500' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}`}
-                      >
-                        {u.isBanned ? 'Unban User' : 'Ban User'}
-                      </button>
+                      {!cheatOnlyMode && staffMode === 'admin' && (
+                        <button
+                          onClick={async () => {
+                            if (confirm(`${u.isBanned ? 'Unban' : 'Ban'} user ${u.username}?`)) {
+                              const updatedUser = { ...u, isBanned: !u.isBanned };
+                              await saveUser(updatedUser);
+                              await fetchUsers();
+                            }
+                          }}
+                          className={`w-full py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${u.isBanned ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}`}
+                        >
+                          {u.isBanned ? 'Unban User' : 'Ban User'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -570,7 +609,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           {activeTab === 'cheats' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex gap-2 overflow-x-auto pb-2 flex-1">
+                <div className="flex gap-2 overflow-x-auto pb-2 flex-1 no-scrollbar">
                   {[
                     { key: 'global', label: '🌐 Global' },
                     { key: 'roulette', label: '🎡 Roulette' },
@@ -587,7 +626,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         setCheatCategory(key as any);
                         if (enableHaptics) vibrate(30);
                       }}
-                      className="px-4 py-2 rounded-xl font-bold transition-all active:scale-95 border-2 whitespace-nowrap"
+                      className="px-4 py-2 rounded-xl font-bold transition-all active:scale-95 border-2 whitespace-nowrap text-xs"
                       style={{
                         backgroundColor: cheatCategory === key ? primaryAccent : 'transparent',
                         color: cheatCategory === key ? '#000' : '#fff',
@@ -598,7 +637,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     </button>
                   ))}
                 </div>
-                {cheatTargetUserId && (
+                {cheatTargetUserId && !cheatOnlyMode && (
                   <button
                     onClick={() => setCheatTargetUserId(null)}
                     className="ml-4 px-4 py-2 rounded-xl bg-red-500/20 border-2 border-red-500 text-red-500 font-black text-[10px] uppercase tracking-widest whitespace-nowrap"
@@ -628,7 +667,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                           type="number"
                           value={cheats.customMultiplier}
                           onChange={(e) => handleCheatToggle('customMultiplier', Math.max(1, Number(e.target.value)))}
-                          className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                          className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none transition-all"
                           style={{ borderColor: `${primaryAccent}60` }}
                           min="1"
                           step="0.1"
@@ -767,30 +806,31 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                   User Roles & System Management
                 </h3>
                 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 gap-3">
                   {dbUsers.map(u => (
-                    <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between transition-all hover:bg-white/10">
-                      <div className="flex items-center gap-4">
+                    <div key={u.id} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between transition-all hover:bg-white/10 gap-3">
+                      <div className="flex items-center gap-3">
                         <div className="size-10 rounded-xl bg-black flex items-center justify-center font-black text-lg border border-white/10" style={{ color: primaryAccent }}>
                           {u.username[0].toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-black text-white flex items-center gap-2">
+                          <div className="font-black text-white flex items-center gap-2 text-sm">
                             {u.username}
                             {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
+                            {u.role === 'moderator' && <Shield className="size-3 text-blue-500" />}
                           </div>
-                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">Role: {u.role}</div>
+                          <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">Current Role: <span style={{ color: u.role === 'admin' ? '#fbbf24' : u.role === 'moderator' ? '#60a5fa' : '#fff' }}>{u.role}</span></div>
                         </div>
                       </div>
-                      <div className="flex gap-2 bg-black/40 p-1 rounded-xl border border-white/10">
+                      <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/10 w-full sm:w-auto overflow-x-auto no-scrollbar">
                         {['player', 'moderator', 'admin', 'cheat'].map((r) => (
                           <button
                             key={r}
                             onClick={() => handleToggleRole(u.id, r as any)}
-                            className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all active:scale-95 ${u.role === r ? 'bg-white/20 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                            className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all active:scale-95 whitespace-nowrap ${u.role === r ? 'bg-white/20 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                             style={u.role === r ? { 
                               color: r === 'admin' ? '#fbbf24' : r === 'moderator' ? '#60a5fa' : r === 'cheat' ? '#a78bfa' : '#fff',
-                              backgroundColor: r === 'admin' ? 'rgba(251, 191, 36, 0.1)' : r === 'moderator' ? 'rgba(96, 165, 250, 0.1)' : r === 'cheat' ? 'rgba(167, 139, 250, 0.1)' : 'rgba(255, 255, 255, 0.1)'
+                              backgroundColor: r === 'admin' ? 'rgba(251, 191, 36, 0.15)' : r === 'moderator' ? 'rgba(96, 165, 250, 0.15)' : r === 'cheat' ? 'rgba(167, 139, 250, 0.15)' : 'rgba(255, 255, 255, 0.15)'
                             } : {}}
                           >
                             {r}

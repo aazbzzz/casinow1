@@ -83,8 +83,17 @@ function App() {
     return () => clearInterval(interval);
   }, [refreshLeaderboard]);
 
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showCheatMenu, setShowCheatMenu] = useState(false);
+  const [adminPanelMode, setAdminPanelMode] = useState<'admin' | 'mod'>('admin');
+
   useEffect(() => {
-    const handleOpenAdmin = () => {
+    const handleOpenAdmin = (e: any) => {
+      if (e.detail && e.detail.mode) {
+        setAdminPanelMode(e.detail.mode);
+      } else {
+        setAdminPanelMode('admin');
+      }
       setShowAdminPanel(true);
     };
     window.addEventListener('open_admin_panel', handleOpenAdmin);
@@ -109,9 +118,6 @@ function App() {
     setShowAuth(true);
     refreshUser();
   };
-
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [showCheatMenu, setShowCheatMenu] = useState(false);
 
   // Auto-expire cheats
   useEffect(() => {
@@ -486,6 +492,7 @@ function App() {
           user={user}
           onRefreshUser={refreshUser}
           cheatOnlyMode={false}
+          staffMode={adminPanelMode}
         />
       )}
 
