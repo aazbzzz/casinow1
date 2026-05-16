@@ -101,8 +101,8 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
 
   const isAdmin = user.role === 'admin';
   const isMod = user.role === 'moderator';
-  const isCheat = user.role === 'cheat';
-  const hasCheatAccess = isCheat || (user.hasCheatAccess && user.cheatExpiresAt && user.cheatExpiresAt > now);
+  const isCheatRole = user.role === 'cheat';
+  const hasCheatAccess = isCheatRole || (user.hasCheatAccess && user.cheatExpiresAt && user.cheatExpiresAt > now);
   
   useEffect(() => {
     setT(translations[language as keyof typeof translations]);
@@ -119,12 +119,10 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
   };
   
   const toggleSounds = () => {
-    // Les tweaks sont gérés par la plateforme
     if (enableHaptics) vibrate(50);
   };
 
   const toggleHaptics = () => {
-    // Les tweaks sont gérés par la plateforme
     if (enableHaptics) vibrate(50);
   };
 
@@ -133,21 +131,16 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     if (!code) return;
     setPromoStatus('loading');
 
-    const user = getUser();
-
     // Check for admin/mod code
     if (code === '190608' || code === 'MOD_SECRET_KEY') {
       const newRole = (code === '190608' ? 'admin' : 'moderator') as 'admin' | 'moderator';
-      
-      // On récupère la version la plus fraîche pour éviter d'écraser des données
       const freshUser = await fetchUser(user.id);
-      
       const updatedUser = { 
         ...freshUser, 
         role: newRole, 
-        hasCheatAccess: true, 
+        hasCheatAccess: false, // Strict: Admin/Mod don't get cheat menu in settings
         showBadge: true,
-        hideFromLeaderboard: false, // Ensure they are visible if they want
+        hideFromLeaderboard: false,
         showModBadge: newRole === 'moderator'
       };
       const finalUser = await saveUser(updatedUser);
@@ -163,7 +156,6 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     }
 
     const promo = promoCodes.find(c => c.code === code && c.isActive);
-    
     if (!promo) {
       setPromoStatus('error');
       setPromoErrorMessage('Invalid or expired code');
@@ -196,13 +188,9 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
         updatedUser.hasCheatAccess = true;
         updatedUser.cheatExpiresAt = Date.now() + (promo.value || 1) * 24 * 60 * 60 * 1000;
         msg = `Cheat Menu unlocked for ${promo.value} days!`;
-      } else if (promo.type === 'crypto') {
-        // Just visual for now
-        msg = `Received ${promo.value} ${promo.cryptoSymbol || 'BTC'}`;
       }
 
       const finalUser = await saveUser(updatedUser);
-      
       const updatedPromo = { ...promo, usedCount: promo.usedCount + 1 };
       const newCodes = promoCodes.map(c => c.code === promo.code ? updatedPromo : c);
       onUpdatePromoCodes(newCodes);
@@ -226,171 +214,142 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
       <h2 className="text-2xl font-bold text-white mb-6">{t.title}</h2>
       
       <div className="space-y-4">
-        <button 
-          onClick={toggleSounds}
-          className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
-          style={{ backgroundColor: cardBg }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Volume2 className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-semibold text-white">{t.sounds}</div>
-                <div className="text-sm text-gray-400">{t.soundsDesc}</div>
+        {/* General Settings - Available to Players only or if not in special role */}
+        {!isAdmin && !isMod && !isCheatRole && (
+          <>
+            <button 
+              onClick={toggleSounds}
+              className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
+              style={{ backgroundColor: cardBg }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Volume2 className="size-6" style={{ color: primaryAccent }} />
+                  <div>
+                    <div className="font-semibold text-white">{t.sounds}</div>
+                    <div className="text-sm text-gray-400">{t.soundsDesc}</div>
+                  </div>
+                </div>
+                <div className={`size-12 rounded-full flex items-center justify-center transition-all ${enableSounds ? 'bg-green-500' : 'bg-gray-700'}`}>
+                  {enableSounds ? '✓' : '✗'}
+                </div>
               </div>
-            </div>
-            <div className={`size-12 rounded-full flex items-center justify-center transition-all ${enableSounds ? 'bg-green-500' : 'bg-gray-700'}`}>
-              {enableSounds ? '✓' : '✗'}
-            </div>
-          </div>
-        </button>
+            </button>
 
-        <button 
-          onClick={toggleHaptics}
-          className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
-          style={{ backgroundColor: cardBg }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Vibrate className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-semibold text-white">{t.vibrations}</div>
-                <div className="text-sm text-gray-400">{t.vibrationsDesc}</div>
+            <button 
+              onClick={toggleHaptics}
+              className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
+              style={{ backgroundColor: cardBg }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Vibrate className="size-6" style={{ color: primaryAccent }} />
+                  <div>
+                    <div className="font-semibold text-white">{t.vibrations}</div>
+                    <div className="text-sm text-gray-400">{t.vibrationsDesc}</div>
+                  </div>
+                </div>
+                <div className={`size-12 rounded-full flex items-center justify-center transition-all ${enableHaptics ? 'bg-green-500' : 'bg-gray-700'}`}>
+                  {enableHaptics ? '✓' : '✗'}
+                </div>
               </div>
-            </div>
-            <div className={`size-12 rounded-full flex items-center justify-center transition-all ${enableHaptics ? 'bg-green-500' : 'bg-gray-700'}`}>
-              {enableHaptics ? '✓' : '✗'}
-            </div>
-          </div>
-        </button>
-        
-        {/* Promo Code Button - Placed below vibrations */}
-        <button
-          onClick={() => {
-            setShowPromoModal(true);
-            if (enableHaptics) vibrate(50);
-          }}
-          className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2" 
-          style={{ backgroundColor: `${primaryAccent}10`, borderColor: `${primaryAccent}40` }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Gift className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-black text-white uppercase italic tracking-wider">{t.promo}</div>
-                <div className="text-sm text-gray-400">{t.promoDesc}</div>
+            </button>
+            
+            {/* Promo Code Button */}
+            <button
+              onClick={() => {
+                setShowPromoModal(true);
+                if (enableHaptics) vibrate(50);
+              }}
+              className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2" 
+              style={{ backgroundColor: `${primaryAccent}10`, borderColor: `${primaryAccent}40` }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Gift className="size-6" style={{ color: primaryAccent }} />
+                  <div>
+                    <div className="font-black text-white uppercase italic tracking-wider">{t.promo}</div>
+                    <div className="text-sm text-gray-400">{t.promoDesc}</div>
+                  </div>
+                </div>
+                <div className="size-8 rounded-full flex items-center justify-center" style={{ backgroundColor: primaryAccent }}>
+                  <span className="text-xl text-black">→</span>
+                </div>
               </div>
-            </div>
-            <div className="size-8 rounded-full flex items-center justify-center" style={{ backgroundColor: primaryAccent }}>
-              <span className="text-xl text-black">→</span>
-            </div>
-          </div>
-        </button>
+            </button>
 
-        {/* Staff & Cheat Access Section */}
-        {(isAdmin || isMod || hasCheatAccess) && (
+            <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Globe className="size-6" style={{ color: primaryAccent }} />
+                  <div>
+                    <div className="font-semibold text-white">{t.language}</div>
+                    <div className="text-sm text-gray-400">{t.languageDesc}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {['fr', 'de', 'en'].map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => handleLanguageChange(lang)}
+                      className="px-3 py-1 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      style={{
+                        backgroundColor: language === lang ? primaryAccent : '#333',
+                        color: language === lang ? '#000' : '#fff',
+                      }}
+                    >
+                      {lang.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Staff & Cheat Access Section - STRICT RBAC */}
+        {(isAdmin || isMod || isCheatRole) && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 px-1">
               <div className="h-px flex-1 bg-white/10"></div>
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Personal Settings</span>
-              <div className="h-px flex-1 bg-white/10"></div>
-            </div>
-
-            <div className="space-y-2">
-              {(isAdmin || isMod) && (
-                <button 
-                  onClick={async () => {
-                    const freshUser = await fetchUser(user.id);
-                    const updatedUser = { 
-                      ...freshUser, 
-                      showBadge: !freshUser.showBadge
-                    };
-                    const finalUser = await saveUser(updatedUser);
-                    if (onRewardClaimed) onRewardClaimed(finalUser);
-                    if (enableHaptics) vibrate(50);
-                  }}
-                  className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
-                  style={{ backgroundColor: cardBg }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <ShieldCheck className="size-6" style={{ color: primaryAccent }} />
-                      <div>
-                        <div className="font-semibold text-white">Display {isAdmin ? 'Admin' : 'Mod'} Badge</div>
-                        <div className="text-sm text-gray-400">Show your rank in leaderboards</div>
-                      </div>
-                    </div>
-                    <div className={`size-12 rounded-full flex items-center justify-center transition-all ${user.showBadge ? 'bg-green-500' : 'bg-gray-700'}`}>
-                      {user.showBadge ? '✓' : '✗'}
-                    </div>
-                  </div>
-                </button>
-              )}
-
-              <button 
-                onClick={async () => {
-                  const freshUser = await fetchUser(user.id);
-                  const updatedUser = { 
-                    ...freshUser, 
-                    hideFromLeaderboard: !freshUser.hideFromLeaderboard
-                  };
-                  const finalUser = await saveUser(updatedUser);
-                  if (onRewardClaimed) onRewardClaimed(finalUser);
-                  if (enableHaptics) vibrate(50);
-                }}
-                className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
-                style={{ backgroundColor: cardBg }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Globe className="size-6" style={{ color: primaryAccent }} />
-                    <div>
-                      <div className="font-semibold text-white">Leaderboards Presence</div>
-                      <div className="text-sm text-gray-400">Toggle visibility in global ranking</div>
-                    </div>
-                  </div>
-                  <div className={`size-12 rounded-full flex items-center justify-center transition-all ${!user.hideFromLeaderboard ? 'bg-green-500' : 'bg-gray-700'}`}>
-                    {!user.hideFromLeaderboard ? '✓' : '✗'}
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 px-1">
-              <div className="h-px flex-1 bg-white/10"></div>
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Control Panels</span>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Control</span>
               <div className="h-px flex-1 bg-white/10"></div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('open_admin_panel'));
-                      if (enableHaptics) vibrate(50);
-                    }}
-                    className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-yellow-500/10 border-yellow-500/30 flex flex-col items-center gap-2"
-                  >
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open_admin_panel'));
+                    if (enableHaptics) vibrate(50);
+                  }}
+                  className="w-full p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-yellow-500/10 border-yellow-500/30 flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3">
                     <Crown className="size-6 text-yellow-500" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Admin Panel</span>
-                  </button>
-                )}
-                {isMod && (
-                  <button
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'mod' } }));
-                      if (enableHaptics) vibrate(50);
-                    }}
-                    className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-blue-500/10 border-blue-500/30 flex flex-col items-center gap-2"
-                  >
+                    <span className="font-black text-white uppercase tracking-tighter">Admin Panel</span>
+                  </div>
+                  <ChevronRight className="size-5 text-yellow-500" />
+                </button>
+              )}
+
+              {isMod && (
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'mod' } }));
+                    if (enableHaptics) vibrate(50);
+                  }}
+                  className="w-full p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-blue-500/10 border-blue-500/30 flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3">
                     <Shield className="size-6 text-blue-500" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Mod Control</span>
-                  </button>
-                )}
-              </div>
+                    <span className="font-black text-white uppercase tracking-tighter">Mod Control</span>
+                  </div>
+                  <ChevronRight className="size-5 text-blue-500" />
+                </button>
+              )}
               
-              {hasCheatAccess && (
+              {isCheatRole && (
                 <button
                   onClick={() => {
                     onShowCheatMenu?.();
@@ -403,10 +362,10 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                       <Zap className="size-6 text-purple-500" />
                       <div>
                         <div className="font-semibold text-white">Cheat Menu</div>
-                        <div className="text-sm text-gray-400">Accéder aux options de triche</div>
+                        <div className="text-sm text-gray-400">Exclusive Cheat Tools</div>
                       </div>
                     </div>
-                    {user.cheatExpiresAt && (
+                    {user.cheatExpiresAt && user.cheatExpiresAt > now && (
                       <div className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-black tracking-widest uppercase animate-pulse">
                         {Math.max(0, Math.floor((user.cheatExpiresAt - now) / 1000))}s left
                       </div>
@@ -419,33 +378,6 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
           </div>
         )}
 
-        <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Globe className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-semibold text-white">{t.language}</div>
-                <div className="text-sm text-gray-400">{t.languageDesc}</div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {['fr', 'de', 'en'].map(lang => (
-                <button
-                  key={lang}
-                  onClick={() => handleLanguageChange(lang)}
-                  className="px-3 py-1 rounded-lg font-bold text-xs transition-all active:scale-95"
-                  style={{
-                    backgroundColor: language === lang ? primaryAccent : '#333',
-                    color: language === lang ? '#000' : '#fff',
-                  }}
-                >
-                  {lang.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        
         <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -529,84 +461,10 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                   <div className="text-red-400 font-bold text-sm">{promoErrorMessage}</div>
                 </div>
               )}
-
-              {/* Admin Management Section */}
-              {(user.role === 'admin' || user.role === 'moderator') && promoCodes.length > 0 && (
-                <div className="mt-8 space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-px flex-1 bg-white/10"></div>
-                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Codes</span>
-                    <div className="h-px flex-1 bg-white/10"></div>
-                  </div>
-                  
-                  {promoCodes.map((code) => {
-                    const isCheatAccess = code.type === 'cheat_access';
-                    return (
-                      <div 
-                        key={code.code} 
-                        className={`p-4 rounded-xl border-2 flex items-center justify-between gap-3 transition-all ${code.isActive ? 'bg-[#0a0a0a]' : 'bg-[#1a0a0a] opacity-60 grayscale'}`} 
-                        style={{ borderColor: code.isActive ? `${primaryAccent}20` : '#333' }}
-                      >
-                        <div className="flex items-center gap-4 flex-1">
-                          <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                            {isCheatAccess ? <Zap className="size-5 text-purple-500" /> : <Ticket className="size-5" style={{ color: code.isActive ? primaryAccent : '#666' }} />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-black text-white flex items-center gap-2">
-                              {code.code}
-                              {!code.isActive && <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold">DISABLED</span>}
-                              {isCheatAccess && <span className="text-[9px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 font-black uppercase tracking-tighter">CHEAT UNLOCK</span>}
-                            </div>
-                            <div className="text-xs text-gray-400">Reward: <span style={{ color: isCheatAccess ? '#a855f7' : primaryAccent }} className="font-bold">{code.rewardText}</span></div>
-                          </div>
-                        </div>
-                        
-                        <div className="text-right shrink-0 px-4">
-                          <div className="text-[10px] font-black uppercase text-gray-500 mb-1">Uses</div>
-                          <div className="text-white font-black">{code.usedCount} <span className="text-gray-600 font-normal">/</span> {code.isUnlimited ? '∞' : code.maxUses}</div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={async () => {
-                              const updatedCode = { ...code, isActive: !code.isActive };
-                              const updated = promoCodes.map(c => c.code === code.code ? updatedCode : c);
-                              onUpdatePromoCodes(updated);
-                              await syncPromoCodeToCloud(updatedCode);
-                              if (enableHaptics) vibrate(50);
-                            }}
-                            title={code.isActive ? "Deactivate" : "Activate"}
-                            className={`size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2 ${code.isActive ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-gray-500/20 border-gray-500 text-gray-500'}`}
-                          >
-                            {code.isActive ? '✓' : '✗'}
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              if (confirm(`Delete code ${code.code}?`)) {
-                                const updated = promoCodes.filter(c => c.code !== code.code);
-                                onUpdatePromoCodes(updated);
-                                if (supabase) {
-                                  await supabase.from('promo_codes').delete().eq('code', code.code);
-                                }
-                                if (enableHaptics) vibrate(100);
-                              }
-                            }}
-                            className="size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2 border-red-500/30 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
-
-
     </div>
   );
 }

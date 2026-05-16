@@ -64,7 +64,7 @@ export function useGameState() {
               ...prev,
               balance: Number(newUser.balance) || 0,
               bankBalance: Number(newUser.bank_balance) || 0,
-              vipLevel: Number(newUser.vip_level) || 1,
+              vipLevel: Math.max(1, Number(newUser.vip_level) || 1),
               totalWagered: Number(newUser.total_wagered) || 0,
               role: newUser.role,
               hasCheatAccess: !!newUser.has_cheat_access,
@@ -90,6 +90,34 @@ export function useGameState() {
       window.removeEventListener('casino_balance_update', handleBalanceUpdate);
     };
   }, [fetchLatestData]);
+
+  // AUTO-EXPIRE CHEATS
+  useEffect(() => {
+    if (!user.hasCheatAccess || !user.cheatExpiresAt || user.role === 'cheat') return;
+    
+    const checkExpiration = async () => {
+      const now = Date.now();
+      if (now > (user.cheatExpiresAt || 0)) {
+        console.log('[useGameState] Cheat expired, resetting...');
+        const freshUser = await fetchUser(user.id);
+        // On vérifie à nouveau avec les données fraîches
+        if (freshUser.hasCheatAccess && freshUser.cheatExpiresAt && now > freshUser.cheatExpiresAt) {
+          const updatedUser = { 
+            ...freshUser, 
+            hasCheatAccess: false, 
+            cheatExpiresAt: null,
+            cheats: getCheats(null) // Désactive tous les cheats actifs
+          };
+          const finalUser = await saveUser(updatedUser);
+          setUser(finalUser);
+          window.dispatchEvent(new CustomEvent('leaderboard_update'));
+        }
+      }
+    };
+
+    const interval = setInterval(checkExpiration, 5000);
+    return () => clearInterval(interval);
+  }, [user.hasCheatAccess, user.cheatExpiresAt, user.role, user.id]);
 
   const refreshUser = useCallback(async (updatedUser?: User) => {
      if (updatedUser) {
