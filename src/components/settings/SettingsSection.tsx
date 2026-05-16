@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Volume2, Vibrate, Trash2, Globe, AlertTriangle, Ticket, CheckCircle2, XCircle, Gift, X, Zap, ChevronRight, Crown, Shield } from 'lucide-react';
+import { Settings, Volume2, Vibrate, Trash2, Globe, AlertTriangle, Ticket, CheckCircle2, XCircle, Gift, X, Zap, ChevronRight, Crown, Shield, ShieldCheck } from 'lucide-react';
 import { resetAllData, getPromoCodes, savePromoCodes, getUser, saveUser, addTransaction, syncPromoCodeToCloud, fetchUser } from '@/lib/storage';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { supabase } from '@/lib/supabase';

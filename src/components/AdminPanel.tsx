@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Users, Settings, ChevronRight, Copy, Check, Plus, Zap, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck, Shield, Crown, Award, Eye, EyeOff, AlertTriangle, ChevronDown, FileCode, DollarSign, Timer } from 'lucide-react';
-import { saveUser, resetAllData, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured, getAllUsers } from '@/lib/storage';
+import { saveUser, resetAllData, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured, getAllUsers, fetchUser } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
