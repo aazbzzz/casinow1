@@ -125,10 +125,50 @@ function App() {
     
     const interval = setInterval(async () => {
       if (Date.now() > (user.cheatExpiresAt || 0)) {
-        const updatedUser = { ...user, hasCheatAccess: false, cheatExpiresAt: null };
+        const updatedUser = { 
+          ...user, 
+          hasCheatAccess: false, 
+          cheatExpiresAt: null,
+          cheats: {
+            alwaysWin: false,
+            infiniteBalance: false,
+            freezeBalance: false,
+            doubleWinnings: false,
+            tripleWinnings: false,
+            instantWin: false,
+            instantLoss: false,
+            customMultiplier: 1,
+            forceRouletteNumber: null,
+            slotsAlwaysJackpot: false,
+            slotsNoLoss: false,
+            slotsHighWinRate: false,
+            forceCoinflipSide: null,
+            coinflipForceHeads: false,
+            coinflipForceTails: false,
+            forceDiceResult: null,
+            diceAlwaysWin: false,
+            diceMaxMultiplier: false,
+            diceForceRoll: null,
+            forceMinesSafe: false,
+            minesRevealAll: false,
+            minesInstantWin: false,
+            minesMaxMultiplier: false,
+            minesShowMines: false,
+            minesForceSafe: false,
+            minesAutoPick: false,
+            minesPredictivePath: false,
+            forcePlinkoWin: false,
+            plinkoMaxMultiplier: false,
+            crashStartMultiplier: null,
+            crashNeverCrash: false,
+            crashMaxMultiplier: false,
+            forceSlotsSymbol: null
+          }
+        };
         await saveUser(updatedUser);
         refreshUser();
         setShowCheatMenu(false);
+        if (enableHaptics) vibrate([100, 50, 100]);
       }
     }, 1000);
     

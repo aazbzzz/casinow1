@@ -49,7 +49,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const [activeTab, setActiveTab] = useState<'users' | 'cheats' | 'promo' | 'roles'>(cheatOnlyMode ? 'cheats' : 'users');
   const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
-  const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1 });
+  const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1, username: '' });
   const [addMoneyAmount, setAddMoneyAmount] = useState(1000);
   const [cheats, setCheats] = useState<CheatSettings>(getCheats(null));
   const [cheatTargetUserId, setCheatTargetUserId] = useState<string | null>(null);
@@ -76,7 +76,11 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     const h = Math.floor((seconds % (24 * 3600)) / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return `${d}j : ${h}h : ${m}m : ${s}s`;
+    
+    if (d > 0) return `${d}j : ${h}h : ${m}m : ${s}s`;
+    if (h > 0) return `${h}h : ${m}m : ${s}s`;
+    if (m > 0) return `${m}m : ${s}s`;
+    return `${s}s`;
   };
 
   const primaryAccent = tweaks.primaryAccent.useState();
@@ -141,6 +145,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       if (targetUser) {
         const updatedUser = { 
           ...targetUser, 
+          username: editBalances.username || targetUser.username,
           balance: Number(editBalances.balance), 
           bankBalance: Number(editBalances.bankBalance),
           vipLevel: Number(editBalances.vipLevel)
@@ -264,7 +269,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           ))}
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar pb-32">
           {activeTab === 'users' && (
             <div className="space-y-4 sm:space-y-6 relative min-h-full">
               {editingUser && (
@@ -276,10 +281,15 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     </div>
                     
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                      <label className="text-[10px] font-black text-gray-500 uppercase mb-2 block tracking-widest">Username</label>
-                      <div className="text-white font-black text-lg">
-                        {dbUsers.find(u => u.id === editingUser)?.username}
-                      </div>
+                      <label className="text-[10px] font-black text-gray-500 uppercase mb-2 block tracking-widest">Edit Username</label>
+                      <input
+                        type="text"
+                        value={editBalances.username}
+                        onChange={(e) => setEditBalances({ ...editBalances, username: e.target.value })}
+                        className="w-full bg-black/40 border-2 rounded-xl px-4 py-3 text-white font-black outline-none transition-all"
+                        style={{ borderColor: `${primaryAccent}40` }}
+                        placeholder="New username"
+                      />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -329,7 +339,10 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         SAVE CHANGES
                       </button>
                       <button
-                        onClick={() => setEditingUser(null)}
+                        onClick={() => {
+                          setEditingUser(null);
+                          if (enableHaptics) vibrate(30);
+                        }}
                         className="py-4 px-8 rounded-xl font-black text-white bg-white/5 border border-white/10 transition-all active:scale-95"
                       >
                         CANCEL
@@ -373,7 +386,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                               setEditBalances({ 
                                 balance: u.balance, 
                                 bankBalance: u.bankBalance || 0, 
-                                vipLevel: u.vipLevel 
+                                vipLevel: u.vipLevel,
+                                username: u.username
                               });
                               if (enableHaptics) vibrate(50);
                             }}
@@ -466,14 +480,15 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-black text-gray-500 uppercase mb-2 block">{newPromo.type === 'cheat_access' ? 'Days' : 'Value'}</label>
+                    <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Reward Value</label>
                     <input
                       type="number"
                       value={newPromo.value}
                       onChange={(e) => setNewPromo({ ...newPromo, value: Number(e.target.value) })}
-                      className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none"
+                      className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none disabled:opacity-30"
                       style={{ borderColor: `${primaryAccent}40` }}
                       min="1"
+                      disabled={newPromo.type === 'cheat_access'}
                     />
                   </div>
                   <div>

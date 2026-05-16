@@ -339,9 +339,9 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
                     onShowCheatMenu?.();
                     if (enableHaptics) vibrate(50);
                   }}
-                  className="w-full p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-purple-500/10 border-purple-500/30 flex items-center justify-center gap-3"
+                  className="w-full p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-purple-500/10 border-purple-500/30 flex items-center justify-center gap-3 group"
                 >
-                  <Zap className="size-6 text-purple-500" />
+                  <Zap className="size-6 text-purple-500 group-hover:animate-pulse" />
                   <span className="font-black text-white uppercase tracking-widest italic">Cheat Menu - Utiliser la triche</span>
                 </button>
               )}
