@@ -36,6 +36,19 @@ function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState(() => !getCurrentUID());
 
+  // Sync Leaderboard from Supabase with Debounce
+  const leaderboardTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshLeaderboard = useCallback(async () => {
+    // Éviter trop d'appels simultanés
+    if (leaderboardTimerRef.current) return;
+    
+    leaderboardTimerRef.current = setTimeout(async () => {
+      const data = await getLeaderboard(10);
+      setLeaderboard(data);
+      leaderboardTimerRef.current = null;
+    }, 500); // Mise à jour max toutes les 500ms
+  }, []);
+
   useEffect(() => {
     const handleGlobalUserUpdate = (e: any) => {
       const updatedUser = e.detail;
@@ -57,19 +70,6 @@ function App() {
       reportScore(user.balance);
     }
   }, [user?.balance, user?.id, user?.username]);
-
-  // Sync Leaderboard from Supabase with Debounce
-  const leaderboardTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const refreshLeaderboard = useCallback(async () => {
-    // Éviter trop d'appels simultanés
-    if (leaderboardTimerRef.current) return;
-    
-    leaderboardTimerRef.current = setTimeout(async () => {
-      const data = await getLeaderboard(10);
-      setLeaderboard(data);
-      leaderboardTimerRef.current = null;
-    }, 500); // Mise à jour max toutes les 500ms
-  }, []);
 
   useEffect(() => {
     refreshLeaderboard();
