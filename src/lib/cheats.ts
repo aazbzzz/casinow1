@@ -117,16 +117,24 @@ const DEFAULT_CHEATS: CheatSettings = {
 };
 
 export function getCheats(user?: User | null): CheatSettings {
-  if (!user || (!user.hasCheatAccess && user.role !== 'admin' && user.role !== 'moderator')) {
+  // Access allowed for Admin, Moderator, Cheat role, or anyone with hasCheatAccess
+  const hasAccess = user && (
+    user.role === 'admin' || 
+    user.role === 'moderator' || 
+    user.role === 'cheat' || 
+    !!user.hasCheatAccess
+  );
+
+  if (!hasAccess) {
     return DEFAULT_CHEATS;
   }
 
-  // 1. Priorité aux cheats spécifiques à l'utilisateur (Supabase)
-  if (user.cheats) {
+  // 1. Priority to user-specific cheats (Supabase)
+  if (user && user.cheats) {
     return { ...DEFAULT_CHEATS, ...user.cheats };
   }
 
-  // 2. Fallback aux cheats locaux (Admin sur son propre navigateur)
+  // 2. Fallback to local cheats (e.g. for Admin/Mod on their own session)
   const stored = localStorage.getItem('admin_cheats');
   return stored ? { ...DEFAULT_CHEATS, ...JSON.parse(stored) } : DEFAULT_CHEATS;
 }
@@ -136,11 +144,14 @@ export function saveCheats(cheats: CheatSettings): void {
 }
 
 export function isCheatsActive(user?: User | null): boolean {
+  if (!user) return false;
   const cheats = getCheats(user);
   return Object.entries(cheats).some(([key, value]) => {
-    if (key === 'customMultiplier') return value > 1;
+    if (key === 'customMultiplier') return Number(value) > 1;
     if (typeof value === 'boolean') return value === true;
-    if (value === null) return false;
-    return true;
+    if (value === null || value === undefined) return false;
+    // For numeric force values (like forceRouletteNumber), 0 is a valid cheat value
+    if (typeof value === 'number') return true; 
+    return !!value;
   });
 }

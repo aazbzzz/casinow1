@@ -27,10 +27,36 @@ export function useGameState() {
     
     if (remoteUser) {
       setUser(prev => {
+        // Sanitisation forcée des données distantes
+        const sanitizedRemote = {
+          ...remoteUser,
+          balance: Math.max(0, Number(remoteUser.balance) || 0),
+          bankBalance: Math.max(0, Number(remoteUser.bankBalance) || 0),
+          totalWagered: Math.max(0, Number(remoteUser.totalWagered) || 0),
+          vipLevel: Math.max(1, Math.floor(Number(remoteUser.vipLevel) || 1)),
+        };
+
         // On n'écrase QUE si la version distante est strictement plus récente
-        if (remoteUser.version > prev.version) {
-          console.log(`[useGameState] State updated from server: Remote (v${remoteUser.version}) > Local (v${prev.version})`);
-          return remoteUser;
+        if (sanitizedRemote.version > prev.version) {
+          console.log(`[useGameState] State updated from server: Remote (v${sanitizedRemote.version}) > Local (v${prev.version})`);
+          
+          // PRESERVE CHEATS: Si le cheat local est encore valide et que le remote ne l'a pas encore, on garde le local
+          // (C'est un cas rare de race condition entre le moment où on active un cheat et le moment où il est persisté)
+          const now = Date.now();
+          const hasLocalActiveCheat = prev.hasCheatAccess && prev.cheatExpiresAt && prev.cheatExpiresAt > now;
+          const hasRemoteActiveCheat = sanitizedRemote.hasCheatAccess && sanitizedRemote.cheatExpiresAt && sanitizedRemote.cheatExpiresAt > now;
+          
+          if (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat') {
+             console.log("[useGameState] Preserving local active cheat during sync");
+             return {
+               ...sanitizedRemote,
+               hasCheatAccess: prev.hasCheatAccess,
+               cheatExpiresAt: prev.cheatExpiresAt,
+               cheats: prev.cheats
+             };
+          }
+
+          return sanitizedRemote;
         }
         return prev;
       });
@@ -62,10 +88,10 @@ export function useGameState() {
             console.log(`[useGameState] Realtime sync: v${newUser.version} > v${prev.version}`);
             return {
               ...prev,
-              balance: Number(newUser.balance) || 0,
-              bankBalance: Number(newUser.bank_balance) || 0,
-              vipLevel: Math.max(1, Number(newUser.vip_level) || 1),
-              totalWagered: Number(newUser.total_wagered) || 0,
+              balance: Math.max(0, Number(newUser.balance) || 0),
+              bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
+              vipLevel: Math.max(1, Math.floor(Number(newUser.vip_level) || 1)),
+              totalWagered: Math.max(0, Number(newUser.total_wagered) || 0),
               role: newUser.role,
               hasCheatAccess: !!newUser.has_cheat_access,
               cheatExpiresAt: newUser.cheat_expires_at,
@@ -188,21 +214,22 @@ export function useGameState() {
     isPendingSync.current = true;
 
     setUser(prev => {
-      const prevBalance = cleanAmount(prev.balance);
+      const prevBalance = Number(prev.balance) || 0;
       if (!cheats.infiniteBalance && prevBalance < numericAmount) {
         isPendingSync.current = false;
         return prev;
       }
 
       const newBalance = cheats.infiniteBalance ? prevBalance : prevBalance - numericAmount;
-      const newWagered = cleanAmount(prev.totalWagered) + numericAmount;
-      const vipLevel = getVIPLevel(newWagered);
+      const newWagered = (Number(prev.totalWagered) || 0) + numericAmount;
+      const vipData = getVIPLevel(newWagered);
+      const newVipLevel = Math.max(Number(prev.vipLevel) || 1, vipData.level);
       
       const updatedUser = {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
-        vipLevel: Math.max(prev.vipLevel || 1, vipLevel.level),
+        vipLevel: newVipLevel,
       };
 
       saveUser(updatedUser).then(finalUser => {

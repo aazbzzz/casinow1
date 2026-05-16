@@ -68,15 +68,16 @@ export async function fetchUser(uid?: string): Promise<User> {
         .single();
       
       if (!error && data) {
-        const cleanDBNum = (val: any): number => {
-          if (val === null || val === undefined) return 0;
+        const cleanDBNum = (val: any, fallback = 0): number => {
+          if (val === null || val === undefined) return fallback;
           const type = typeof val;
-          if (type === 'number') return isNaN(val) ? 0 : val;
+          if (type === 'number') return isNaN(val) ? fallback : val;
           if (type === 'string') {
             const cleaned = val.replace(/\s/g, '').replace(/,/g, '.').replace(/[^0-9.-]/g, '');
-            return parseFloat(cleaned) || 0;
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
           }
-          return 0;
+          return fallback;
         };
 
         const user: User = {
@@ -89,10 +90,10 @@ export async function fetchUser(uid?: string): Promise<User> {
           hideFromLeaderboard: !!data.hide_from_leaderboard,
           hasCheatAccess: !!data.has_cheat_access,
           cheatExpiresAt: data.cheat_expires_at || null,
-          balance: cleanDBNum(data.balance),
-          bankBalance: cleanDBNum(data.bank_balance),
-          vipLevel: Math.max(1, cleanDBNum(data.vip_level)),
-          totalWagered: cleanDBNum(data.total_wagered),
+          balance: Math.max(0, cleanDBNum(data.balance, 0)),
+          bankBalance: Math.max(0, cleanDBNum(data.bank_balance, 0)),
+          vipLevel: Math.max(1, Math.floor(cleanDBNum(data.vip_level, 1))),
+          totalWagered: Math.max(0, cleanDBNum(data.total_wagered, 0)),
           createdAt: data.created_at,
           hasDeposited: !!data.has_deposited,
           usedPromoCodes: data.used_promo_codes || [],
@@ -141,23 +142,23 @@ export function getUser(uid?: string): User {
 export async function saveUser(user: User): Promise<User> {
   if (!user.id || user.id === 'guest') return user;
 
-  const cleanNum = (val: any): number => {
-    if (val === null || val === undefined) return 0;
-    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const cleanNum = (val: any, fallback = 0): number => {
+    if (val === null || val === undefined) return fallback;
+    if (typeof val === 'number') return isNaN(val) || !isFinite(val) ? fallback : val;
     if (typeof val === 'string') {
       let cleaned = val.replace(/\s/g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
       const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? 0 : parsed;
+      return isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
     }
-    return 0;
+    return fallback;
   };
 
   const cleanUser = {
     ...user,
-    balance: cleanNum(user.balance),
-    bankBalance: cleanNum(user.bankBalance),
-    totalWagered: cleanNum(user.totalWagered),
-    vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel))),
+    balance: Math.max(0, cleanNum(user.balance, 0)),
+    bankBalance: Math.max(0, cleanNum(user.bankBalance, 0)),
+    totalWagered: Math.max(0, cleanNum(user.totalWagered, 0)),
+    vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel, 1))),
     version: (user.version || 0) + 1
   };
 
@@ -366,11 +367,11 @@ export async function getLeaderboard(limit = 10): Promise<User[]> {
         .limit(limit);
       
       if (!error && data) {
-        const cleanDBNum = (val: any): number => {
-          if (val === null || val === undefined) return 0;
-          if (typeof val === 'number') return isNaN(val) ? 0 : val;
-          if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
-          return 0;
+        const cleanDBNum = (val: any, fallback = 0): number => {
+          if (val === null || val === undefined) return fallback;
+          if (typeof val === 'number') return isNaN(val) || !isFinite(val) ? fallback : val;
+          if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || fallback;
+          return fallback;
         };
 
         const users = data.map(d => ({
@@ -381,10 +382,10 @@ export async function getLeaderboard(limit = 10): Promise<User[]> {
           showModBadge: !!d.show_mod_badge,
           hideFromLeaderboard: !!d.hide_from_leaderboard,
           hasCheatAccess: !!d.has_cheat_access,
-          balance: cleanDBNum(d.balance),
-          bankBalance: cleanDBNum(d.bank_balance),
-          vipLevel: cleanDBNum(d.vip_level) || 1,
-          totalWagered: cleanDBNum(d.total_wagered),
+          balance: Math.max(0, cleanDBNum(d.balance, 0)),
+          bankBalance: Math.max(0, cleanDBNum(d.bank_balance, 0)),
+          vipLevel: Math.max(1, Math.floor(cleanDBNum(d.vip_level, 1))),
+          totalWagered: Math.max(0, cleanDBNum(d.total_wagered, 0)),
           createdAt: d.created_at,
           hasDeposited: d.has_deposited,
           isBanned: !!d.is_banned,

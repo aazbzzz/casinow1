@@ -104,6 +104,9 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
   const isCheatRole = user.role === 'cheat';
   const hasCheatAccess = isCheatRole || (user.hasCheatAccess && user.cheatExpiresAt && user.cheatExpiresAt > now);
   
+  // Roles detection logic (strict)
+  const isPlayerOnly = !isAdmin && !isMod && !isCheatRole && !hasCheatAccess;
+
   useEffect(() => {
     setT(translations[language as keyof typeof translations]);
   }, [language]);
@@ -138,7 +141,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
       const updatedUser = { 
         ...freshUser, 
         role: newRole, 
-        hasCheatAccess: false, // Strict: Admin/Mod don't get cheat menu in settings
+        hasCheatAccess: false, // Strict: Admin/Mod don't get cheat menu in settings automatically
         showBadge: true,
         hideFromLeaderboard: false,
         showModBadge: newRole === 'moderator'
@@ -176,7 +179,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
       let msg = '';
 
       if (promo.type === 'currency') {
-        updatedUser.balance += promo.value;
+        updatedUser.balance = (Number(updatedUser.balance) || 0) + promo.value;
         msg = `+${promo.value.toLocaleString()} Credits`;
       } else if (promo.type === 'multiplier') {
         updatedUser.activeMultiplier = {
@@ -214,102 +217,103 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
       <h2 className="text-2xl font-bold text-white mb-6">{t.title}</h2>
       
       <div className="space-y-4">
-        {/* General Settings - Always available except to pure Cheat Role users if needed, 
-            but here we restore accessibility for Admin/Mod as well */}
-        <button 
-          onClick={toggleSounds}
-          className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
-          style={{ backgroundColor: cardBg }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Volume2 className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-semibold text-white">{t.sounds}</div>
-                <div className="text-sm text-gray-400">{t.soundsDesc}</div>
+        {/* GLOBAL SETTINGS - ALWAYS VISIBLE FOR ALL ROLES */}
+        <div className="space-y-4">
+          <button 
+            onClick={toggleSounds}
+            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
+            style={{ backgroundColor: cardBg }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Volume2 className="size-6" style={{ color: primaryAccent }} />
+                <div>
+                  <div className="font-semibold text-white">{t.sounds}</div>
+                  <div className="text-sm text-gray-400">{t.soundsDesc}</div>
+                </div>
+              </div>
+              <div className={`size-12 rounded-full flex items-center justify-center transition-all ${enableSounds ? 'bg-green-500' : 'bg-gray-700'}`}>
+                {enableSounds ? '✓' : '✗'}
               </div>
             </div>
-            <div className={`size-12 rounded-full flex items-center justify-center transition-all ${enableSounds ? 'bg-green-500' : 'bg-gray-700'}`}>
-              {enableSounds ? '✓' : '✗'}
-            </div>
-          </div>
-        </button>
+          </button>
 
-        <button 
-          onClick={toggleHaptics}
-          className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
-          style={{ backgroundColor: cardBg }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Vibrate className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-semibold text-white">{t.vibrations}</div>
-                <div className="text-sm text-gray-400">{t.vibrationsDesc}</div>
+          <button 
+            onClick={toggleHaptics}
+            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
+            style={{ backgroundColor: cardBg }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Vibrate className="size-6" style={{ color: primaryAccent }} />
+                <div>
+                  <div className="font-semibold text-white">{t.vibrations}</div>
+                  <div className="text-sm text-gray-400">{t.vibrationsDesc}</div>
+                </div>
+              </div>
+              <div className={`size-12 rounded-full flex items-center justify-center transition-all ${enableHaptics ? 'bg-green-500' : 'bg-gray-700'}`}>
+                {enableHaptics ? '✓' : '✗'}
               </div>
             </div>
-            <div className={`size-12 rounded-full flex items-center justify-center transition-all ${enableHaptics ? 'bg-green-500' : 'bg-gray-700'}`}>
-              {enableHaptics ? '✓' : '✗'}
-            </div>
-          </div>
-        </button>
-        
-        {/* Promo Code Button - RESTORED FOR ALL ROLES */}
-        <button
-          onClick={() => {
-            setShowPromoModal(true);
-            if (enableHaptics) vibrate(50);
-          }}
-          className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2" 
-          style={{ backgroundColor: `${primaryAccent}10`, borderColor: `${primaryAccent}40` }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Gift className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-black text-white uppercase italic tracking-wider">{t.promo}</div>
-                <div className="text-sm text-gray-400">{t.promoDesc}</div>
-              </div>
-            </div>
-            <div className="size-8 rounded-full flex items-center justify-center" style={{ backgroundColor: primaryAccent }}>
-              <span className="text-xl text-black">→</span>
-            </div>
-          </div>
-        </button>
+          </button>
 
-        <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Globe className="size-6" style={{ color: primaryAccent }} />
-              <div>
-                <div className="font-semibold text-white">{t.language}</div>
-                <div className="text-sm text-gray-400">{t.languageDesc}</div>
+          <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Globe className="size-6" style={{ color: primaryAccent }} />
+                <div>
+                  <div className="font-semibold text-white">{t.language}</div>
+                  <div className="text-sm text-gray-400">{t.languageDesc}</div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {['fr', 'de', 'en'].map(lang => (
+                  <button
+                    key={lang}
+                    onClick={() => handleLanguageChange(lang)}
+                    className="px-3 py-1 rounded-lg font-bold text-xs transition-all active:scale-95"
+                    style={{
+                      backgroundColor: language === lang ? primaryAccent : '#333',
+                      color: language === lang ? '#000' : '#fff',
+                    }}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="flex gap-2">
-              {['fr', 'de', 'en'].map(lang => (
-                <button
-                  key={lang}
-                  onClick={() => handleLanguageChange(lang)}
-                  className="px-3 py-1 rounded-lg font-bold text-xs transition-all active:scale-95"
-                  style={{
-                    backgroundColor: language === lang ? primaryAccent : '#333',
-                    color: language === lang ? '#000' : '#fff',
-                  }}
-                >
-                  {lang.toUpperCase()}
-                </button>
-              ))}
-            </div>
           </div>
+          
+          {/* Promo Code Button - Always available for all roles (opens popup) */}
+          <button
+            onClick={() => {
+              setShowPromoModal(true);
+              if (enableHaptics) vibrate(50);
+            }}
+            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2" 
+            style={{ backgroundColor: `${primaryAccent}10`, borderColor: `${primaryAccent}40` }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Gift className="size-6" style={{ color: primaryAccent }} />
+                <div>
+                  <div className="font-black text-white uppercase italic tracking-wider">{t.promo}</div>
+                  <div className="text-sm text-gray-400">{t.promoDesc}</div>
+                </div>
+              </div>
+              <div className="size-8 rounded-full flex items-center justify-center" style={{ backgroundColor: primaryAccent }}>
+                <span className="text-xl text-black">→</span>
+              </div>
+            </div>
+          </button>
         </div>
 
-        {/* Staff & Cheat Access Section - Filtered but non-blocking */}
+        {/* ROLE-SPECIFIC SECTIONS */}
         {(isAdmin || isMod || hasCheatAccess) && (
-          <div className="space-y-4">
+          <div className="space-y-4 pt-4 border-t border-white/10">
             <div className="flex items-center gap-2 px-1">
               <div className="h-px flex-1 bg-white/10"></div>
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Control</span>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Special Access</span>
               <div className="h-px flex-1 bg-white/10"></div>
             </div>
 
@@ -379,6 +383,30 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
             </div>
           </div>
         )}
+
+        <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Settings className="size-6" style={{ color: primaryAccent }} />
+              <div>
+                <div className="font-semibold text-white">{t.version}</div>
+                <div className="text-sm text-gray-400">{t.versionText}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <button
+          onClick={() => {
+            onLogout();
+            if (enableHaptics) vibrate(50);
+          }}
+          className="w-full p-4 rounded-xl flex items-center justify-center gap-3 bg-white/5 text-white font-semibold border border-white/10 transition-all active:scale-95"
+        >
+          <XCircle className="size-6" />
+          {t.logout}
+        </button>
+      </div>
 
         <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
           <div className="flex items-center justify-between">

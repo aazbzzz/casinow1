@@ -56,8 +56,9 @@ interface AdminPanelProps {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1, username: '' });
   const [addMoneyAmount, setAddMoneyAmount] = useState(1000);
-  const [cheats, setCheats] = useState<CheatSettings>(getCheats(null));
+  const [cheats, setCheats] = useState<CheatSettings>(() => getCheats(user));
   const [cheatTargetUserId, setCheatTargetUserId] = useState<string | null>(null);
+  const isInternalUpdate = useRef(false);
   const [cheatCategory, setCheatCategory] = useState<'global' | 'roulette' | 'slots' | 'coinflip' | 'dice' | 'mines' | 'crash' | 'plinko'>('global');
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -151,22 +152,28 @@ interface AdminPanelProps {
   const handleToggleRole = async (userId: string, newRole: 'admin' | 'moderator' | 'player' | 'cheat') => {
     try {
       const freshUser = await fetchUser(userId);
-      const updatedUser = { ...freshUser, role: newRole };
+      const updatedUser = { 
+        ...freshUser, 
+        role: newRole,
+        version: (freshUser.version || 0) + 1
+      };
       
       if (newRole === 'cheat') {
-        // Le rôle 'cheat' donne un accès permanent (999 jours)
+        // Cheat role: permanent access (999 days)
         updatedUser.hasCheatAccess = true;
         updatedUser.cheatExpiresAt = Date.now() + (999 * 24 * 60 * 60 * 1000);
-        // On initialise aussi l'objet cheats s'il est vide
+        // Initialize cheats if null
         if (!updatedUser.cheats) {
           updatedUser.cheats = getCheats(null);
         }
       } else if (newRole === 'player') {
+        // Player role: remove special access
         updatedUser.hasCheatAccess = false;
-        updatedUser.cheats = getCheats(null);
+        updatedUser.cheatExpiresAt = null;
+        updatedUser.cheats = null;
       } else {
-        // Pour Admin et Moderator, on garde les privilèges séparés
-        updatedUser.hasCheatAccess = false;
+        // Admin & Moderator: roles provide access via getCheats()
+        // We preserve existing hasCheatAccess if they have it from a promo code
       }
       
       const finalUser = await saveUser(updatedUser);
@@ -191,9 +198,9 @@ interface AdminPanelProps {
       const updatedUser = { 
         ...freshUser, 
         username: editBalances.username || freshUser.username,
-        balance: Number(editBalances.balance), 
-        bankBalance: Number(editBalances.bankBalance),
-        vipLevel: Number(editBalances.vipLevel)
+        balance: Number(editBalances.balance) || 0, 
+        bankBalance: Number(editBalances.bankBalance) || 0,
+        vipLevel: Math.max(1, Number(editBalances.vipLevel) || 1)
       };
       
       console.log("[AdminPanel] Saving user data:", updatedUser);
@@ -233,14 +240,15 @@ interface AdminPanelProps {
 
   const handleCheatToggle = async (key: keyof CheatSettings, value: boolean | number | null | string) => {
     const newCheats = { ...cheats, [key]: value };
+    isInternalUpdate.current = true;
     setCheats(newCheats);
     
     if (cheatTargetUserId && isMod) {
       try {
         const freshUser = await fetchUser(cheatTargetUserId);
-        const updatedUser = { ...freshUser, cheats: newCheats };
+        const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
         const finalUser = await saveUser(updatedUser);
-        if (cheatTargetUserId === user.id) onRefreshUser?.(finalUser);
+        // We don't call onRefreshUser here because we are targeting someone else
       } catch (err) {
         console.error("[AdminPanel] Error saving targeted cheats:", err);
       }
@@ -249,7 +257,7 @@ interface AdminPanelProps {
       if (user && user.id !== 'guest') {
         try {
           const freshUser = await fetchUser(user.id);
-          const updatedUser = { ...freshUser, cheats: newCheats };
+          const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
           const finalUser = await saveUser(updatedUser);
           onRefreshUser?.(finalUser);
         } catch (err) {
@@ -261,15 +269,20 @@ interface AdminPanelProps {
   };
 
   useEffect(() => {
+    if (isInternalUpdate.current) {
+      isInternalUpdate.current = false;
+      return;
+    }
+
     if (cheatTargetUserId) {
       const targetUser = dbUsers.find(u => u.id === cheatTargetUserId);
       if (targetUser) {
-        setCheats(targetUser.cheats || getCheats(null));
+        setCheats(targetUser.cheats || getCheats(targetUser));
       }
     } else {
-      setCheats(getCheats(null));
+      setCheats(getCheats(user));
     }
-  }, [cheatTargetUserId, dbUsers]);
+  }, [cheatTargetUserId, dbUsers, user]);
 
   return (
     <div className="fixed inset-0 bg-black/95 z-[200] flex items-start sm:items-center justify-center p-0 sm:p-4 backdrop-blur-md overflow-hidden">

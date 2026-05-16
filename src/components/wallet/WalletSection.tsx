@@ -38,23 +38,19 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
   const [isTransferring, setIsTransferring] = useState(false);
   const [transferStatus, setTransferStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
   
-  const rawBalance = user.balance;
-  const rawBank = user.bankBalance;
-  const currentBalance = typeof rawBalance === 'string' 
-    ? parseFloat((rawBalance as string).replace(/,/g, '')) 
-    : Number(rawBalance);
-  const currentBankBalance = typeof rawBank === 'string' 
-    ? parseFloat((rawBank as string).replace(/,/g, '')) 
-    : Number(rawBank);
+  const currentBalance = Math.max(0, Number(user.balance) || 0);
+  const currentBankBalance = Math.max(0, Number(user.bankBalance) || 0);
+  const currentVipLevel = Math.max(1, Math.floor(Number(user.vipLevel) || 1));
+  const totalWagered = Math.max(0, Number(user.totalWagered) || 0);
 
-  const balanceMax = isNaN(currentBalance) ? 0 : currentBalance;
-  const bankMax = isNaN(currentBankBalance) ? 0 : currentBankBalance;
+  const balanceMax = currentBalance;
+  const bankMax = currentBankBalance;
   
   const cardBg = tweaks.cardBackground.useState();
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
   
-  const walletUnlocked = user.vipLevel >= 10;
+  const walletUnlocked = currentVipLevel >= 10;
   const tradingUnlocked = walletUnlocked;
   
   useEffect(() => {
@@ -218,7 +214,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
           </p>
           <div className="flex items-center justify-center gap-3">
             <Trophy className="size-6" style={{ color: primaryAccent }} />
-            <span className="text-xl font-bold text-white">Current VIP: {user.vipLevel} / 10</span>
+            <span className="text-xl font-bold text-white">Current VIP: {currentVipLevel} / 10</span>
           </div>
         </div>
       )}
@@ -335,7 +331,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                   <TrendingUp className="size-6" style={{ color: primaryAccent }} />
                   <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Total Wagered</span>
                 </div>
-                <div className="text-3xl font-black text-white">{user.totalWagered.toFixed(0)}</div>
+                <div className="text-3xl font-black text-white">{totalWagered.toLocaleString()}</div>
               </div>
               
               <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}40`, boxShadow: `0 0 30px ${primaryAccent}20` }}>

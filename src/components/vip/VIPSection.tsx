@@ -14,15 +14,20 @@ export function VIPSection({
   const cardBg = tweaks.cardBackground.useState();
   const primaryAccent = tweaks.primaryAccent.useState();
   const secondaryAccent = tweaks.secondaryAccent.useState();
-  const currentVIP = VIP_LEVELS.find(l => l.level === user.vipLevel) || VIP_LEVELS[0];
-  const nextVIP = getNextVIPLevel(user.vipLevel);
-  const progress = getVIPProgress(user.totalWagered, user.vipLevel);
+  
+  const safeVipLevel = Math.max(1, Math.floor(Number(user.vipLevel) || 1));
+  const safeTotalWagered = Math.max(0, Number(user.totalWagered) || 0);
+  
+  const currentVIP = VIP_LEVELS.find(l => l.level === safeVipLevel) || VIP_LEVELS[0];
+  const nextVIP = getNextVIPLevel(safeVipLevel);
+  const progress = getVIPProgress(safeTotalWagered, safeVipLevel);
 
   const formatAmount = (amount: number) => {
-    if (amount >= 1000000000) return (amount / 1000000000).toFixed(1) + 'B';
-    if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
-    if (amount >= 1000) return (amount / 1000).toFixed(1) + 'K';
-    return amount.toString();
+    const val = Number(amount) || 0;
+    if (val >= 1000000000) return (val / 1000000000).toFixed(1) + 'B';
+    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+    return val.toLocaleString();
   };
 
   return <div className="p-6">
@@ -37,7 +42,7 @@ export function VIPSection({
           </div>
           <div className="flex-1">
             <div className="text-sm text-gray-400">Current Level</div>
-            <div className="text-3xl font-bold text-white">VIP {user.vipLevel}</div>
+            <div className="text-3xl font-bold text-white">VIP {safeVipLevel}</div>
             <div className="text-lg font-semibold" style={{
             color: primaryAccent
           }}>
@@ -58,15 +63,15 @@ export function VIPSection({
           }} />
             </div>
             <div className="text-xs text-gray-400 mt-2">
-              Wager {formatAmount(nextVIP.wagerRequired - user.totalWagered)} more to unlock
+              Wager {formatAmount(Math.max(0, nextVIP.wagerRequired - safeTotalWagered))} more to unlock
             </div>
           </div>}
       </div>
       
       <div className="space-y-3">
         {VIP_LEVELS.map(level => {
-        const isUnlocked = user.vipLevel >= level.level;
-        const isCurrent = user.vipLevel === level.level;
+        const isUnlocked = safeVipLevel >= level.level;
+        const isCurrent = safeVipLevel === level.level;
         return <div key={level.level} className="p-4 rounded-xl transition-all" style={{
           backgroundColor: isCurrent ? `${primaryAccent}20` : cardBg,
           borderLeft: isCurrent ? `4px solid ${primaryAccent}` : 'none'

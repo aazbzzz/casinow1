@@ -15,6 +15,9 @@ interface TopBarProps {
 export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopBarProps) {
   const primaryAccent = tweaks.primaryAccent.useState();
   
+  const safeBalance = Math.max(0, Number(user.balance) || 0);
+  const safeVipLevel = Math.max(1, Math.floor(Number(user.vipLevel) || 1));
+  
   return (
     <div className="h-20 flex items-center justify-between px-6 z-50 relative">
       <div className="flex items-center gap-4">
@@ -32,7 +35,7 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
                 style={{ backgroundColor: primaryAccent }}
               />
               <span className="text-xl font-black text-white relative z-20 italic">
-                {user.username[0].toUpperCase()}
+                {user.username ? user.username[0].toUpperCase() : 'P'}
               </span>
             </div>
             {/* Role Badge Mini */}
@@ -84,7 +87,7 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
           >
             {user.role === 'admin' ? 'Administrator' : 
              user.role === 'moderator' ? 'Moderator' : 
-             `Elite VIP ${user.vipLevel}`}
+             `Elite VIP ${safeVipLevel}`}
           </div>
         </div>
       </div>
@@ -110,7 +113,7 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
         <div className="flex flex-col items-end">
           <span className="text-xs font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Credits</span>
           <span className="text-xl font-black text-white italic tracking-tighter leading-none">
-            {user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {safeBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       </div>
