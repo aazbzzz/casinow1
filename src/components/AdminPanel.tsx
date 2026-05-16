@@ -597,7 +597,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           {[
             { key: 'overview', label: 'Overview', icon: Settings, show: !cheatOnlyMode },
             { key: 'users', label: 'Users', icon: Users, show: !cheatOnlyMode },
-            { key: 'promo', label: 'Promo Codes', icon: Ticket, show: isAdmin },
+            { key: 'promo', label: 'Promo Codes', icon: Ticket, show: isMod },
             { key: 'transactions', label: 'History', icon: FileText, show: isAdmin && !cheatOnlyMode },
             { key: 'logs', label: 'Logs', icon: FileCode, show: isAdmin && !cheatOnlyMode },
             { key: 'manage', label: 'Manage', icon: Plus, show: isAdmin && !cheatOnlyMode },
@@ -662,7 +662,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                 <div className="text-5xl font-black text-white tracking-tighter">{user.totalWagered.toFixed(0)}</div>
               </div>
 
-              {isAdmin && <button
+              {isMod && <button
                 onClick={() => {
                   setActiveTab('promo');
                   if (enableHaptics) vibrate(30);
