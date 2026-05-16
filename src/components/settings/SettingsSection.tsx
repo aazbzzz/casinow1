@@ -132,7 +132,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
 
     // Check for admin/mod code
     if (code === 'ADMIN_SECRET_KEY' || code === 'MOD_SECRET_KEY') {
-      const newRole = code === 'ADMIN_SECRET_KEY' ? 'admin' : 'moderator';
+      const newRole = (code === 'ADMIN_SECRET_KEY' ? 'admin' : 'moderator') as 'admin' | 'moderator';
       const updatedUser = { 
         ...user, 
         role: newRole, 
@@ -173,8 +173,10 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
         updatedUser.balance += promo.value;
         msg = `+${promo.value.toLocaleString()} Credits`;
       } else if (promo.type === 'multiplier') {
-        updatedUser.multiplier = promo.value;
-        updatedUser.multiplierExpiresAt = Date.now() + (promo.duration || 3600) * 1000;
+        updatedUser.activeMultiplier = {
+          value: promo.value,
+          expiresAt: Date.now() + (promo.duration || 3600) * 1000
+        };
         msg = `${promo.value}x Multiplier Active`;
       } else if (promo.type === 'cheat_access') {
         updatedUser.hasCheatAccess = true;
