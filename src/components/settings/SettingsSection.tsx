@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Settings, Volume2, Vibrate, Trash2, Globe, AlertTriangle, Ticket, CheckCircle2, XCircle, Gift, X, Zap } from 'lucide-react';
+import { Settings, Volume2, Vibrate, Trash2, Globe, AlertTriangle, Ticket, CheckCircle2, XCircle, Gift, X, Zap, ChevronRight } from 'lucide-react';
 import { resetAllData, getPromoCodes, savePromoCodes, getUser, saveUser, addTransaction, syncPromoCodeToCloud, fetchUser } from '@/lib/storage';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
+import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent } from '@aippy/runtime/leaderboard';
 import tweaksConfig from '@/config/tweaksConfig.json';
@@ -233,6 +234,7 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
       };
     } else if (promo.type === 'cheat_access') {
       updatedUser.hasCheatAccess = true;
+      if (onShowCheatMenu) onShowCheatMenu();
     }
 
     // 2. Marquer comme utilisé par cet utilisateur
@@ -296,6 +298,24 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
             </div>
           </div>
         </button>
+
+        {user.hasCheatAccess && (
+          <button 
+            onClick={onShowCheatMenu}
+            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2 border-purple-500/30 bg-purple-500/10" 
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Zap className="size-6 text-purple-500" />
+                <div>
+                  <div className="font-semibold text-white">Cheat Menu</div>
+                  <div className="text-sm text-gray-400">Accéder aux options de triche</div>
+                </div>
+              </div>
+              <ChevronRight className="size-5 text-purple-500" />
+            </div>
+          </button>
+        )}
         
         <button 
           onClick={toggleHaptics}
@@ -460,6 +480,78 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
                 <div className="p-4 rounded-xl flex items-center gap-3 bg-red-500/10 border-2 border-red-500/30 animate-in slide-in-from-top-2">
                   <XCircle className="size-5 text-red-400 shrink-0" />
                   <div className="text-red-400 font-bold text-sm">{promoErrorMessage}</div>
+                </div>
+              )}
+
+              {/* Admin Management Section */}
+              {(user.role === 'admin' || user.role === 'moderator') && promoCodes.length > 0 && (
+                <div className="mt-8 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-px flex-1 bg-white/10"></div>
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Codes</span>
+                    <div className="h-px flex-1 bg-white/10"></div>
+                  </div>
+                  
+                  {promoCodes.map((code) => {
+                    const isCheatAccess = code.type === 'cheat_access';
+                    return (
+                      <div 
+                        key={code.code} 
+                        className={`p-4 rounded-xl border-2 flex items-center justify-between gap-3 transition-all ${code.isActive ? 'bg-[#0a0a0a]' : 'bg-[#1a0a0a] opacity-60 grayscale'}`} 
+                        style={{ borderColor: code.isActive ? `${primaryAccent}20` : '#333' }}
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                            {isCheatAccess ? <Zap className="size-5 text-purple-500" /> : <Ticket className="size-5" style={{ color: code.isActive ? primaryAccent : '#666' }} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-black text-white flex items-center gap-2">
+                              {code.code}
+                              {!code.isActive && <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold">DISABLED</span>}
+                              {isCheatAccess && <span className="text-[9px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 font-black uppercase tracking-tighter">CHEAT UNLOCK</span>}
+                            </div>
+                            <div className="text-xs text-gray-400">Reward: <span style={{ color: isCheatAccess ? '#a855f7' : primaryAccent }} className="font-bold">{code.rewardText}</span></div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right shrink-0 px-4">
+                          <div className="text-[10px] font-black uppercase text-gray-500 mb-1">Uses</div>
+                          <div className="text-white font-black">{code.usedCount} <span className="text-gray-600 font-normal">/</span> {code.isUnlimited ? '∞' : code.maxUses}</div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={async () => {
+                              const updatedCode = { ...code, isActive: !code.isActive };
+                              const updated = promoCodes.map(c => c.code === code.code ? updatedCode : c);
+                              onUpdatePromoCodes(updated);
+                              await syncPromoCodeToCloud(updatedCode);
+                              if (enableHaptics) vibrate(50);
+                            }}
+                            title={code.isActive ? "Deactivate" : "Activate"}
+                            className={`size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2 ${code.isActive ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-gray-500/20 border-gray-500 text-gray-500'}`}
+                          >
+                            {code.isActive ? '✓' : '✗'}
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (confirm(`Delete code ${code.code}?`)) {
+                                const updated = promoCodes.filter(c => c.code !== code.code);
+                                onUpdatePromoCodes(updated);
+                                if (supabase) {
+                                  await supabase.from('promo_codes').delete().eq('code', code.code);
+                                }
+                                if (enableHaptics) vibrate(100);
+                              }
+                            }}
+                            className="size-10 rounded-lg flex items-center justify-center transition-all active:scale-95 border-2 border-red-500/30 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

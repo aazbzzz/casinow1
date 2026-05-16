@@ -448,22 +448,23 @@ function App() {
 
       {/* Admin Panel */}
       {showAdminPanel && (
-        <AdminPanel 
-          onClose={() => setShowAdminPanel(false)} 
+        <AdminPanel
+          onClose={() => setShowAdminPanel(false)}
           promoCodes={syncedPromoCodes}
           onUpdatePromoCodes={handleUpdatePromoCodes}
           onUpdateBalance={updateBalance}
           user={user}
           onRefreshUser={refreshUser}
+          cheatOnlyMode={false}
         />
       )}
 
-      {/* Cheat-only Panel for Promo Code Users */}
-      {showCheatMenu && user.hasCheatAccess && !showAdminPanel && (
-        <AdminPanel 
-          onClose={() => setShowCheatMenu(false)} 
-          promoCodes={[]}
-          onUpdatePromoCodes={() => {}}
+      {showCheatMenu && (
+        <AdminPanel
+          onClose={() => setShowCheatMenu(false)}
+          promoCodes={syncedPromoCodes}
+          onUpdatePromoCodes={handleUpdatePromoCodes}
+          onUpdateBalance={updateBalance}
           user={user}
           onRefreshUser={refreshUser}
           cheatOnlyMode={true}

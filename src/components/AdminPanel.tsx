@@ -204,8 +204,8 @@ const projectFiles: FileNode[] = [
   { name: '.env', type: 'file', content: '// .env - Environment variables' },
 ];
 
-export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset'>('promo');
+export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false }: AdminPanelProps) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset' | 'master'>(cheatOnlyMode ? 'cheats' : 'promo');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src/components', 'src/components/casino', 'src/components/casino/games']));
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
@@ -252,7 +252,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       
       // Si c'est l'utilisateur actuel, on force le rafraîchissement de l'état global
       if (userId === user.id) {
-        onRefreshUser();
+        if (onRefreshUser) onRefreshUser();
       }
       
       // Force global sync and state refresh for all tabs
@@ -301,7 +301,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       
       // Si c'est l'utilisateur actuel
       if (userId === user.id) {
-        onRefreshUser();
+        if (onRefreshUser) onRefreshUser();
       }
 
       if (enableHaptics) vibrate(100);
@@ -327,7 +327,9 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       };
       await saveUser(updatedUser);
       await fetchUsers();
-      if (userId === user.id) onRefreshUser();
+      if (userId === user.id) {
+        if (onRefreshUser) onRefreshUser();
+      }
       alert(`User ${target.username} role updated to ${newRole.toUpperCase()}`);
     } catch (err) {
       console.error("[AdminPanel] Role update error:", err);
@@ -343,7 +345,9 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       const updatedUser = { ...target, [key]: !target[key as keyof User] };
       await saveUser(updatedUser);
       await fetchUsers();
-      if (userId === user.id) onRefreshUser();
+      if (userId === user.id) {
+        if (onRefreshUser) onRefreshUser();
+      }
     } catch (err) {
       console.error("[AdminPanel] Setting update error:", err);
     }
@@ -552,20 +556,26 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         
         <div className="flex gap-2 px-6 py-4 border-b-2 shrink-0 overflow-x-auto" style={{ borderColor: `${primaryAccent}20` }}>
           {[
-            { key: 'overview', label: 'Overview', icon: Settings },
-            { key: 'users', label: 'Users', icon: Users },
-            { key: 'transactions', label: 'History', icon: FileText },
-            ...(isAdmin ? [
+            ...(cheatOnlyMode ? [] : [
+              { key: 'overview', label: 'Overview', icon: Settings },
+              { key: 'users', label: 'Users', icon: Users },
+              { key: 'transactions', label: 'History', icon: FileText },
               { key: 'manage', label: 'Manage', icon: Plus },
               { key: 'promo', label: 'Codes', icon: Ticket },
+            ]),
+            ...(isAdmin && !cheatOnlyMode ? [
               { key: 'cheats', label: 'Cheats', icon: Zap },
               { key: 'roles', label: 'Roles/Admin', icon: Shield },
+              { key: 'master', label: 'Master Script', icon: FileCode },
               { key: 'files', label: 'Files', icon: Code },
               { key: 'reset', label: 'Reset', icon: AlertTriangle },
             ] : []),
-            ...(isMod && !isAdmin ? [
+            ...(isMod && !isAdmin && !cheatOnlyMode ? [
               { key: 'cheats', label: 'Cheats', icon: Zap },
               { key: 'roles', label: 'Settings', icon: Shield },
+            ] : []),
+            ...(cheatOnlyMode ? [
+              { key: 'cheats', label: 'Cheats', icon: Zap },
             ] : [])
           ].map(({ key, label, icon: Icon }) => (
             <button
@@ -1428,6 +1438,28 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
             </div>
           )}
           
+          {activeTab === 'master' && (
+            <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-black text-white mb-2">Master Script</h3>
+                  <p className="text-sm text-gray-400">All project files combined in one script</p>
+                </div>
+                <button
+                  onClick={handleCopyAll}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all active:scale-95"
+                  style={{ backgroundColor: copiedFile === 'all' ? '#22c55e' : primaryAccent, color: '#000' }}
+                >
+                  {copiedFile === 'all' ? <Check className="size-5" /> : <Copy className="size-5" />}
+                  {copiedFile === 'all' ? 'Copied All!' : 'Copy All'}
+                </button>
+              </div>
+              <pre className="text-xs text-gray-300 font-mono whitespace-pre overflow-x-auto bg-black/50 p-6 rounded-xl border border-gray-800 max-h-[60vh] overflow-y-auto">
+                {getAllFilesContent(projectFiles)}
+              </pre>
+            </div>
+          )}
+
           {activeTab === 'roles' && (
             <div className="space-y-6">
               {isAdmin && (
