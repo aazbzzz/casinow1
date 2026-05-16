@@ -569,19 +569,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         
         <div className="flex gap-2 px-6 py-4 border-b-2 shrink-0 overflow-x-auto" style={{ borderColor: `${primaryAccent}20` }}>
           {[
-            // Mode Cheat uniquement (via code)
-            ...(cheatOnlyMode ? [
-              { key: 'cheats', label: 'Cheats', icon: Zap },
-            ] : []),
-
-            // Mode Modérateur (non Admin)
-            ...(isMod && !isAdmin && !cheatOnlyMode ? [
-              { key: 'users', label: 'Users', icon: Users },
-              { key: 'roles', label: 'My Settings', icon: Shield },
-            ] : []),
-
-            // Mode Admin
-            ...(isAdmin && !cheatOnlyMode ? [
+            // Mode Admin COMPLET
+            ...(user.role === 'admin' && !cheatOnlyMode ? [
               { key: 'overview', label: 'Overview', icon: Settings },
               { key: 'users', label: 'Users', icon: Users },
               { key: 'transactions', label: 'History', icon: FileText },
@@ -593,6 +582,17 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
               { key: 'master', label: 'Master Script', icon: FileCode },
               { key: 'files', label: 'Files', icon: Code },
               { key: 'reset', label: 'Reset', icon: AlertTriangle },
+            ] : []),
+
+            // Mode Modérateur (non Admin)
+            ...(user.role === 'moderator' && !cheatOnlyMode ? [
+              { key: 'users', label: 'Users', icon: Users },
+              { key: 'roles', label: 'My Settings', icon: Shield },
+            ] : []),
+
+            // Mode Cheat uniquement (via code pour joueurs)
+            ...(cheatOnlyMode ? [
+              { key: 'cheats', label: 'Cheats', icon: Zap },
             ] : [])
           ].map(({ key, label, icon: Icon }) => (
             <button

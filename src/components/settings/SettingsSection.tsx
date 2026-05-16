@@ -309,8 +309,13 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
         {user.hasCheatAccess && (
           <button 
             onClick={onShowCheatMenu}
-            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2 border-purple-500/30 bg-purple-500/10" 
+            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2 border-purple-500/30 bg-purple-500/10 relative overflow-hidden" 
           >
+            {user.cheatExpiresAt && (
+              <div className="absolute top-0 right-0 px-3 py-1 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-bl-xl">
+                {Math.max(0, Math.floor((user.cheatExpiresAt - Date.now()) / 1000))}s
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Zap className="size-6 text-purple-500" />

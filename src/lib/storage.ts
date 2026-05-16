@@ -587,9 +587,10 @@ export async function getGlobalLogs(): Promise<any[]> {
   if (!isSupabaseConfigured()) return [];
 
   try {
-    const [historyRes, transRes] = await Promise.all([
-      supabase.from('game_history').select('*, users(username)').order('timestamp', { ascending: false }).limit(50),
-      supabase.from('transactions').select('*, users(username)').order('timestamp', { ascending: false }).limit(50)
+    const [historyRes, transRes, promoRes] = await Promise.all([
+      supabase.from('game_history').select('*, users(username)').order('timestamp', { ascending: false }).limit(100),
+      supabase.from('transactions').select('*, users(username)').order('timestamp', { ascending: false }).limit(100),
+      supabase.from('promo_codes').select('*').order('created_at', { ascending: false }).limit(50)
     ]);
 
     const logs: any[] = [];
@@ -618,6 +619,22 @@ export async function getGlobalLogs(): Promise<any[]> {
           game: t.game || 'System',
           amount: t.amount,
           details: `${t.type.toUpperCase()}: ${t.amount >= 0 ? '+' : ''}${t.amount} (${t.game || 'N/A'})`
+        });
+      });
+    }
+    
+    // Simuler des logs d'activation de codes si on avait une table pour ça, 
+    // ou simplement lister les codes créés pour l'instant
+    if (promoRes.data) {
+      promoRes.data.forEach((p: any) => {
+        logs.push({
+          id: `p-${p.code}`,
+          timestamp: p.created_at,
+          username: 'System',
+          type: 'PROMO',
+          game: 'Admin',
+          amount: 0,
+          details: `NEW CODE: ${p.code} (${p.reward_text})`
         });
       });
     }
