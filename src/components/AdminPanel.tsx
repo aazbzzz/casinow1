@@ -661,6 +661,27 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                 </div>
                 <div className="text-5xl font-black text-white tracking-tighter">{user.totalWagered.toFixed(0)}</div>
               </div>
+
+              {isAdmin && <button
+                onClick={() => {
+                  setActiveTab('promo');
+                  if (enableHaptics) vibrate(30);
+                }}
+                className="p-8 rounded-3xl border-2 shadow-2xl transition-all hover:scale-[1.02] text-left group relative overflow-hidden" 
+                style={{ backgroundColor: '#0c0c0c', borderColor: `${primaryAccent}40`, boxShadow: `0 0 40px ${primaryAccent}15` }}
+              >
+                <div className="text-sm font-black text-gray-400 mb-4 uppercase tracking-[0.2em] flex items-center gap-3">
+                  <div className="size-8 rounded-lg flex items-center justify-center border" style={{ borderColor: primaryAccent, backgroundColor: `${primaryAccent}10` }}>
+                    <Ticket className="size-5" style={{ color: primaryAccent }} />
+                  </div>
+                  Promo Codes
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-black text-white tracking-tighter">{promoCodes.length}</span>
+                  <span className="text-xl font-bold opacity-50 uppercase" style={{ color: primaryAccent }}>Active</span>
+                </div>
+                <ChevronRight className="absolute bottom-6 right-6 size-6 text-gray-600 group-hover:text-white transition-colors" />
+              </button>}
             </div>
           )}
           
