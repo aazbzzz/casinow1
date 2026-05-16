@@ -20,6 +20,7 @@ export interface User {
   usedPromoCodes?: string[];
   isBanned?: boolean;
   cheats?: CheatSettings;
+  version: number;
   activeMultiplier?: {
     value: number;
     expiresAt: number;

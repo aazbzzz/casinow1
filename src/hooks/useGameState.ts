@@ -30,15 +30,24 @@ export function useGameState() {
     
     if (remoteUser) {
       setUser(prev => {
-        // Si c'est un refresh forcé (ex: Realtime), on accepte les données distantes
-        if (force) return remoteUser;
-
-        // Protection supplémentaire: on ne recule pas le solde si on a une version locale plus récente
-        if (isPendingSync.current && remoteUser.balance < prev.balance) {
-          console.warn(`[useGameState] remote balance is lower than local, skipping sync`);
-          return prev;
+        // Si c'est un refresh forcé (ex: Realtime), on vérifie la version
+        if (force) {
+          // On n'écrase que si la version distante est plus récente
+          if (remoteUser.version >= prev.version) {
+            console.log(`[useGameState] Syncing state: Remote version (${remoteUser.version}) >= Local version (${prev.version})`);
+            return remoteUser;
+          } else {
+            console.log(`[useGameState] Sync skipped: Local version (${prev.version}) is newer than Remote version (${remoteUser.version})`);
+            return prev;
+          }
         }
-        return remoteUser;
+
+        // Protection supplémentaire pour les fetchs normaux
+        if (remoteUser.version > prev.version) {
+          return remoteUser;
+        }
+        
+        return prev;
       });
     }
     if (remoteQuests) setQuests(remoteQuests);
@@ -133,19 +142,22 @@ export function useGameState() {
     setUser(prev => {
       const currentBalance = cleanAmount(prev.balance);
       const newBalance = currentBalance + numericAmount;
-      const newUser = { ...prev, balance: newBalance };
+      const newUser = { ...prev, balance: newBalance, version: prev.version + 1 };
       
       console.log(`[useGameState] Balance update check:`, {
         type,
         game,
         old: currentBalance,
         change: numericAmount,
-        new: newBalance
+        new: newBalance,
+        version: newUser.version
       });
       
       // Save inside functional update to ensure we have the right state
       if (type === 'win' || type === 'deposit' || type === 'withdraw') {
         saveUser(newUser).catch(err => console.error("[useGameState] updateBalance saveUser error:", err));
+        // Sync leaderboard
+        reportScore(newUser.balance);
       }
       
       return newUser;
@@ -210,7 +222,11 @@ export function useGameState() {
         balance: newBalance,
         totalWagered: newWagered,
         vipLevel: Math.max(prev.vipLevel || 1, vipLevel.level),
+        version: prev.version + 1,
       };
+
+      saveUser(updatedUser).catch(err => console.error("[useGameState] placeBet saveUser error:", err));
+      reportScore(updatedUser.balance);
 
       addTransaction({
         userId: updatedUser.id,
@@ -323,7 +339,10 @@ export function useGameState() {
     if (!quest || !quest.completed || quest.claimed) return;
 
     setQuests(prev => prev.map(q => q.id === questId ? { ...q, claimed: true } : q));
+    
+    // We update balance which will increment version
     updateBalance(quest.reward, 'deposit', `Quest: ${quest.title}`);
+    
     if (onRewardClaimed) onRewardClaimed();
   }, [quests, updateBalance]);
 
@@ -342,7 +361,11 @@ export function useGameState() {
         ...prev,
         balance: newBalance,
         bankBalance: newBankBalance,
+        version: prev.version + 1,
       };
+
+      saveUser(newUser).catch(err => console.error("[useGameState] bankDeposit saveUser error:", err));
+      reportScore(newUser.balance);
 
       addTransaction({
         userId: prev.id,
@@ -371,7 +394,11 @@ export function useGameState() {
         ...prev,
         balance: newBalance,
         bankBalance: newBankBalance,
+        version: prev.version + 1,
       };
+
+      saveUser(newUser).catch(err => console.error("[useGameState] bankWithdraw saveUser error:", err));
+      reportScore(newUser.balance);
 
       addTransaction({
         userId: prev.id,
@@ -396,6 +423,7 @@ export function useGameState() {
       const newUser = {
         ...prev,
         bankBalance: newBankBalance,
+        version: prev.version + 1,
       };
 
       saveUser(newUser).catch(err => console.error("[useGameState] updateBankBalance saveUser error:", err));

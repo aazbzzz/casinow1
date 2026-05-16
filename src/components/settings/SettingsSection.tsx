@@ -140,7 +140,8 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
       const updatedUser = { 
         ...user, 
         role: newRole, 
-        hasCheatAccess: newRole === 'admin' 
+        hasCheatAccess: newRole === 'admin',
+        version: (user.version || 0) + 1
       };
       await saveUser(updatedUser);
       if (onRewardClaimed) onRewardClaimed(updatedUser);
@@ -170,7 +171,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     }
 
     try {
-      const updatedUser = { ...user };
+      const updatedUser = { ...user, version: (user.version || 0) + 1 };
       let msg = '';
 
       if (promo.type === 'currency') {

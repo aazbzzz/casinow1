@@ -53,7 +53,7 @@ function App() {
       const data = await getLeaderboard(10);
       setLeaderboard(data);
       leaderboardTimerRef.current = null;
-    }, 2000); // Mise à jour max toutes les 2 secondes
+    }, 500); // Mise à jour max toutes les 500ms
   }, []);
 
   useEffect(() => {

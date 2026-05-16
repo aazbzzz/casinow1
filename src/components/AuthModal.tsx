@@ -82,6 +82,7 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
         createdAt: new Date().toISOString(),
         hasDeposited: false,
         usedPromoCodes: [],
+        version: 0,
       };
 
       setCurrentUID(newUser.id);
@@ -140,6 +141,7 @@ export function AuthModal({ onAuthComplete }: AuthModalProps) {
       createdAt: new Date().toISOString(),
       hasDeposited: false,
       usedPromoCodes: [],
+      version: 0,
     };
     setCurrentUID(guestId);
     saveUser(guestUser);

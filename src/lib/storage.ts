@@ -94,6 +94,7 @@ export async function fetchUser(uid?: string): Promise<User> {
           usedPromoCodes: data.used_promo_codes || [],
           isBanned: !!data.is_banned,
           cheats: data.cheats || null,
+          version: data.version || 0,
           activeMultiplier: data.active_multiplier || null,
         };
         
@@ -177,6 +178,7 @@ export async function saveUser(user: User): Promise<void> {
         has_deposited: cleanUser.hasDeposited,
         is_banned: cleanUser.isBanned || false,
         cheats: cleanUser.cheats || null,
+        version: cleanUser.version || 0,
         used_promo_codes: cleanUser.usedPromoCodes || [],
         active_multiplier: cleanUser.activeMultiplier || null,
       };
@@ -222,6 +224,7 @@ export async function getAllUsers(): Promise<User[]> {
           hasDeposited: d.has_deposited,
           isBanned: !!d.is_banned,
           cheats: d.cheats || null,
+          version: d.version || 0,
           usedPromoCodes: d.used_promo_codes || [],
           activeMultiplier: d.active_multiplier || null,
         }));
@@ -357,6 +360,7 @@ export async function getLeaderboard(limit = 10): Promise<User[]> {
           hasDeposited: d.has_deposited,
           isBanned: !!d.is_banned,
           cheats: d.cheats || null,
+          version: d.version || 0,
           usedPromoCodes: d.used_promo_codes || [],
           activeMultiplier: d.active_multiplier || null,
         }));
@@ -822,6 +826,7 @@ export function getDefaultUser(uid?: string): User {
     createdAt: new Date().toISOString(),
     hasDeposited: false,
     usedPromoCodes: [],
+    version: 0,
     activeMultiplier: undefined,
   };
 }

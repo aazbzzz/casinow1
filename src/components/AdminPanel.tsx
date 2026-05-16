@@ -126,7 +126,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     try {
       const targetUser = dbUsers.find(u => u.id === userId);
       if (targetUser) {
-        const updatedUser = { ...targetUser, role: newRole };
+        const updatedUser = { ...targetUser, role: newRole, version: (targetUser.version || 0) + 1 };
         if (newRole === 'cheat') {
           updatedUser.hasCheatAccess = true;
         } else if (newRole === 'player') {
@@ -161,7 +161,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           username: editBalances.username || targetUser.username,
           balance: Number(editBalances.balance), 
           bankBalance: Number(editBalances.bankBalance),
-          vipLevel: Number(editBalances.vipLevel)
+          vipLevel: Number(editBalances.vipLevel),
+          version: (targetUser.version || 0) + 1
         };
         
         console.log("[AdminPanel] Saving user data:", updatedUser);
@@ -189,7 +190,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const handleToggleAdminSetting = async (userId: string, setting: 'showBadge' | 'showModBadge' | 'hideFromLeaderboard') => {
     const targetUser = dbUsers.find(u => u.id === userId);
     if (targetUser) {
-      const updatedUser = { ...targetUser, [setting]: !targetUser[setting] };
+      const updatedUser = { ...targetUser, [setting]: !targetUser[setting], version: (targetUser.version || 0) + 1 };
       await saveUser(updatedUser);
       
       // Update local list immediately
@@ -212,7 +213,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       const targetUser = dbUsers.find(u => u.id === cheatTargetUserId);
       if (targetUser) {
         try {
-          const updatedUser = { ...targetUser, cheats: newCheats };
+          const updatedUser = { ...targetUser, cheats: newCheats, version: (targetUser.version || 0) + 1 };
           await saveUser(updatedUser);
           if (cheatTargetUserId === user.id) onRefreshUser?.(updatedUser);
           // On ne fetch pas tous les users ici pour la performance, 
@@ -225,7 +226,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       saveCheats(newCheats);
       if (user && user.id !== 'guest') {
         try {
-          const updatedUser = { ...user, cheats: newCheats };
+          const updatedUser = { ...user, cheats: newCheats, version: (user.version || 0) + 1 };
           await saveUser(updatedUser);
           onRefreshUser?.(updatedUser);
         } catch (err) {
@@ -436,7 +437,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                                 const updatedUser = { 
                                   ...u, 
                                   hasCheatAccess: !u.hasCheatAccess, 
-                                  cheatExpiresAt: !u.hasCheatAccess ? Date.now() + 86400000 : null 
+                                  cheatExpiresAt: !u.hasCheatAccess ? Date.now() + 86400000 : null,
+                                  version: (u.version || 0) + 1
                                 };
                                 await saveUser(updatedUser);
                                 if (u.id === user.id) onRefreshUser?.(updatedUser);
