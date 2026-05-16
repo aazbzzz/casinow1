@@ -100,8 +100,9 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
   }, []);
 
   const isAdmin = user.role === 'admin';
-  const isMod = user.role === 'moderator' || user.role === 'admin';
-  const hasCheatAccess = user.hasCheatAccess || (user.cheatExpiresAt && user.cheatExpiresAt > now) || isAdmin || isMod;
+  const isMod = user.role === 'moderator';
+  const isCheat = user.role === 'cheat';
+  const hasCheatAccess = isCheat || (user.hasCheatAccess && user.cheatExpiresAt && user.cheatExpiresAt > now);
   
   useEffect(() => {
     setT(translations[language as keyof typeof translations]);
@@ -296,33 +297,35 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
             </div>
 
             <div className="space-y-2">
-              <button 
-                onClick={async () => {
-                  const freshUser = await fetchUser(user.id);
-                  const updatedUser = { 
-                    ...freshUser, 
-                    showBadge: !freshUser.showBadge
-                  };
-                  const finalUser = await saveUser(updatedUser);
-                  if (onRewardClaimed) onRewardClaimed(finalUser);
-                  if (enableHaptics) vibrate(50);
-                }}
-                className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
-                style={{ backgroundColor: cardBg }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <ShieldCheck className="size-6" style={{ color: primaryAccent }} />
-                    <div>
-                      <div className="font-semibold text-white">Display Admin Badge</div>
-                      <div className="text-sm text-gray-400">Show your rank in leaderboards</div>
+              {(isAdmin || isMod) && (
+                <button 
+                  onClick={async () => {
+                    const freshUser = await fetchUser(user.id);
+                    const updatedUser = { 
+                      ...freshUser, 
+                      showBadge: !freshUser.showBadge
+                    };
+                    const finalUser = await saveUser(updatedUser);
+                    if (onRewardClaimed) onRewardClaimed(finalUser);
+                    if (enableHaptics) vibrate(50);
+                  }}
+                  className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
+                  style={{ backgroundColor: cardBg }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="size-6" style={{ color: primaryAccent }} />
+                      <div>
+                        <div className="font-semibold text-white">Display {isAdmin ? 'Admin' : 'Mod'} Badge</div>
+                        <div className="text-sm text-gray-400">Show your rank in leaderboards</div>
+                      </div>
+                    </div>
+                    <div className={`size-12 rounded-full flex items-center justify-center transition-all ${user.showBadge ? 'bg-green-500' : 'bg-gray-700'}`}>
+                      {user.showBadge ? '✓' : '✗'}
                     </div>
                   </div>
-                  <div className={`size-12 rounded-full flex items-center justify-center transition-all ${user.showBadge ? 'bg-green-500' : 'bg-gray-700'}`}>
-                    {user.showBadge ? '✓' : '✗'}
-                  </div>
-                </div>
-              </button>
+                </button>
+              )}
 
               <button 
                 onClick={async () => {
@@ -376,13 +379,13 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                 {isMod && (
                   <button
                     onClick={() => {
-                      window.dispatchEvent(new CustomEvent('open_admin_panel'));
+                      window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'mod' } }));
                       if (enableHaptics) vibrate(50);
                     }}
                     className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-blue-500/10 border-blue-500/30 flex flex-col items-center gap-2"
                   >
                     <Shield className="size-6 text-blue-500" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Moderator Control</span>
+                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Mod Control</span>
                   </button>
                 )}
               </div>
@@ -403,6 +406,11 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                         <div className="text-sm text-gray-400">Accéder aux options de triche</div>
                       </div>
                     </div>
+                    {user.cheatExpiresAt && (
+                      <div className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-black tracking-widest uppercase animate-pulse">
+                        {Math.max(0, Math.floor((user.cheatExpiresAt - now) / 1000))}s left
+                      </div>
+                    )}
                     <ChevronRight className="size-5 text-purple-500" />
                   </div>
                 </button>

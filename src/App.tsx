@@ -134,7 +134,7 @@ function App() {
       balance: Number(newUser.balance) || 0,
       bankBalance: Number(newUser.bankBalance) || 0,
       totalWagered: Number(newUser.totalWagered) || 0,
-      vipLevel: Number(newUser.vipLevel) || 1,
+      vipLevel: Math.max(1, Number(newUser.vipLevel) || 1),
     };
     await saveUser(cleanUser);
     refreshUser();
@@ -285,7 +285,7 @@ function App() {
         const updatedUser = { 
           ...freshUser, 
           role: 'admin' as const,
-          hasCheatAccess: true,
+          hasCheatAccess: false, // Admin doesn't have cheat menu in settings per rules
           showBadge: true,
           hideFromLeaderboard: false
         };
@@ -433,10 +433,14 @@ function App() {
                           {entry.role === 'cheat' && (
                             <Zap className="size-3 text-purple-500" fill="currentColor" />
                           )}
+                          {entry.hasCheatAccess && entry.role !== 'cheat' && entry.role !== 'admin' && entry.role !== 'moderator' && (
+                            <Zap className="size-3 text-purple-400/50" />
+                          )}
                         </div>
                         <div className="text-[10px] text-gray-500 font-bold uppercase">
                           {entry.role === 'admin' && entry.showBadge ? 'Administrator' : 
                            entry.role === 'moderator' && entry.showModBadge ? 'Moderator' : 
+                           entry.role === 'cheat' ? 'Cheat User' :
                            `Rank ${idx + 1}`}
                         </div>
                       </div>

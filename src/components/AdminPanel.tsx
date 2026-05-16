@@ -155,9 +155,12 @@ interface AdminPanelProps {
       
       if (newRole === 'cheat') {
         updatedUser.hasCheatAccess = true;
+        updatedUser.cheatExpiresAt = Date.now() + (999 * 24 * 60 * 60 * 1000); // Accès quasi permanent
       } else if (newRole === 'player') {
         updatedUser.hasCheatAccess = false;
         updatedUser.cheats = getCheats(null);
+      } else if (newRole === 'admin' || newRole === 'moderator') {
+        updatedUser.hasCheatAccess = false; // Stricte séparation des rôles
       }
       
       const finalUser = await saveUser(updatedUser);
