@@ -314,7 +314,7 @@ export async function getLeaderboard(limit = 10): Promise<User[]> {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('hide_from_leaderboard', false)
+        .or('hide_from_leaderboard.eq.false,hide_from_leaderboard.is.null')
         .order('balance', { ascending: false })
         .limit(limit);
       

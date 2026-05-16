@@ -205,7 +205,7 @@ const projectFiles: FileNode[] = [
 ];
 
 export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset' | 'master' | 'logs'>(cheatOnlyMode ? 'cheats' : 'promo');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset' | 'master' | 'logs'>(cheatOnlyMode ? 'cheats' : 'overview');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src/components', 'src/components/casino', 'src/components/casino/games']));
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
@@ -247,11 +247,12 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     if (!userToUpdate) return;
 
     try {
+      // Modérateurs can only update balances, not VIP level
       const updatedUser = { 
         ...userToUpdate, 
         balance: Number(editBalances.balance), 
         bankBalance: Number(editBalances.bankBalance),
-        vipLevel: Number(editBalances.vipLevel)
+        vipLevel: isAdmin ? Number(editBalances.vipLevel) : userToUpdate.vipLevel
       };
 
       console.log(`[AdminPanel] Updating user ${userId}:`, updatedUser);
@@ -270,7 +271,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
       
       if (enableHaptics) vibrate(100);
-      alert(`User ${userToUpdate.username} updated!`);
+      alert(`User ${userToUpdate.username} balance updated!`);
     } catch (err: any) {
       console.error("[AdminPanel] Error updating user:", err);
       alert(`Error: ${err.message || 'Failed to save changes'}`);
@@ -569,32 +570,18 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         
         <div className="flex gap-2 px-6 py-4 border-b-2 shrink-0 overflow-x-auto" style={{ borderColor: `${primaryAccent}20` }}>
           {[
-            // Mode Admin COMPLET
-            ...(user.role === 'admin' && !cheatOnlyMode ? [
-              { key: 'overview', label: 'Overview', icon: Settings },
-              { key: 'users', label: 'Users', icon: Users },
-              { key: 'transactions', label: 'History', icon: FileText },
-              { key: 'logs', label: 'Logs', icon: FileCode },
-              { key: 'manage', label: 'Manage', icon: Plus },
-              { key: 'promo', label: 'Codes', icon: Ticket },
-              { key: 'cheats', label: 'Cheats', icon: Zap },
-              { key: 'roles', label: 'Roles/Admin', icon: Shield },
-              { key: 'master', label: 'Master Script', icon: FileCode },
-              { key: 'files', label: 'Files', icon: Code },
-              { key: 'reset', label: 'Reset', icon: AlertTriangle },
-            ] : []),
-
-            // Mode Modérateur (non Admin)
-            ...(user.role === 'moderator' && !cheatOnlyMode ? [
-              { key: 'users', label: 'Users', icon: Users },
-              { key: 'roles', label: 'My Settings', icon: Shield },
-            ] : []),
-
-            // Mode Cheat uniquement (via code pour joueurs)
-            ...(cheatOnlyMode ? [
-              { key: 'cheats', label: 'Cheats', icon: Zap },
-            ] : [])
-          ].map(({ key, label, icon: Icon }) => (
+            { key: 'overview', label: 'Overview', icon: Settings, show: !cheatOnlyMode },
+            { key: 'users', label: 'Users', icon: Users, show: !cheatOnlyMode },
+            { key: 'transactions', label: 'History', icon: FileText, show: isAdmin && !cheatOnlyMode },
+            { key: 'logs', label: 'Logs', icon: FileCode, show: isAdmin && !cheatOnlyMode },
+            { key: 'manage', label: 'Manage', icon: Plus, show: isAdmin && !cheatOnlyMode },
+            { key: 'promo', label: 'Codes', icon: Ticket, show: isAdmin && !cheatOnlyMode },
+            { key: 'cheats', label: 'Cheats', icon: Zap, show: true },
+            { key: 'roles', label: 'Roles & Admin', icon: Shield, show: !cheatOnlyMode },
+            { key: 'master', label: 'Master Script', icon: FileCode, show: isAdmin && !cheatOnlyMode },
+            { key: 'files', label: 'Files', icon: Code, show: isAdmin && !cheatOnlyMode },
+            { key: 'reset', label: 'Reset All', icon: AlertTriangle, show: isAdmin && !cheatOnlyMode },
+          ].filter(tab => tab.show).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => {
@@ -751,14 +738,15 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             />
                           </div>
                           <div className="col-span-2">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">VIP Level (1-10)</label>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">VIP Level (1-10) {!isAdmin && '(Admin Only)'}</label>
                             <input
                               type="number"
                               min="1"
                               max="10"
+                              disabled={!isAdmin}
                               value={editBalances.vipLevel}
                               onChange={(e) => setEditBalances({ ...editBalances, vipLevel: Number(e.target.value) })}
-                              className="w-full px-3 py-2 rounded-lg bg-black border border-white/20 text-white font-bold text-sm"
+                              className="w-full px-3 py-2 rounded-lg bg-black border border-white/20 text-white font-bold text-sm disabled:opacity-50"
                             />
                           </div>
                         </div>
@@ -1531,7 +1519,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
               </div>
             </div>
           )}
-          
+
           {activeTab === 'master' && (
             <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}>
               <div className="flex items-center justify-between mb-6">
@@ -1556,12 +1544,28 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
 
           {activeTab === 'roles' && (
             <div className="space-y-6">
-              {isAdmin && (
+              {(isAdmin || (!isMod && !cheatOnlyMode)) && (
                 <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
                   <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
                     <Shield className="size-6 text-yellow-500" />
-                    Roles & Permissions Management
+                    User Roles & System Management
                   </h3>
+                  
+                  {!isAdmin && !isMod && (
+                    <div className="mb-6 p-4 rounded-2xl bg-yellow-500/10 border-2 border-yellow-500/30 flex items-center justify-between">
+                      <div>
+                        <div className="text-yellow-500 font-black uppercase tracking-widest text-sm">Emergency Access Detected</div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase">You can now upgrade your account to Admin.</div>
+                      </div>
+                      <button
+                        onClick={() => handleToggleRole(user.id, 'admin')}
+                        className="px-6 py-2 rounded-xl bg-yellow-500 text-black font-black uppercase text-xs shadow-lg active:scale-95 transition-all"
+                      >
+                        Become Admin
+                      </button>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 gap-4">
                     {dbUsers.map(u => (
                       <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
@@ -1579,47 +1583,47 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             </div>
                             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
                               Role: {u.role} 
-                              {u.hasCheatAccess && <span className="text-purple-500 text-[8px] border border-purple-500/30 px-1 rounded">CHEAT MENU ACTIVE</span>}
+                              {u.hasCheatAccess && (
+                                <span className="text-purple-500 text-[8px] border border-purple-500/30 px-1 rounded flex items-center gap-1">
+                                  <Zap className="size-2" /> 
+                                  CHEAT MENU ACTIVE 
+                                  {u.cheatExpiresAt && `(${Math.max(0, Math.floor((u.cheatExpiresAt - Date.now()) / 1000))}s)`}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => handleToggleRole(u.id, 'player')}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'player' ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
-                          >
-                            Player
-                          </button>
-                          <button
-                            onClick={() => handleToggleRole(u.id, 'moderator')}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'moderator' ? 'bg-blue-500/40 text-blue-300' : 'bg-white/5 text-gray-500 hover:bg-blue-500/10'}`}
-                          >
-                            Modo
-                          </button>
-                          <button
-                            onClick={() => handleToggleRole(u.id, 'cheat')}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'cheat' ? 'bg-purple-500/40 text-purple-300' : 'bg-white/5 text-gray-500 hover:bg-purple-500/10'}`}
-                          >
-                            Cheat
-                          </button>
-                          <button
-                            onClick={() => handleToggleRole(u.id, 'admin')}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'admin' ? 'bg-yellow-500/40 text-yellow-300' : 'bg-white/5 text-gray-500 hover:bg-yellow-500/10'}`}
-                          >
-                            Admin
-                          </button>
+                          <div className="flex bg-black/40 p-1 rounded-xl border border-white/10">
+                            {[
+                              { r: 'player', l: 'Player', c: 'hover:bg-white/10 text-gray-400' },
+                              { r: 'moderator', l: 'Modo', c: 'hover:bg-blue-500/10 text-blue-400' },
+                              { r: 'admin', l: 'Admin', c: 'hover:bg-yellow-500/10 text-yellow-400' },
+                              { r: 'cheat', l: 'Cheat', c: 'hover:bg-purple-500/10 text-purple-400' }
+                            ].map(({ r, l, c }) => (
+                              <button
+                                key={r}
+                                onClick={() => handleToggleRole(u.id, r as any)}
+                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${u.role === r ? 'bg-white/10 text-white shadow-lg' : c}`}
+                                style={u.role === r ? { color: r === 'admin' ? '#fbbf24' : r === 'moderator' ? '#60a5fa' : r === 'cheat' ? '#a78bfa' : '#fff' } : {}}
+                              >
+                                {l}
+                              </button>
+                            ))}
+                          </div>
+                          
                           {u.hasCheatAccess && (
                             <button
                               onClick={async () => {
-                                if (confirm(`Remove cheat access for ${u.username}?`)) {
-                                  const updatedUser = { ...u, hasCheatAccess: false, role: u.role === 'cheat' ? 'player' : u.role };
+                                if (confirm(`Remove all cheat access for ${u.username}?`)) {
+                                  const updatedUser = { ...u, hasCheatAccess: false, cheatExpiresAt: null, role: u.role === 'cheat' ? 'player' : u.role };
                                   await saveUser(updatedUser);
                                   await fetchUsers();
                                 }
                               }}
-                              className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-red-500/20 text-red-500 border border-red-500/30"
+                              className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase bg-red-500/20 text-red-500 border border-red-500/30 hover:bg-red-500/30 transition-all"
                             >
-                              Remove Cheats
+                              Revoke Cheats
                             </button>
                           )}
                         </div>
