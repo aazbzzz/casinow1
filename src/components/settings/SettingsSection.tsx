@@ -305,42 +305,44 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
               <div className="h-px flex-1 bg-white/10"></div>
             </div>
 
-            <div className="flex gap-2">
-              {isAdmin && (
-                <button
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent('open_admin_panel'));
-                    if (enableHaptics) vibrate(50);
-                  }}
-                  className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-yellow-500/10 border-yellow-500/30 flex flex-col items-center gap-2"
-                >
-                  <Crown className="size-6 text-yellow-500" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-tighter">Admin Panel</span>
-                </button>
-              )}
-              {isMod && (
-                <button
-                  onClick={() => {
-                    // Force mod mode
-                    window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'mod' } }));
-                    if (enableHaptics) vibrate(50);
-                  }}
-                  className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-blue-500/10 border-blue-500/30 flex flex-col items-center gap-2"
-                >
-                  <Shield className="size-6 text-blue-500" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-tighter">Modo Panel</span>
-                </button>
-              )}
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('open_admin_panel'));
+                      if (enableHaptics) vibrate(50);
+                    }}
+                    className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-yellow-500/10 border-yellow-500/30 flex flex-col items-center gap-2"
+                  >
+                    <Crown className="size-6 text-yellow-500" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Admin Panel</span>
+                  </button>
+                )}
+                {isMod && (
+                  <button
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'mod' } }));
+                      if (enableHaptics) vibrate(50);
+                    }}
+                    className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-blue-500/10 border-blue-500/30 flex flex-col items-center gap-2"
+                  >
+                    <Shield className="size-6 text-blue-500" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Modo Panel</span>
+                  </button>
+                )}
+              </div>
+              
               {hasCheatAccess && (
                 <button
                   onClick={() => {
                     onShowCheatMenu?.();
                     if (enableHaptics) vibrate(50);
                   }}
-                  className="flex-1 p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-purple-500/10 border-purple-500/30 flex flex-col items-center gap-2"
+                  className="w-full p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-purple-500/10 border-purple-500/30 flex items-center justify-center gap-3"
                 >
                   <Zap className="size-6 text-purple-500" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-tighter">Cheat Menu</span>
+                  <span className="font-black text-white uppercase tracking-widest italic">Cheat Menu - Utiliser la triche</span>
                 </button>
               )}
             </div>

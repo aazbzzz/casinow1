@@ -64,8 +64,20 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     maxUses: 10,
     cryptoSymbol: 'BTC',
     isUnlimited: false,
-    duration: 3600
+    duration: 3600,
+    timeDays: 1,
+    timeHours: 0,
+    timeMinutes: 0,
+    timeSeconds: 0
   });
+
+  const formatTimeDetailed = (seconds: number) => {
+    const d = Math.floor(seconds / (24 * 3600));
+    const h = Math.floor((seconds % (24 * 3600)) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${d}j : ${h}h : ${m}m : ${s}s`;
+  };
 
   const primaryAccent = tweaks.primaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
@@ -206,10 +218,10 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
             <div>
               <h2 className="text-xl sm:text-3xl font-black text-white uppercase tracking-tighter italic leading-none">{cheatOnlyMode ? 'Cheat Menu' : 'Admin Control'}</h2>
               <div className="flex items-center gap-2 mt-1">
-                {timeLeft !== null ? (
+                {timeLeft !== null && cheatOnlyMode ? (
                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30">
                     <Timer className="size-3 text-purple-400" />
-                    <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest">{timeLeft}s Left</span>
+                    <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest">{formatTimeDetailed(timeLeft)}</span>
                   </div>
                 ) : (
                   <>
@@ -256,7 +268,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           {activeTab === 'users' && (
             <div className="space-y-4 sm:space-y-6 relative min-h-full">
               {editingUser && (
-                <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl rounded-none sm:rounded-[2rem] p-4 sm:p-8 flex flex-col items-center justify-start sm:justify-center border-0 sm:border-2 overflow-y-auto" style={{ borderColor: primaryAccent }}>
+                <div className="absolute inset-0 z-50 bg-[#050505] rounded-none sm:rounded-[2rem] p-4 sm:p-8 flex flex-col items-center justify-start sm:justify-center border-0 sm:border-2 overflow-y-auto" style={{ borderColor: primaryAccent }}>
                   <div className="w-full max-w-md space-y-4 sm:space-y-6 mt-4 sm:mt-0">
                     <div className="flex items-center justify-between mb-2 sm:mb-8">
                       <h3 className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tighter">Edit User Data</h3>
@@ -347,54 +359,73 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         <div className="text-white font-black text-xs sm:text-sm">${u.balance.toLocaleString()}</div>
                       </div>
                       <div className="p-2 sm:p-3 rounded-xl bg-black/30 border border-white/5">
-                        <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase mb-1">VIP</div>
-                        <div className="text-white font-black text-xs sm:text-sm">Level {u.vipLevel}</div>
+                        <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase mb-1">Cheat Status</div>
+                        <div className={`font-black text-[9px] sm:text-[10px] uppercase ${u.hasCheatAccess ? 'text-purple-400' : 'text-gray-600'}`}>
+                          {u.hasCheatAccess ? (u.cheatExpiresAt ? formatTimeDetailed(Math.max(0, Math.floor((u.cheatExpiresAt - Date.now()) / 1000))) : 'Permanent') : 'No Access'}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingUser(u.id);
-                            setEditBalances({ 
-                              balance: u.balance, 
-                              bankBalance: u.bankBalance || 0, 
-                              vipLevel: u.vipLevel 
-                            });
-                            if (enableHaptics) vibrate(50);
-                          }}
-                          className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-blue-500/10 text-blue-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-blue-500/20 border border-blue-500/30 transition-all active:scale-95"
-                        >
-                          Edit Data
-                        </button>
-                        {!cheatOnlyMode && staffMode === 'admin' && (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
                           <button
                             onClick={() => {
-                              setCheatTargetUserId(u.id);
-                              setActiveTab('cheats');
+                              setEditingUser(u.id);
+                              setEditBalances({ 
+                                balance: u.balance, 
+                                bankBalance: u.bankBalance || 0, 
+                                vipLevel: u.vipLevel 
+                              });
                               if (enableHaptics) vibrate(50);
                             }}
-                            className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-purple-500/10 text-purple-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-purple-500/20 border border-purple-500/30 transition-all active:scale-95"
+                            className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-blue-500/10 text-blue-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-blue-500/20 border border-blue-500/30 transition-all active:scale-95"
                           >
-                            Cheats
+                            Edit Data
                           </button>
-                        )}
+                          {u.hasCheatAccess && (
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Revoke cheat access for ${u.username}?`)) {
+                                  const updatedUser = { ...u, hasCheatAccess: false, cheatExpiresAt: null };
+                                  await saveUser(updatedUser);
+                                  await fetchUsers();
+                                  if (enableHaptics) vibrate(100);
+                                }
+                              }}
+                              className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-red-500/10 text-red-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-red-500/20 border border-red-500/30 transition-all active:scale-95"
+                            >
+                              Revoke Cheat
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {!cheatOnlyMode && staffMode === 'admin' && (
+                            <button
+                              onClick={() => {
+                                setCheatTargetUserId(u.id);
+                                setActiveTab('cheats');
+                                if (enableHaptics) vibrate(50);
+                              }}
+                              className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-purple-500/10 text-purple-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-purple-500/20 border border-purple-500/30 transition-all active:scale-95"
+                            >
+                              Control Cheats
+                            </button>
+                          )}
+                          {!cheatOnlyMode && staffMode === 'admin' && (
+                            <button
+                              onClick={async () => {
+                                if (confirm(`${u.isBanned ? 'Unban' : 'Ban'} user ${u.username}?`)) {
+                                  const updatedUser = { ...u, isBanned: !u.isBanned };
+                                  await saveUser(updatedUser);
+                                  await fetchUsers();
+                                }
+                              }}
+                              className={`flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${u.isBanned ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}`}
+                            >
+                              {u.isBanned ? 'Unban' : 'Ban'}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      {!cheatOnlyMode && staffMode === 'admin' && (
-                        <button
-                          onClick={async () => {
-                            if (confirm(`${u.isBanned ? 'Unban' : 'Ban'} user ${u.username}?`)) {
-                              const updatedUser = { ...u, isBanned: !u.isBanned };
-                              await saveUser(updatedUser);
-                              await fetchUsers();
-                            }
-                          }}
-                          className={`w-full py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${u.isBanned ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}`}
-                        >
-                          {u.isBanned ? 'Unban User' : 'Ban User'}
-                        </button>
-                      )}
-                    </div>
                   </div>
                 ))}
               </div>
@@ -408,14 +439,14 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                   <Plus className="size-6" style={{ color: primaryAccent }} />
                   Create Promo Code
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div>
                     <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Promo Code</label>
                     <input
                       type="text"
                       value={newPromo.code}
                       onChange={(e) => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })}
-                      className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                      className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none"
                       style={{ borderColor: `${primaryAccent}40` }}
                       placeholder="WELCOME2024"
                     />
@@ -425,22 +456,22 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     <select
                       value={newPromo.type}
                       onChange={(e) => setNewPromo({ ...newPromo, type: e.target.value as any })}
-                      className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold appearance-none"
+                      className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black appearance-none outline-none"
                       style={{ borderColor: `${primaryAccent}40` }}
                     >
                       <option value="currency">Credits (Money)</option>
-                      <option value="multiplier">Win Multiplier (2x, 3x)</option>
+                      <option value="multiplier">Win Multiplier</option>
                       <option value="crypto">Crypto Reward</option>
                       <option value="cheat_access">Cheat Menu Access</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Value</label>
+                    <label className="text-xs font-black text-gray-500 uppercase mb-2 block">{newPromo.type === 'cheat_access' ? 'Days' : 'Value'}</label>
                     <input
                       type="number"
                       value={newPromo.value}
                       onChange={(e) => setNewPromo({ ...newPromo, value: Number(e.target.value) })}
-                      className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                      className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none"
                       style={{ borderColor: `${primaryAccent}40` }}
                       min="1"
                     />
@@ -452,7 +483,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         type="number"
                         value={newPromo.maxUses}
                         onChange={(e) => setNewPromo({ ...newPromo, maxUses: Number(e.target.value) })}
-                        className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold disabled:opacity-50"
+                        className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black disabled:opacity-50 outline-none"
                         style={{ borderColor: `${primaryAccent}40` }}
                         min="1"
                         disabled={newPromo.isUnlimited}
@@ -470,6 +501,33 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                       </button>
                     </div>
                   </div>
+                </div>
+
+                {newPromo.type === 'cheat_access' && (
+                  <div className="mb-6 p-4 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                    <label className="text-xs font-black text-purple-400 uppercase mb-4 block tracking-widest">Precise Duration (Days : Hours : Mins : Secs)</label>
+                    <div className="grid grid-cols-4 gap-4">
+                      <div>
+                        <input type="number" value={newPromo.timeDays} onChange={(e) => setNewPromo({...newPromo, timeDays: Number(e.target.value)})} className="w-full bg-black/50 border border-purple-500/30 rounded-lg p-2 text-center text-white font-black" placeholder="Days"/>
+                        <span className="text-[8px] text-gray-600 uppercase block text-center mt-1">Days</span>
+                      </div>
+                      <div>
+                        <input type="number" value={newPromo.timeHours} onChange={(e) => setNewPromo({...newPromo, timeHours: Number(e.target.value)})} className="w-full bg-black/50 border border-purple-500/30 rounded-lg p-2 text-center text-white font-black" placeholder="Hours"/>
+                        <span className="text-[8px] text-gray-600 uppercase block text-center mt-1">Hours</span>
+                      </div>
+                      <div>
+                        <input type="number" value={newPromo.timeMinutes} onChange={(e) => setNewPromo({...newPromo, timeMinutes: Number(e.target.value)})} className="w-full bg-black/50 border border-purple-500/30 rounded-lg p-2 text-center text-white font-black" placeholder="Mins"/>
+                        <span className="text-[8px] text-gray-600 uppercase block text-center mt-1">Mins</span>
+                      </div>
+                      <div>
+                        <input type="number" value={newPromo.timeSeconds} onChange={(e) => setNewPromo({...newPromo, timeSeconds: Number(e.target.value)})} className="w-full bg-black/50 border border-purple-500/30 rounded-lg p-2 text-center text-white font-black" placeholder="Secs"/>
+                        <span className="text-[8px] text-gray-600 uppercase block text-center mt-1">Secs</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   {newPromo.type === 'crypto' && (
                     <div>
                       <label className="text-xs font-black text-gray-500 uppercase mb-2 block">Crypto Symbol</label>
@@ -477,7 +535,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         type="text"
                         value={newPromo.cryptoSymbol}
                         onChange={(e) => setNewPromo({ ...newPromo, cryptoSymbol: e.target.value.toUpperCase() })}
-                        className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                        className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none"
                         style={{ borderColor: `${primaryAccent}40` }}
                         placeholder="BTC"
                       />
@@ -490,7 +548,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                         type="number"
                         value={newPromo.duration}
                         onChange={(e) => setNewPromo({ ...newPromo, duration: Number(e.target.value) })}
-                        className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                        className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none"
                         style={{ borderColor: `${primaryAccent}40` }}
                         min="1"
                       />
@@ -501,6 +559,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                   onClick={async () => {
                     if (!newPromo.code) return;
                     let rewardText = '';
+                    let finalValue = newPromo.value;
+                    
                     if (newPromo.type === 'currency') {
                       rewardText = `${newPromo.value} Credits`;
                     } else if (newPromo.type === 'multiplier') {
@@ -512,11 +572,14 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     } else if (newPromo.type === 'crypto') {
                       rewardText = `${newPromo.value} ${newPromo.cryptoSymbol}`;
                     } else if (newPromo.type === 'cheat_access') {
-                      rewardText = `Cheat Menu Access (${newPromo.value} days)`;
+                      const totalSeconds = (newPromo.timeDays * 86400) + (newPromo.timeHours * 3600) + (newPromo.timeMinutes * 60) + newPromo.timeSeconds;
+                      finalValue = totalSeconds / 86400; // Store as fractional days for backward compatibility or use totalSeconds
+                      rewardText = `Cheat Menu (${formatTimeDetailed(totalSeconds)})`;
                     }
                     
                     const codeObj: PromoCode = {
                       ...newPromo,
+                      value: finalValue,
                       rewardText,
                       usedCount: 0,
                       isActive: true
@@ -524,7 +587,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     const updated = [...promoCodes, codeObj];
                     onUpdatePromoCodes(updated);
                     await syncPromoCodeToCloud(codeObj);
-                    setNewPromo({ code: '', type: 'currency', value: 100, maxUses: 10, cryptoSymbol: 'BTC', isUnlimited: false, duration: 3600 });
+                    setNewPromo({ code: '', type: 'currency', value: 100, maxUses: 10, cryptoSymbol: 'BTC', isUnlimited: false, duration: 3600, timeDays: 1, timeHours: 0, timeMinutes: 0, timeSeconds: 0 });
                     if (enableHaptics) vibrate(100);
                   }}
                   className="w-full py-4 rounded-xl font-black text-black transition-all active:scale-95"
