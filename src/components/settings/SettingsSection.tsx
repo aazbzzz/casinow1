@@ -309,7 +309,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
         </div>
 
         {/* ROLE-SPECIFIC SECTIONS */}
-        {(isAdmin || isMod || hasCheatAccess) && (
+        {(isAdmin || isMod || (hasCheatAccess && !isAdmin && !isMod)) && (
           <div className="space-y-4 pt-4 border-t border-white/10">
             <div className="flex items-center gap-2 px-1">
               <div className="h-px flex-1 bg-white/10"></div>
@@ -321,7 +321,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
               {isAdmin && (
                 <button
                   onClick={() => {
-                    window.dispatchEvent(new CustomEvent('open_admin_panel'));
+                    window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'admin' } }));
                     if (enableHaptics) vibrate(50);
                   }}
                   className="w-full p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-yellow-500/10 border-yellow-500/30 flex items-center justify-between gap-3"
@@ -334,7 +334,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                 </button>
               )}
 
-              {isMod && (
+              {isMod && !isAdmin && (
                 <button
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent('open_admin_panel', { detail: { mode: 'mod' } }));
@@ -350,7 +350,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                 </button>
               )}
               
-              {hasCheatAccess && (
+              {hasCheatAccess && !isAdmin && !isMod && (
                 <button
                   onClick={() => {
                     onShowCheatMenu?.();

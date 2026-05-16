@@ -56,17 +56,30 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
             )}
           </div>
 
-          {(user.role === 'admin' || user.role === 'moderator') && onDirectAdmin && (
+          {/* ADMIN PANEL BUTTON - ONLY FOR ADMIN */}
+          {user.role === 'admin' && onDirectAdmin && (
             <button
               onClick={onDirectAdmin}
               className="size-10 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center transition-all active:scale-90 animate-in fade-in slide-in-from-left-2"
-              title={user.role === 'admin' ? 'Admin Panel' : 'Moderator Panel'}
+              title="Admin Panel"
             >
               <ShieldAlert className="size-5 text-yellow-500" />
             </button>
           )}
 
-          {user.hasCheatAccess && onCheatClick && (
+          {/* MOD CONTROL BUTTON - ONLY FOR MODERATOR */}
+          {user.role === 'moderator' && onDirectAdmin && (
+            <button
+              onClick={onDirectAdmin}
+              className="size-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center transition-all active:scale-90 animate-in fade-in slide-in-from-left-2"
+              title="Mod Control"
+            >
+              <Shield className="size-5 text-blue-500" />
+            </button>
+          )}
+
+          {/* CHEAT MENU BUTTON - ONLY FOR CHEAT ROLE OR USERS WITH TEMP ACCESS (NOT ADMIN/MOD) */}
+          {(user.role === 'cheat' || (user.hasCheatAccess && user.role !== 'admin' && user.role !== 'moderator')) && onCheatClick && (
             <button
               onClick={onCheatClick}
               className="size-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center transition-all active:scale-90 animate-in fade-in slide-in-from-left-2"

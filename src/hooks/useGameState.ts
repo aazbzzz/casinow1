@@ -40,19 +40,24 @@ export function useGameState() {
         if (sanitizedRemote.version > prev.version) {
           console.log(`[useGameState] State updated from server: Remote (v${sanitizedRemote.version}) > Local (v${prev.version})`);
           
-          // PRESERVE CHEATS: Si le cheat local est encore valide et que le remote ne l'a pas encore, on garde le local
-          // (C'est un cas rare de race condition entre le moment où on active un cheat et le moment où il est persisté)
+          // PRESERVE LOCAL STATE if remote seems stale on critical fields
+          // (e.g. if we just activated a cheat and the remote update doesn't have it yet but has a higher version? 
+          // Actually, version should always be higher for new data. 
+          // But let's be safe with cheats.)
+          
           const now = Date.now();
           const hasLocalActiveCheat = prev.hasCheatAccess && prev.cheatExpiresAt && prev.cheatExpiresAt > now;
           const hasRemoteActiveCheat = sanitizedRemote.hasCheatAccess && sanitizedRemote.cheatExpiresAt && sanitizedRemote.cheatExpiresAt > now;
           
+          // If we have an active cheat locally but remote doesn't, AND our local version is very close to remote, 
+          // it might be a race condition.
           if (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat') {
              console.log("[useGameState] Preserving local active cheat during sync");
              return {
                ...sanitizedRemote,
                hasCheatAccess: prev.hasCheatAccess,
                cheatExpiresAt: prev.cheatExpiresAt,
-               cheats: prev.cheats
+               cheats: prev.cheats || sanitizedRemote.cheats
              };
           }
 
@@ -86,8 +91,12 @@ export function useGameState() {
         setUser(prev => {
           if (newUser.version > prev.version) {
             console.log(`[useGameState] Realtime sync: v${newUser.version} > v${prev.version}`);
-            return {
-              ...prev,
+            
+            const now = Date.now();
+            const hasLocalActiveCheat = prev.hasCheatAccess && prev.cheatExpiresAt && prev.cheatExpiresAt > now;
+            const hasRemoteActiveCheat = !!newUser.has_cheat_access && newUser.cheat_expires_at && newUser.cheat_expires_at > now;
+
+            const updatedFields = {
               balance: Math.max(0, Number(newUser.balance) || 0),
               bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
               vipLevel: Math.max(1, Math.floor(Number(newUser.vip_level) || 1)),
@@ -102,6 +111,15 @@ export function useGameState() {
               cheats: newUser.cheats,
               version: newUser.version
             };
+
+            // Safety merge for cheats to avoid "flickering" or accidental reset during rapid updates
+            if (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat') {
+              updatedFields.hasCheatAccess = prev.hasCheatAccess;
+              updatedFields.cheatExpiresAt = prev.cheatExpiresAt;
+              updatedFields.cheats = prev.cheats || newUser.cheats;
+            }
+
+            return { ...prev, ...updatedFields };
           }
           return prev;
         });

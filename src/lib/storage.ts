@@ -80,6 +80,12 @@ export async function fetchUser(uid?: string): Promise<User> {
           return fallback;
         };
 
+        const totalWagered = Math.max(0, cleanDBNum(data.total_wagered, 0));
+        // Recalculate VIP from totalWagered to ensure consistency
+        const { getVIPLevel } = await import('./vip');
+        const computedVip = getVIPLevel(totalWagered);
+        const dbVipLevel = Math.max(1, Math.floor(cleanDBNum(data.vip_level, 1)));
+        
         const user: User = {
           id: data.id,
           username: data.username,
@@ -92,8 +98,8 @@ export async function fetchUser(uid?: string): Promise<User> {
           cheatExpiresAt: data.cheat_expires_at || null,
           balance: Math.max(0, cleanDBNum(data.balance, 0)),
           bankBalance: Math.max(0, cleanDBNum(data.bank_balance, 0)),
-          vipLevel: Math.max(1, Math.floor(cleanDBNum(data.vip_level, 1))),
-          totalWagered: Math.max(0, cleanDBNum(data.total_wagered, 0)),
+          vipLevel: Math.max(dbVipLevel, computedVip.level),
+          totalWagered: totalWagered,
           createdAt: data.created_at,
           hasDeposited: !!data.has_deposited,
           usedPromoCodes: data.used_promo_codes || [],
@@ -153,12 +159,17 @@ export async function saveUser(user: User): Promise<User> {
     return fallback;
   };
 
+  const totalWagered = Math.max(0, cleanNum(user.totalWagered, 0));
+  const { getVIPLevel } = await import('./vip');
+  const computedVip = getVIPLevel(totalWagered);
+  const currentVipLevel = Math.max(1, Math.floor(cleanNum(user.vipLevel, 1)));
+
   const cleanUser = {
     ...user,
     balance: Math.max(0, cleanNum(user.balance, 0)),
     bankBalance: Math.max(0, cleanNum(user.bankBalance, 0)),
-    totalWagered: Math.max(0, cleanNum(user.totalWagered, 0)),
-    vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel, 1))),
+    totalWagered: totalWagered,
+    vipLevel: Math.max(currentVipLevel, computedVip.level),
     version: (user.version || 0) + 1
   };
 
@@ -235,6 +246,13 @@ export async function getAllUsers(): Promise<User[]> {
         .order('balance', { ascending: false });
       
       if (!error && data) {
+        const cleanDBNum = (val: any, fallback = 0): number => {
+          if (val === null || val === undefined) return fallback;
+          if (typeof val === 'number') return isNaN(val) || !isFinite(val) ? fallback : val;
+          if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || fallback;
+          return fallback;
+        };
+
         const users = data.map(d => ({
           id: d.id,
           username: d.username,
@@ -245,10 +263,10 @@ export async function getAllUsers(): Promise<User[]> {
           hideFromLeaderboard: !!d.hide_from_leaderboard,
           hasCheatAccess: !!d.has_cheat_access,
           cheatExpiresAt: d.cheat_expires_at || null,
-          balance: Number(d.balance) || 0,
-          bankBalance: Number(d.bank_balance) || 0,
-          vipLevel: Number(d.vip_level) || 1,
-          totalWagered: Number(d.total_wagered) || 0,
+          balance: Math.max(0, cleanDBNum(d.balance, 0)),
+          bankBalance: Math.max(0, cleanDBNum(d.bank_balance, 0)),
+          vipLevel: Math.max(1, Math.floor(cleanDBNum(d.vip_level, 1))),
+          totalWagered: Math.max(0, cleanDBNum(d.total_wagered, 0)),
           createdAt: d.created_at,
           hasDeposited: d.has_deposited,
           isBanned: !!d.is_banned,

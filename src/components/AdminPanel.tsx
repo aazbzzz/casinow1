@@ -45,13 +45,20 @@ interface AdminPanelProps {
   staffMode?: 'admin' | 'mod';
 }
 
-  export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false }: AdminPanelProps) {
-    const isModOnly = user.role === 'moderator';
+  export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false, staffMode: staffModeProp }: AdminPanelProps) {
     const isAdmin = user.role === 'admin';
+    const isModOnly = user.role === 'moderator';
     const isMod = isAdmin || isModOnly;
-    const staffMode = isAdmin ? 'admin' : 'mod';
+    
+    // Si on est en cheatOnlyMode, on force l'onglet cheats
+    // Sinon, si on est admin, on montre tout. Si on est mod, on montre uniquement users (en mode mod).
+    const staffMode = staffModeProp || (isAdmin ? 'admin' : 'mod');
 
-    const [activeTab, setActiveTab] = useState<'users' | 'cheats' | 'promo' | 'roles'>(cheatOnlyMode ? 'cheats' : 'users');
+    const [activeTab, setActiveTab] = useState<'users' | 'cheats' | 'promo' | 'roles'>(() => {
+      if (cheatOnlyMode) return 'cheats';
+      if (staffMode === 'mod') return 'users';
+      return 'users';
+    });
   const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1, username: '' });
@@ -316,7 +323,7 @@ interface AdminPanelProps {
 
         <div className="flex gap-1 px-4 py-2 sm:px-6 sm:py-4 border-b-2 shrink-0 overflow-x-auto no-scrollbar" style={{ borderColor: `${primaryAccent}20` }}>
           {[
-            { key: 'users', label: 'Users', icon: Users, show: !cheatOnlyMode },
+            { key: 'users', label: isModOnly ? 'Mod Control' : 'Users', icon: Users, show: !cheatOnlyMode },
             { key: 'promo', label: 'Promo', icon: Ticket, show: !cheatOnlyMode && staffMode === 'admin' },
             { key: 'cheats', label: 'Cheats', icon: Zap, show: !cheatOnlyMode && staffMode === 'admin' },
             { key: 'roles', label: 'Roles', icon: Shield, show: !cheatOnlyMode && staffMode === 'admin' },
