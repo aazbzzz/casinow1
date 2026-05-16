@@ -77,7 +77,7 @@ const translations = {
 
 export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout, onUpdateBalance, onShowCheatMenu }: { 
   user: any,
-  onRewardClaimed?: () => void,
+  onRewardClaimed?: (updatedUser?: any) => void,
   promoCodes: any[],
   onUpdatePromoCodes: (codes: any[]) => void,
   onLogout: () => void,
@@ -101,7 +101,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
 
   const isAdmin = user.role === 'admin';
   const isMod = user.role === 'moderator' || user.role === 'admin';
-  const hasCheatAccess = user.hasCheatAccess || (user.cheatExpiresAt && user.cheatExpiresAt > now);
+  const hasCheatAccess = user.hasCheatAccess || (user.cheatExpiresAt && user.cheatExpiresAt > now) || isAdmin || isMod;
   
   useEffect(() => {
     setT(translations[language as keyof typeof translations]);
@@ -143,7 +143,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
         hasCheatAccess: newRole === 'admin' 
       };
       await saveUser(updatedUser);
-      if (onRewardClaimed) onRewardClaimed();
+      if (onRewardClaimed) onRewardClaimed(updatedUser);
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
 
       setPromoStatus('success');
@@ -198,7 +198,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
       onUpdatePromoCodes(newCodes);
       await syncPromoCodeToCloud(updatedPromo);
 
-      if (onRewardClaimed) onRewardClaimed();
+      if (onRewardClaimed) onRewardClaimed(updatedUser);
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
 
       setPromoStatus('success');

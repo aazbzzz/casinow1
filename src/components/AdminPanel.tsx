@@ -134,9 +134,14 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         }
         await saveUser(updatedUser);
         
+        // Update local list immediately
+        setDbUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+        
         // Immediate UI refresh
-        if (userId === user.id) onRefreshUser?.();
-        await fetchUsers();
+        if (userId === user.id) onRefreshUser?.(updatedUser);
+        
+        // Background sync
+        setTimeout(() => fetchUsers(), 2000);
         
         if (enableHaptics) vibrate(100);
       }
@@ -162,11 +167,14 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         console.log("[AdminPanel] Saving user data:", updatedUser);
         await saveUser(updatedUser);
         
-        // Immediate UI refresh for the edited user
-        if (editingUser === user.id) onRefreshUser?.();
+        // Update local list immediately to show changes without waiting for DB sync
+        setDbUsers(prev => prev.map(u => u.id === editingUser ? updatedUser : u));
         
-        // Update the list of users
-        await fetchUsers();
+        // Immediate UI refresh for the edited user if it's the current user
+        if (editingUser === user.id) onRefreshUser?.(updatedUser);
+        
+        // Optional: still fetch from DB to be sure, but with a delay
+        setTimeout(() => fetchUsers(), 2000);
         
         setEditingUser(null);
         if (enableHaptics) vibrate(200);
@@ -183,8 +191,15 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     if (targetUser) {
       const updatedUser = { ...targetUser, [setting]: !targetUser[setting] };
       await saveUser(updatedUser);
-      if (userId === user.id) onRefreshUser?.();
-      await fetchUsers();
+      
+      // Update local list immediately
+      setDbUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      
+      if (userId === user.id) onRefreshUser?.(updatedUser);
+      
+      // Background sync
+      setTimeout(() => fetchUsers(), 2000);
+      
       if (enableHaptics) vibrate(50);
     }
   };
@@ -199,7 +214,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         try {
           const updatedUser = { ...targetUser, cheats: newCheats };
           await saveUser(updatedUser);
-          if (cheatTargetUserId === user.id) onRefreshUser?.();
+          if (cheatTargetUserId === user.id) onRefreshUser?.(updatedUser);
           // On ne fetch pas tous les users ici pour la performance, 
           // mais on pourrait si on voulait rafraîchir la liste
         } catch (err) {
@@ -212,7 +227,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         try {
           const updatedUser = { ...user, cheats: newCheats };
           await saveUser(updatedUser);
-          onRefreshUser?.();
+          onRefreshUser?.(updatedUser);
         } catch (err) {
           console.error("[AdminPanel] Error saving self cheats:", err);
         }
@@ -424,7 +439,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                                   cheatExpiresAt: !u.hasCheatAccess ? Date.now() + 86400000 : null 
                                 };
                                 await saveUser(updatedUser);
-                                if (u.id === user.id) onRefreshUser?.();
+                                if (u.id === user.id) onRefreshUser?.(updatedUser);
                                 await fetchUsers();
                                 if (enableHaptics) vibrate(100);
                               }

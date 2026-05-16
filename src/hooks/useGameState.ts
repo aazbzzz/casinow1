@@ -105,9 +105,16 @@ export function useGameState() {
     return () => clearTimeout(timer);
   }, [user.balance, user.totalWagered, user.vipLevel]); // On restreint les triggers
   
-  const refreshUser = useCallback(async () => {
-    await fetchLatestData(true);
-  }, [fetchLatestData]);
+  const refreshUser = useCallback(async (updatedUser?: User) => {
+     if (updatedUser) {
+       setUser(updatedUser);
+       // On ne fetch pas immédiatement après pour éviter de récupérer des données potentiellement 
+       // pas encore propagées dans le cache Supabase, ce qui écraserait l'état local propre.
+       // Le Realtime se chargera de la synchro si nécessaire plus tard.
+     } else {
+       await fetchLatestData(true);
+     }
+   }, [fetchLatestData]);
 
   const updateBalance = useCallback(async (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
     const cleanAmount = (val: any): number => {

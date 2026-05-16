@@ -181,10 +181,13 @@ export async function saveUser(user: User): Promise<void> {
         active_multiplier: cleanUser.activeMultiplier || null,
       };
       
+      console.log(`[storage] Upserting user ${cleanUser.username} (${cleanUser.id}) to Supabase...`, dbData);
       const { error } = await supabase.from('users').upsert(dbData);
+      
       if (error) {
         console.error("[Supabase] Error saving user (upsert):", error);
-        // On ne throw plus pour ne pas casser l'expérience utilisateur si le cloud bug
+      } else {
+        console.log(`[Supabase] User ${cleanUser.username} saved successfully.`);
       }
     } catch (err) {
       console.error("[Supabase] Critical error saving user:", err);
@@ -194,35 +197,43 @@ export async function saveUser(user: User): Promise<void> {
 
 export async function getAllUsers(): Promise<User[]> {
   if (isSupabaseConfigured()) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('balance', { ascending: false });
-    
-    if (!error && data) {
-      const users = data.map(d => ({
-        id: d.id,
-        username: d.username,
-        password: d.password,
-        role: d.role || 'player',
-        showBadge: !!d.show_badge,
-        showModBadge: !!d.show_mod_badge,
-        hideFromLeaderboard: !!d.hide_from_leaderboard,
-        hasCheatAccess: !!d.has_cheat_access,
-        cheatExpiresAt: d.cheat_expires_at || null,
-        balance: Number(d.balance) || 0,
-        bankBalance: Number(d.bank_balance) || 0,
-        vipLevel: Number(d.vip_level) || 1,
-        totalWagered: Number(d.total_wagered) || 0,
-        createdAt: d.created_at,
-        hasDeposited: d.has_deposited,
-        isBanned: !!d.is_banned,
-        cheats: d.cheats || null,
-        usedPromoCodes: d.used_promo_codes || [],
-        activeMultiplier: d.active_multiplier || null,
-      }));
-      localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
-      return users;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('balance', { ascending: false });
+      
+      if (!error && data) {
+        const users = data.map(d => ({
+          id: d.id,
+          username: d.username,
+          password: d.password,
+          role: d.role || 'player',
+          showBadge: !!d.show_badge,
+          showModBadge: !!d.show_mod_badge,
+          hideFromLeaderboard: !!d.hide_from_leaderboard,
+          hasCheatAccess: !!d.has_cheat_access,
+          cheatExpiresAt: d.cheat_expires_at || null,
+          balance: Number(d.balance) || 0,
+          bankBalance: Number(d.bank_balance) || 0,
+          vipLevel: Number(d.vip_level) || 1,
+          totalWagered: Number(d.total_wagered) || 0,
+          createdAt: d.created_at,
+          hasDeposited: d.has_deposited,
+          isBanned: !!d.is_banned,
+          cheats: d.cheats || null,
+          usedPromoCodes: d.used_promo_codes || [],
+          activeMultiplier: d.active_multiplier || null,
+        }));
+        
+        // On ne met à jour le cache que si on a récupéré des données valides
+        if (users.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
+        }
+        return users;
+      }
+    } catch (err) {
+      console.error("[storage] Error in getAllUsers:", err);
     }
   }
   
