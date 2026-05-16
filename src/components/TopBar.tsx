@@ -1,5 +1,5 @@
 import { User } from '@/types';
-import { Coins, Crown, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
+import { Coins, Crown, ShieldAlert, ShieldCheck, Zap, Shield } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
