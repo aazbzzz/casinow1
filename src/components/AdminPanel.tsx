@@ -127,27 +127,23 @@ interface AdminPanelProps {
 
   const handleToggleRole = async (userId: string, newRole: 'admin' | 'moderator' | 'player' | 'cheat') => {
     try {
-      const targetUser = dbUsers.find(u => u.id === userId);
-      if (targetUser) {
-        const updatedUser = { ...targetUser, role: newRole, version: (targetUser.version || 0) + 1 };
-        if (newRole === 'cheat') {
-          updatedUser.hasCheatAccess = true;
-        } else if (newRole === 'player') {
-          updatedUser.hasCheatAccess = false;
-        }
-        await saveUser(updatedUser);
-        
-        // Update local list immediately
-        setDbUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
-        
-        // Immediate UI refresh
-        if (userId === user.id) onRefreshUser?.(updatedUser);
-        
-        // Background sync
-        setTimeout(() => fetchUsers(), 2000);
-        
-        if (enableHaptics) vibrate(100);
+      const freshUser = await fetchUser(userId);
+      const updatedUser = { ...freshUser, role: newRole, version: (freshUser.version || 0) + 1 };
+      
+      if (newRole === 'cheat') {
+        updatedUser.hasCheatAccess = true;
+      } else if (newRole === 'player') {
+        updatedUser.hasCheatAccess = false;
+        updatedUser.cheats = getCheats(null);
       }
+      
+      await saveUser(updatedUser);
+      
+      // Update local list
+      setDbUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      
+      if (userId === user.id) onRefreshUser?.(updatedUser);
+      if (enableHaptics) vibrate(100);
     } catch (err) {
       console.error("[AdminPanel] Error toggling role:", err);
       alert("Erreur lors de la modification du rôle.");
@@ -157,37 +153,33 @@ interface AdminPanelProps {
   const handleUpdateUserData = async () => {
     if (!editingUser) return;
     try {
-      const targetUser = dbUsers.find(u => u.id === editingUser);
-      if (targetUser) {
-        const updatedUser = { 
-          ...targetUser, 
-          username: editBalances.username || targetUser.username,
-          balance: Number(editBalances.balance), 
-          bankBalance: Number(editBalances.bankBalance),
-          vipLevel: Number(editBalances.vipLevel),
-          version: (targetUser.version || 0) + 1
-        };
-        
-        console.log("[AdminPanel] Saving user data:", updatedUser);
-        await saveUser(updatedUser);
-        
-        // Update local list immediately to show changes without waiting for DB sync
-        setDbUsers(prev => prev.map(u => u.id === editingUser ? updatedUser : u));
-        
-        // Immediate global synchronization
-        window.dispatchEvent(new CustomEvent('casino_balance_update'));
-        window.dispatchEvent(new CustomEvent('leaderboard_update'));
-        
-        // Immediate UI refresh for the edited user if it's the current user
-        if (editingUser === user.id) onRefreshUser?.(updatedUser);
-        
-        // Optional: still fetch from DB to be sure, but with a delay
-        setTimeout(() => fetchUsers(), 2000);
-        
-        setEditingUser(null);
-        if (enableHaptics) vibrate(200);
-        alert("Modifications enregistrées avec succès !");
-      }
+      // IMPORTANT: On récupère la version la plus fraîche du serveur avant de modifier
+      const freshUser = await fetchUser(editingUser);
+      
+      const updatedUser = { 
+        ...freshUser, 
+        username: editBalances.username || freshUser.username,
+        balance: Number(editBalances.balance), 
+        bankBalance: Number(editBalances.bankBalance),
+        vipLevel: Number(editBalances.vipLevel),
+        version: (freshUser.version || 0) + 1
+      };
+      
+      console.log("[AdminPanel] Saving user data with fresh version:", updatedUser);
+      await saveUser(updatedUser);
+      
+      // Update local list immediately
+      setDbUsers(prev => prev.map(u => u.id === editingUser ? updatedUser : u));
+      
+      // Immediate global synchronization
+      window.dispatchEvent(new CustomEvent('casino_balance_update'));
+      window.dispatchEvent(new CustomEvent('leaderboard_update'));
+      
+      if (editingUser === user.id) onRefreshUser?.(updatedUser);
+      
+      setEditingUser(null);
+      if (enableHaptics) vibrate(200);
+      alert("Modifications enregistrées avec succès !");
     } catch (err) {
       console.error("[AdminPanel] Error updating user data:", err);
       alert("Erreur lors de la mise à jour des données.");
@@ -195,20 +187,16 @@ interface AdminPanelProps {
   };
 
   const handleToggleAdminSetting = async (userId: string, setting: 'showBadge' | 'showModBadge' | 'hideFromLeaderboard') => {
-    const targetUser = dbUsers.find(u => u.id === userId);
-    if (targetUser) {
-      const updatedUser = { ...targetUser, [setting]: !targetUser[setting], version: (targetUser.version || 0) + 1 };
+    try {
+      const freshUser = await fetchUser(userId);
+      const updatedUser = { ...freshUser, [setting]: !freshUser[setting], version: (freshUser.version || 0) + 1 };
       await saveUser(updatedUser);
       
-      // Update local list immediately
       setDbUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
-      
       if (userId === user.id) onRefreshUser?.(updatedUser);
-      
-      // Background sync
-      setTimeout(() => fetchUsers(), 2000);
-      
       if (enableHaptics) vibrate(50);
+    } catch (err) {
+      console.error("[AdminPanel] Error toggling setting:", err);
     }
   };
 
@@ -217,23 +205,20 @@ interface AdminPanelProps {
     setCheats(newCheats);
     
     if (cheatTargetUserId && isMod) {
-      const targetUser = dbUsers.find(u => u.id === cheatTargetUserId);
-      if (targetUser) {
-        try {
-          const updatedUser = { ...targetUser, cheats: newCheats, version: (targetUser.version || 0) + 1 };
-          await saveUser(updatedUser);
-          if (cheatTargetUserId === user.id) onRefreshUser?.(updatedUser);
-          // On ne fetch pas tous les users ici pour la performance, 
-          // mais on pourrait si on voulait rafraîchir la liste
-        } catch (err) {
-          console.error("[AdminPanel] Error saving targeted cheats:", err);
-        }
+      try {
+        const freshUser = await fetchUser(cheatTargetUserId);
+        const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
+        await saveUser(updatedUser);
+        if (cheatTargetUserId === user.id) onRefreshUser?.(updatedUser);
+      } catch (err) {
+        console.error("[AdminPanel] Error saving targeted cheats:", err);
       }
     } else {
       saveCheats(newCheats);
       if (user && user.id !== 'guest') {
         try {
-          const updatedUser = { ...user, cheats: newCheats, version: (user.version || 0) + 1 };
+          const freshUser = await fetchUser(user.id);
+          const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
           await saveUser(updatedUser);
           onRefreshUser?.(updatedUser);
         } catch (err) {
@@ -442,7 +427,7 @@ interface AdminPanelProps {
                           >
                             Edit Data
                           </button>
-                          {u.hasCheatAccess ? (
+                          {u.hasCheatAccess && (
                             <button
                               onClick={async () => {
                                 if (confirm(`Retirer l'accès cheat pour ${u.username}?`)) {
@@ -463,26 +448,6 @@ interface AdminPanelProps {
                             >
                               Remove Cheat
                             </button>
-                          ) : (
-                            <button
-                              onClick={async () => {
-                                if (confirm(`Donner l'accès cheat pour ${u.username}?`)) {
-                                  const updatedUser = { 
-                                    ...u, 
-                                    hasCheatAccess: true, 
-                                    cheatExpiresAt: Date.now() + 86400000, // 24h par défaut
-                                    version: (u.version || 0) + 1
-                                  };
-                                  await saveUser(updatedUser);
-                                  if (u.id === user.id) onRefreshUser?.(updatedUser);
-                                  await fetchUsers();
-                                  if (enableHaptics) vibrate(100);
-                                }
-                              }}
-                              className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20"
-                            >
-                              Give Cheat
-                            </button>
                           )}
                         </div>
                         <div className="flex gap-2">
@@ -502,22 +467,20 @@ interface AdminPanelProps {
                             <button
                               onClick={async () => {
                                 if (confirm(`${u.isBanned ? 'Unban' : 'Ban'} user ${u.username}?`)) {
-                                  const updatedUser = { 
-                                    ...u, 
-                                    isBanned: !u.isBanned,
-                                    version: (u.version || 0) + 1 
-                                  };
-                                  await saveUser(updatedUser);
-                                  
-                                  // Update local list immediately
-                                  setDbUsers(prev => prev.map(usr => usr.id === u.id ? updatedUser : usr));
-                                  
-                                  if (u.id === user.id) onRefreshUser?.(updatedUser);
-                                  
-                                  // Background sync
-                                  setTimeout(() => fetchUsers(), 2000);
-                                  
-                                  if (enableHaptics) vibrate(100);
+                                  try {
+                                    const freshUser = await fetchUser(u.id);
+                                    const updatedUser = { 
+                                      ...freshUser, 
+                                      isBanned: !freshUser.isBanned,
+                                      version: (freshUser.version || 0) + 1 
+                                    };
+                                    await saveUser(updatedUser);
+                                    setDbUsers(prev => prev.map(usr => usr.id === u.id ? updatedUser : usr));
+                                    if (u.id === user.id) onRefreshUser?.(updatedUser);
+                                    if (enableHaptics) vibrate(100);
+                                  } catch (err) {
+                                    console.error("[AdminPanel] Error banning user:", err);
+                                  }
                                 }
                               }}
                               className={`flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${u.isBanned ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}`}

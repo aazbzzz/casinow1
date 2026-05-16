@@ -82,7 +82,9 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
             className="text-[10px] font-black uppercase tracking-[0.2em] italic"
             style={{ color: primaryAccent }}
           >
-            Elite VIP {user.vipLevel}
+            {user.role === 'admin' ? 'Administrator' : 
+             user.role === 'moderator' ? 'Moderator' : 
+             `Elite VIP ${user.vipLevel}`}
           </div>
         </div>
       </div>

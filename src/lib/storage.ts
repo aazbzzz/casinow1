@@ -158,9 +158,21 @@ export async function saveUser(user: User): Promise<void> {
   }
   localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
 
-  // 2. Tenter la sauvegarde Cloud (bloquante pour garantir la cohérence)
+  // 2. Tenter la sauvegarde Cloud
   if (isSupabaseConfigured()) {
     try {
+      // Fetch current version to prevent rollbacks
+      const { data: current, error: fetchError } = await supabase
+        .from('users')
+        .select('version')
+        .eq('id', cleanUser.id)
+        .single();
+      
+      if (!fetchError && current && (current.version || 0) > (cleanUser.version || 0)) {
+        console.warn(`[Supabase] Save aborted for ${cleanUser.username}: Cloud version (${current.version}) is newer than Local version (${cleanUser.version})`);
+        return;
+      }
+
       const dbData: any = {
         id: cleanUser.id,
         username: cleanUser.username,
@@ -188,11 +200,10 @@ export async function saveUser(user: User): Promise<void> {
       
       if (error) {
         console.error("[Supabase] Upsert error:", error);
-        throw error; // On throw pour que l'appelant sache que ça a échoué
+        throw error;
       }
     } catch (err) {
       console.error("[Supabase] Critical save error:", err);
-      // En cas d'erreur réseau, on garde au moins le local storage
     }
   }
 }

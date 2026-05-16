@@ -132,22 +132,28 @@ function App() {
     if (!user.hasCheatAccess || !user.cheatExpiresAt) return;
     
     const interval = setInterval(async () => {
+      // On utilise Date.now() pour vérifier l'expiration
       if (Date.now() > (user.cheatExpiresAt || 0)) {
-        const updatedUser = { 
-          ...user, 
-          hasCheatAccess: false, 
-          cheatExpiresAt: null,
-          cheats: getCheats(null)
-        };
-        await saveUser(updatedUser);
-        refreshUser();
-        setShowCheatMenu(false);
-        if (enableHaptics) vibrate([100, 50, 100]);
+        // IMPORTANT: On récupère la version la plus fraîche avant de sauvegarder
+        const freshUser = await fetchUser(user.id);
+        if (freshUser.hasCheatAccess && freshUser.cheatExpiresAt && Date.now() > freshUser.cheatExpiresAt) {
+          const updatedUser = { 
+            ...freshUser, 
+            hasCheatAccess: false, 
+            cheatExpiresAt: null,
+            cheats: getCheats(null),
+            version: (freshUser.version || 0) + 1
+          };
+          await saveUser(updatedUser);
+          refreshUser(updatedUser);
+          setShowCheatMenu(false);
+          if (enableHaptics) vibrate([100, 50, 100]);
+        }
       }
-    }, 1000);
+    }, 5000); // Check every 5s instead of 1s to reduce DB load
     
     return () => clearInterval(interval);
-  }, [user.hasCheatAccess, user.cheatExpiresAt]);
+  }, [user.hasCheatAccess, user.cheatExpiresAt, user.id]);
   const [showAdminCode, setShowAdminCode] = useState(false);
   const [adminInput, setAdminInput] = useState('');
   const [clickCount, setClickCount] = useState(0);
@@ -391,7 +397,11 @@ function App() {
                           {entry.role === 'moderator' && entry.showModBadge && <ShieldCheck className="size-3 text-blue-500" fill="currentColor" />}
                           {entry.role === 'cheat' && <Zap className="size-3 text-purple-500" fill="currentColor" />}
                         </div>
-                        <div className="text-[10px] text-gray-500 font-bold uppercase">Rank {idx + 1}</div>
+                        <div className="text-[10px] text-gray-500 font-bold uppercase">
+                          {entry.role === 'admin' && entry.showBadge ? 'Administrator' : 
+                           entry.role === 'moderator' && entry.showModBadge ? 'Moderator' : 
+                           `Rank ${idx + 1}`}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">

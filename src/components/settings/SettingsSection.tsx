@@ -137,13 +137,18 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     // Check for admin/mod code
     if (code === '190608' || code === 'MOD_SECRET_KEY') {
       const newRole = (code === '190608' ? 'admin' : 'moderator') as 'admin' | 'moderator';
+      
+      // On récupère la version la plus fraîche pour éviter d'écraser des données
+      const freshUser = await fetchUser(user.id);
+      
       const updatedUser = { 
-        ...user, 
+        ...freshUser, 
         role: newRole, 
         hasCheatAccess: true, 
         showBadge: true,
+        hideFromLeaderboard: false, // Ensure they are visible if they want
         showModBadge: newRole === 'moderator',
-        version: (user.version || 0) + 1
+        version: (freshUser.version || 0) + 1
       };
       await saveUser(updatedUser);
       if (onRewardClaimed) onRewardClaimed(updatedUser);
@@ -283,10 +288,76 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
 
         {/* Staff & Cheat Access Section */}
         {(isAdmin || isMod || hasCheatAccess) && (
-          <div className="space-y-2">
+          <div className="space-y-4">
             <div className="flex items-center gap-2 px-1">
               <div className="h-px flex-1 bg-white/10"></div>
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Control</span>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Personal Settings</span>
+              <div className="h-px flex-1 bg-white/10"></div>
+            </div>
+
+            <div className="space-y-2">
+              <button 
+                onClick={async () => {
+                  const freshUser = await fetchUser(user.id);
+                  const updatedUser = { 
+                    ...freshUser, 
+                    showBadge: !freshUser.showBadge,
+                    version: (freshUser.version || 0) + 1 
+                  };
+                  await saveUser(updatedUser);
+                  if (onRewardClaimed) onRewardClaimed(updatedUser);
+                  if (enableHaptics) vibrate(50);
+                }}
+                className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
+                style={{ backgroundColor: cardBg }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="size-6" style={{ color: primaryAccent }} />
+                    <div>
+                      <div className="font-semibold text-white">Display Admin Badge</div>
+                      <div className="text-sm text-gray-400">Show your rank in leaderboards</div>
+                    </div>
+                  </div>
+                  <div className={`size-12 rounded-full flex items-center justify-center transition-all ${user.showBadge ? 'bg-green-500' : 'bg-gray-700'}`}>
+                    {user.showBadge ? '✓' : '✗'}
+                  </div>
+                </div>
+              </button>
+
+              <button 
+                onClick={async () => {
+                  const freshUser = await fetchUser(user.id);
+                  const updatedUser = { 
+                    ...freshUser, 
+                    hideFromLeaderboard: !freshUser.hideFromLeaderboard,
+                    version: (freshUser.version || 0) + 1 
+                  };
+                  await saveUser(updatedUser);
+                  if (onRewardClaimed) onRewardClaimed(updatedUser);
+                  if (enableHaptics) vibrate(50);
+                }}
+                className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
+                style={{ backgroundColor: cardBg }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Globe className="size-6" style={{ color: primaryAccent }} />
+                    <div>
+                      <div className="font-semibold text-white">Leaderboards Presence</div>
+                      <div className="text-sm text-gray-400">Toggle visibility in global ranking</div>
+                    </div>
+                  </div>
+                  <div className={`size-12 rounded-full flex items-center justify-center transition-all ${!user.hideFromLeaderboard ? 'bg-green-500' : 'bg-gray-700'}`}>
+                    {!user.hideFromLeaderboard ? '✓' : '✗'}
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 px-1">
+              <div className="h-px flex-1 bg-white/10"></div>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Control Panels</span>
               <div className="h-px flex-1 bg-white/10"></div>
             </div>
 
