@@ -195,9 +195,11 @@ export async function saveUser(user: User): Promise<void> {
       if (error) throw error;
       
       console.log(`[storage] User ${cleanUser.username} saved successfully (v${cleanUser.version})`);
+      
+      // Dispatch global event for internal synchronization
+      window.dispatchEvent(new CustomEvent('user_updated_global', { detail: cleanUser }));
     } catch (err) {
       console.error("[storage] saveUser Cloud error:", err);
-      // On ne throw pas pour laisser l'app continuer en local si le cloud est down
     }
   }
 }

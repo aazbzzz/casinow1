@@ -101,6 +101,29 @@ interface AdminPanelProps {
 
   useEffect(() => {
     fetchUsers();
+
+    // Listener pour la synchronisation globale
+    const handleGlobalUpdate = (e: any) => {
+      const updatedUser = e.detail;
+      if (updatedUser) {
+        setDbUsers(prev => {
+          const exists = prev.find(u => u.id === updatedUser.id);
+          if (exists) {
+            // Si l'utilisateur existe, on le met à jour s'il est plus récent
+            if ((updatedUser.version || 0) >= (exists.version || 0)) {
+              return prev.map(u => u.id === updatedUser.id ? updatedUser : u);
+            }
+            return prev;
+          } else {
+            // Si c'est un nouvel utilisateur, on l'ajoute et on retrie (optionnel)
+            return [...prev, updatedUser];
+          }
+        });
+      }
+    };
+
+    window.addEventListener('user_updated_global', handleGlobalUpdate);
+    return () => window.removeEventListener('user_updated_global', handleGlobalUpdate);
   }, []);
 
   useEffect(() => {

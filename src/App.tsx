@@ -36,6 +36,21 @@ function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState(() => !getCurrentUID());
 
+  useEffect(() => {
+    const handleGlobalUserUpdate = (e: any) => {
+      const updatedUser = e.detail;
+      if (updatedUser && updatedUser.id === user.id) {
+        console.log('[App] Local user update detected:', updatedUser);
+        refreshUser(updatedUser);
+      }
+      // Toujours rafraîchir le leaderboard pour tout changement global
+      refreshLeaderboard();
+    };
+
+    window.addEventListener('user_updated_global', handleGlobalUserUpdate);
+    return () => window.removeEventListener('user_updated_global', handleGlobalUserUpdate);
+  }, [user.id, refreshUser, refreshLeaderboard]);
+
   // Sync Score to Global Leaderboard
   useEffect(() => {
     if (user && user.id && user.id !== 'guest') {
@@ -60,21 +75,33 @@ function App() {
     refreshLeaderboard();
     const interval = setInterval(refreshLeaderboard, 30000); // Backup toutes les 30s
     
-    // REALTIME SUPABASE: Écouter les changements des utilisateurs pour le leaderboard
+    // REALTIME SUPABASE: Écouter les changements des utilisateurs pour le leaderboard et les profils
     if (isSupabaseConfigured()) {
-      console.log('[Realtime] Subscribing to users table for leaderboard...');
+      console.log('[Realtime] Subscribing to users table for global sync...');
       const userChannel = supabase
-        .channel('leaderboard-updates')
+        .channel('global-user-updates')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload: any) => {
-          console.log('[Realtime] User update detected for leaderboard:', payload);
+          console.log('[Realtime] User update detected:', payload);
+          
+          // 1. Rafraîchir le leaderboard
           refreshLeaderboard();
+
+          // 2. Si c'est l'utilisateur actuel, rafraîchir son profil
+          const updatedUser = payload.new;
+          if (updatedUser && updatedUser.id === getCurrentUID()) {
+            console.log('[Realtime] Current user update detected, refreshing...');
+            refreshUser();
+          }
+
+          // 3. Notifier le système pour les autres composants (ex: Admin Panel)
+          window.dispatchEvent(new CustomEvent('user_updated_global', { detail: updatedUser }));
         })
         .subscribe((status) => {
-          console.log(`[Realtime] Leaderboard subscription status: ${status}`);
+          console.log(`[Realtime] Global sync subscription status: ${status}`);
         });
 
       return () => {
-        console.log('[Realtime] Unsubscribing from leaderboard updates');
+        console.log('[Realtime] Unsubscribing from global updates');
         supabase.removeChannel(userChannel);
         clearInterval(interval);
         if (leaderboardTimerRef.current) clearTimeout(leaderboardTimerRef.current);
