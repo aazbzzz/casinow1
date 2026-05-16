@@ -116,13 +116,15 @@ export function useGameState() {
 
     isPendingSync.current = true;
     
+    // On met à jour l'état local immédiatement pour la réactivité (Optimistic)
+    // Mais on laisse saveUser gérer la version finale
     setUser(prev => {
       const currentBalance = cleanAmount(prev.balance);
       const newBalance = currentBalance + numericAmount;
-      const newUser = { ...prev, balance: newBalance, version: prev.version + 1 };
+      const newUser = { ...prev, balance: newBalance };
       
-      // Sauvegarde Cloud immédiate
-      saveUser(newUser).finally(() => {
+      saveUser(newUser).then(finalUser => {
+        setUser(finalUser); // On se synchronise avec la version confirmée par le serveur
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
@@ -173,10 +175,10 @@ export function useGameState() {
         balance: newBalance,
         totalWagered: newWagered,
         vipLevel: Math.max(prev.vipLevel || 1, vipLevel.level),
-        version: prev.version + 1,
       };
 
-      saveUser(updatedUser).finally(() => {
+      saveUser(updatedUser).then(finalUser => {
+        setUser(finalUser);
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
@@ -307,10 +309,10 @@ export function useGameState() {
         ...prev,
         balance: newBalance,
         bankBalance: newBankBalance,
-        version: prev.version + 1,
       };
 
-      saveUser(newUser).finally(() => {
+      saveUser(newUser).then(finalUser => {
+        setUser(finalUser);
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
@@ -348,10 +350,10 @@ export function useGameState() {
         ...prev,
         balance: newBalance,
         bankBalance: newBankBalance,
-        version: prev.version + 1,
       };
 
-      saveUser(newUser).finally(() => {
+      saveUser(newUser).then(finalUser => {
+        setUser(finalUser);
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
@@ -382,10 +384,10 @@ export function useGameState() {
       const newUser = {
         ...prev,
         bankBalance: newBankBalance,
-        version: prev.version + 1,
       };
 
-      saveUser(newUser).finally(() => {
+      saveUser(newUser).then(finalUser => {
+        setUser(finalUser);
         isPendingSync.current = false;
       });
       

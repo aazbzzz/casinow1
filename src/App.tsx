@@ -287,11 +287,10 @@ function App() {
           role: 'admin' as const,
           hasCheatAccess: true,
           showBadge: true,
-          hideFromLeaderboard: false,
-          version: (freshUser.version || 0) + 1
+          hideFromLeaderboard: false
         };
-        await saveUser(updatedUser);
-        refreshUser(updatedUser);
+        const finalUser = await saveUser(updatedUser);
+        refreshUser(finalUser);
         
         setShowAdminPanel(true);
         setShowAdminCode(false);

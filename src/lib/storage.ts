@@ -49,6 +49,8 @@ export function logout(): void {
 
 /**
  * USER MANAGEMENT (CLOUD FIRST)
+ * Supabase est la source de vérité unique.
+ * localStorage est utilisé uniquement pour le cache (lecture rapide au démarrage).
  */
 export async function fetchUser(uid?: string): Promise<User> {
   const targetUid = uid || getCurrentUID();
@@ -56,7 +58,7 @@ export async function fetchUser(uid?: string): Promise<User> {
 
   if (isSupabaseConfigured()) {
     try {
-      // On force la récupération depuis le serveur sans cache
+      console.log(`[storage] fetchUser from Cloud: ${targetUid}`);
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -98,23 +100,41 @@ export async function fetchUser(uid?: string): Promise<User> {
           activeMultiplier: data.active_multiplier || null,
         };
         
-        // Mettre à jour le cache local avec la version du serveur
+        // Mise à jour du cache local
         localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
         return user;
-      } else if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-        console.error("[storage] fetchUser Supabase error:", error);
+      } else if (error && error.code !== 'PGRST116') {
+        console.error("[storage] fetchUser Cloud error:", error);
       }
     } catch (err) {
       console.error("[storage] fetchUser critical error:", err);
     }
   }
 
+  // Fallback sur le cache local si le Cloud est inaccessible
   const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
   return stored ? JSON.parse(stored) : getDefaultUser(targetUid);
 }
 
-export async function saveUser(user: User): Promise<void> {
-  if (!user.id || user.id === 'guest') return;
+/**
+ * Récupère l'utilisateur depuis le cache local (lecture synchrone).
+ * À utiliser UNIQUEMENT pour l'état initial, avant le fetch Cloud.
+ */
+export function getUser(uid?: string): User {
+  const targetUid = uid || getCurrentUID();
+  if (targetUid) {
+    const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
+    if (stored) {
+      const user = JSON.parse(stored);
+      console.log(`[storage] getUser (cache) v${user.version}`);
+      return user;
+    }
+  }
+  return getDefaultUser(targetUid || undefined);
+}
+
+export async function saveUser(user: User): Promise<User> {
+  if (!user.id || user.id === 'guest') return user;
 
   const cleanNum = (val: any): number => {
     if (val === null || val === undefined) return 0;
@@ -127,45 +147,37 @@ export async function saveUser(user: User): Promise<void> {
     return 0;
   };
 
+  // On incrémente la version pour cette sauvegarde
+  const newVersion = (user.version || 0) + 1;
+
   const cleanUser = {
     ...user,
     balance: cleanNum(user.balance),
     bankBalance: cleanNum(user.bankBalance),
     totalWagered: cleanNum(user.totalWagered),
     vipLevel: Math.max(1, Math.floor(cleanNum(user.vipLevel))),
-    version: (user.version || 0)
+    version: newVersion
   };
 
-  // 1. Sauvegarde locale immédiate (optimistic UI / fallback)
+  // 1. Mise à jour immédiate du cache local (Optimistic UI)
   localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
 
-  // Mettre à jour le cache local des utilisateurs pour la recherche/connexion
-  const storedUsers = localStorage.getItem(STORAGE_KEYS.CACHE_USERS);
-  if (storedUsers) {
-    let users: User[] = JSON.parse(storedUsers);
-    const index = users.findIndex(u => u.id === cleanUser.id);
-    if (index !== -1) {
-      users[index] = cleanUser;
-    } else {
-      users.push(cleanUser);
-    }
-    localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
-  }
-
-  // 2. Tenter la sauvegarde Cloud avec protection de version
+  // 2. Sauvegarde Cloud (Source de vérité)
   if (isSupabaseConfigured()) {
     try {
-      // Récupérer la version actuelle en DB pour éviter les rollbacks
+      // Vérification de version en DB pour empêcher les rollbacks
       const { data: current, error: fetchError } = await supabase
         .from('users')
         .select('version')
         .eq('id', cleanUser.id)
         .single();
       
-      // Si la version en DB est strictement supérieure, on n'écrase pas (conflit résolu par fetchLatestData plus tard)
-      if (!fetchError && current && (current.version || 0) > cleanUser.version) {
-        console.warn(`[storage] saveUser ignored: DB version (${current.version}) > Local version (${cleanUser.version})`);
-        return;
+      // Si la DB a déjà une version égale ou supérieure, on n'écrase pas.
+      // Cela arrive si un autre client ou une action concurrente a déjà mis à jour la DB.
+      if (!fetchError && current && current.version >= cleanUser.version) {
+        console.warn(`[storage] saveUser aborted: DB version (${current.version}) >= Local version (${cleanUser.version})`);
+        // On récupère la version de la DB pour synchroniser le client
+        return await fetchUser(cleanUser.id);
       }
 
       const dbData: any = {
@@ -194,14 +206,16 @@ export async function saveUser(user: User): Promise<void> {
       
       if (error) throw error;
       
-      console.log(`[storage] User ${cleanUser.username} saved successfully (v${cleanUser.version})`);
+      console.log(`[storage] Cloud Save Success: ${cleanUser.username} (v${cleanUser.version})`);
       
-      // Dispatch global event for internal synchronization
+      // Événement global pour synchroniser les autres onglets/composants
       window.dispatchEvent(new CustomEvent('user_updated_global', { detail: cleanUser }));
     } catch (err) {
-      console.error("[storage] saveUser Cloud error:", err);
+      console.error("[storage] saveUser Cloud failure:", err);
     }
   }
+
+  return cleanUser;
 }
 
 export async function getAllUsers(): Promise<User[]> {
@@ -807,14 +821,7 @@ export async function getOtherUsers(): Promise<{ id: string; username: string }[
   return [];
 }
 
-export function getUser(uid?: string): User {
-  const targetUid = uid || getCurrentUID();
-  if (targetUid) {
-    const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
-    if (stored) return JSON.parse(stored);
-  }
-  return getDefaultUser(targetUid || undefined);
-}
+
 
 export function getDefaultUser(uid?: string): User {
   return {

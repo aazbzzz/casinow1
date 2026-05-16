@@ -147,11 +147,10 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
         hasCheatAccess: true, 
         showBadge: true,
         hideFromLeaderboard: false, // Ensure they are visible if they want
-        showModBadge: newRole === 'moderator',
-        version: (freshUser.version || 0) + 1
+        showModBadge: newRole === 'moderator'
       };
-      await saveUser(updatedUser);
-      if (onRewardClaimed) onRewardClaimed(updatedUser);
+      const finalUser = await saveUser(updatedUser);
+      if (onRewardClaimed) onRewardClaimed(finalUser);
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
       window.dispatchEvent(new CustomEvent('leaderboard_update'));
 
@@ -179,7 +178,8 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     }
 
     try {
-      const updatedUser = { ...user, version: (user.version || 0) + 1 };
+      const freshUser = await fetchUser(user.id);
+      const updatedUser = { ...freshUser };
       let msg = '';
 
       if (promo.type === 'currency') {
@@ -200,14 +200,14 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
         msg = `Received ${promo.value} ${promo.cryptoSymbol || 'BTC'}`;
       }
 
-      await saveUser(updatedUser);
+      const finalUser = await saveUser(updatedUser);
       
       const updatedPromo = { ...promo, usedCount: promo.usedCount + 1 };
       const newCodes = promoCodes.map(c => c.code === promo.code ? updatedPromo : c);
       onUpdatePromoCodes(newCodes);
       await syncPromoCodeToCloud(updatedPromo);
 
-      if (onRewardClaimed) onRewardClaimed(updatedUser);
+      if (onRewardClaimed) onRewardClaimed(finalUser);
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
 
       setPromoStatus('success');
@@ -301,11 +301,10 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                   const freshUser = await fetchUser(user.id);
                   const updatedUser = { 
                     ...freshUser, 
-                    showBadge: !freshUser.showBadge,
-                    version: (freshUser.version || 0) + 1 
+                    showBadge: !freshUser.showBadge
                   };
-                  await saveUser(updatedUser);
-                  if (onRewardClaimed) onRewardClaimed(updatedUser);
+                  const finalUser = await saveUser(updatedUser);
+                  if (onRewardClaimed) onRewardClaimed(finalUser);
                   if (enableHaptics) vibrate(50);
                 }}
                 className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
@@ -330,11 +329,10 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
                   const freshUser = await fetchUser(user.id);
                   const updatedUser = { 
                     ...freshUser, 
-                    hideFromLeaderboard: !freshUser.hideFromLeaderboard,
-                    version: (freshUser.version || 0) + 1 
+                    hideFromLeaderboard: !freshUser.hideFromLeaderboard
                   };
-                  await saveUser(updatedUser);
-                  if (onRewardClaimed) onRewardClaimed(updatedUser);
+                  const finalUser = await saveUser(updatedUser);
+                  if (onRewardClaimed) onRewardClaimed(finalUser);
                   if (enableHaptics) vibrate(50);
                 }}
                 className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 

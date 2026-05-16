@@ -151,7 +151,7 @@ interface AdminPanelProps {
   const handleToggleRole = async (userId: string, newRole: 'admin' | 'moderator' | 'player' | 'cheat') => {
     try {
       const freshUser = await fetchUser(userId);
-      const updatedUser = { ...freshUser, role: newRole, version: (freshUser.version || 0) + 1 };
+      const updatedUser = { ...freshUser, role: newRole };
       
       if (newRole === 'cheat') {
         updatedUser.hasCheatAccess = true;
@@ -160,12 +160,12 @@ interface AdminPanelProps {
         updatedUser.cheats = getCheats(null);
       }
       
-      await saveUser(updatedUser);
+      const finalUser = await saveUser(updatedUser);
       
       // Update local list
-      setDbUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      setDbUsers(prev => prev.map(u => u.id === userId ? finalUser : u));
       
-      if (userId === user.id) onRefreshUser?.(updatedUser);
+      if (userId === user.id) onRefreshUser?.(finalUser);
       if (enableHaptics) vibrate(100);
     } catch (err) {
       console.error("[AdminPanel] Error toggling role:", err);
@@ -184,21 +184,20 @@ interface AdminPanelProps {
         username: editBalances.username || freshUser.username,
         balance: Number(editBalances.balance), 
         bankBalance: Number(editBalances.bankBalance),
-        vipLevel: Number(editBalances.vipLevel),
-        version: (freshUser.version || 0) + 1
+        vipLevel: Number(editBalances.vipLevel)
       };
       
-      console.log("[AdminPanel] Saving user data with fresh version:", updatedUser);
-      await saveUser(updatedUser);
+      console.log("[AdminPanel] Saving user data:", updatedUser);
+      const finalUser = await saveUser(updatedUser);
       
       // Update local list immediately
-      setDbUsers(prev => prev.map(u => u.id === editingUser ? updatedUser : u));
+      setDbUsers(prev => prev.map(u => u.id === editingUser ? finalUser : u));
       
       // Immediate global synchronization
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
       window.dispatchEvent(new CustomEvent('leaderboard_update'));
       
-      if (editingUser === user.id) onRefreshUser?.(updatedUser);
+      if (editingUser === user.id) onRefreshUser?.(finalUser);
       
       setEditingUser(null);
       if (enableHaptics) vibrate(200);
@@ -212,11 +211,11 @@ interface AdminPanelProps {
   const handleToggleAdminSetting = async (userId: string, setting: 'showBadge' | 'showModBadge' | 'hideFromLeaderboard') => {
     try {
       const freshUser = await fetchUser(userId);
-      const updatedUser = { ...freshUser, [setting]: !freshUser[setting], version: (freshUser.version || 0) + 1 };
-      await saveUser(updatedUser);
+      const updatedUser = { ...freshUser, [setting]: !freshUser[setting] };
+      const finalUser = await saveUser(updatedUser);
       
-      setDbUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
-      if (userId === user.id) onRefreshUser?.(updatedUser);
+      setDbUsers(prev => prev.map(u => u.id === userId ? finalUser : u));
+      if (userId === user.id) onRefreshUser?.(finalUser);
       if (enableHaptics) vibrate(50);
     } catch (err) {
       console.error("[AdminPanel] Error toggling setting:", err);
@@ -230,9 +229,9 @@ interface AdminPanelProps {
     if (cheatTargetUserId && isMod) {
       try {
         const freshUser = await fetchUser(cheatTargetUserId);
-        const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
-        await saveUser(updatedUser);
-        if (cheatTargetUserId === user.id) onRefreshUser?.(updatedUser);
+        const updatedUser = { ...freshUser, cheats: newCheats };
+        const finalUser = await saveUser(updatedUser);
+        if (cheatTargetUserId === user.id) onRefreshUser?.(finalUser);
       } catch (err) {
         console.error("[AdminPanel] Error saving targeted cheats:", err);
       }
@@ -241,9 +240,9 @@ interface AdminPanelProps {
       if (user && user.id !== 'guest') {
         try {
           const freshUser = await fetchUser(user.id);
-          const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
-          await saveUser(updatedUser);
-          onRefreshUser?.(updatedUser);
+          const updatedUser = { ...freshUser, cheats: newCheats };
+          const finalUser = await saveUser(updatedUser);
+          onRefreshUser?.(finalUser);
         } catch (err) {
           console.error("[AdminPanel] Error saving self cheats:", err);
         }
