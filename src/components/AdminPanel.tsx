@@ -154,13 +154,19 @@ interface AdminPanelProps {
       const updatedUser = { ...freshUser, role: newRole };
       
       if (newRole === 'cheat') {
+        // Le rôle 'cheat' donne un accès permanent (999 jours)
         updatedUser.hasCheatAccess = true;
-        updatedUser.cheatExpiresAt = Date.now() + (999 * 24 * 60 * 60 * 1000); // Accès quasi permanent
+        updatedUser.cheatExpiresAt = Date.now() + (999 * 24 * 60 * 60 * 1000);
+        // On initialise aussi l'objet cheats s'il est vide
+        if (!updatedUser.cheats) {
+          updatedUser.cheats = getCheats(null);
+        }
       } else if (newRole === 'player') {
         updatedUser.hasCheatAccess = false;
         updatedUser.cheats = getCheats(null);
-      } else if (newRole === 'admin' || newRole === 'moderator') {
-        updatedUser.hasCheatAccess = false; // Stricte séparation des rôles
+      } else {
+        // Pour Admin et Moderator, on garde les privilèges séparés
+        updatedUser.hasCheatAccess = false;
       }
       
       const finalUser = await saveUser(updatedUser);

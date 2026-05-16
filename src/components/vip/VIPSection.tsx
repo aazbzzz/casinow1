@@ -11,19 +11,18 @@ interface VIPSectionProps {
 export function VIPSection({
   user
 }: VIPSectionProps) {
-  const currentVIPLevel = Math.max(1, user.vipLevel || 1);
   const cardBg = tweaks.cardBackground.useState();
   const primaryAccent = tweaks.primaryAccent.useState();
   const secondaryAccent = tweaks.secondaryAccent.useState();
-  const currentVIP = VIP_LEVELS.find(l => l.level === currentVIPLevel) || VIP_LEVELS[0];
-  const nextVIP = getNextVIPLevel(currentVIPLevel);
-  const progress = getVIPProgress(user.totalWagered, currentVIPLevel);
+  const currentVIP = VIP_LEVELS.find(l => l.level === user.vipLevel) || VIP_LEVELS[0];
+  const nextVIP = getNextVIPLevel(user.vipLevel);
+  const progress = getVIPProgress(user.totalWagered, user.vipLevel);
 
   const formatAmount = (amount: number) => {
     if (amount >= 1000000000) return (amount / 1000000000).toFixed(1) + 'B';
     if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
     if (amount >= 1000) return (amount / 1000).toFixed(1) + 'K';
-    return amount.toLocaleString();
+    return amount.toString();
   };
 
   return <div className="p-6">
@@ -38,7 +37,7 @@ export function VIPSection({
           </div>
           <div className="flex-1">
             <div className="text-sm text-gray-400">Current Level</div>
-            <div className="text-3xl font-bold text-white">VIP {currentVIPLevel}</div>
+            <div className="text-3xl font-bold text-white">VIP {user.vipLevel}</div>
             <div className="text-lg font-semibold" style={{
             color: primaryAccent
           }}>
@@ -59,15 +58,15 @@ export function VIPSection({
           }} />
             </div>
             <div className="text-xs text-gray-400 mt-2">
-              Wager {formatAmount(Math.max(0, nextVIP.wagerRequired - user.totalWagered))} more to unlock
+              Wager {formatAmount(nextVIP.wagerRequired - user.totalWagered)} more to unlock
             </div>
           </div>}
       </div>
       
       <div className="space-y-3">
         {VIP_LEVELS.map(level => {
-        const isUnlocked = currentVIPLevel >= level.level;
-        const isCurrent = currentVIPLevel === level.level;
+        const isUnlocked = user.vipLevel >= level.level;
+        const isCurrent = user.vipLevel === level.level;
         return <div key={level.level} className="p-4 rounded-xl transition-all" style={{
           backgroundColor: isCurrent ? `${primaryAccent}20` : cardBg,
           borderLeft: isCurrent ? `4px solid ${primaryAccent}` : 'none'

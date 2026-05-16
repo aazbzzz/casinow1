@@ -134,7 +134,7 @@ function App() {
       balance: Number(newUser.balance) || 0,
       bankBalance: Number(newUser.bankBalance) || 0,
       totalWagered: Number(newUser.totalWagered) || 0,
-      vipLevel: Math.max(1, Number(newUser.vipLevel) || 1),
+      vipLevel: Number(newUser.vipLevel) || 1,
     };
     await saveUser(cleanUser);
     refreshUser();
