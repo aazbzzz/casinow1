@@ -40,28 +40,24 @@ export function useGameState() {
         if (sanitizedRemote.version > prev.version) {
           console.log(`[useGameState] State updated from server: Remote (v${sanitizedRemote.version}) > Local (v${prev.version})`);
           
-          // PRESERVE LOCAL STATE if remote seems stale on critical fields
-          // (e.g. if we just activated a cheat and the remote update doesn't have it yet but has a higher version? 
-          // Actually, version should always be higher for new data. 
-          // But let's be safe with cheats.)
-          
           const now = Date.now();
           const hasLocalActiveCheat = prev.hasCheatAccess && prev.cheatExpiresAt && prev.cheatExpiresAt > now;
           const hasRemoteActiveCheat = sanitizedRemote.hasCheatAccess && sanitizedRemote.cheatExpiresAt && sanitizedRemote.cheatExpiresAt > now;
           
-          // If we have an active cheat locally but remote doesn't, AND our local version is very close to remote, 
-          // it might be a race condition.
-          if (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat') {
-             console.log("[useGameState] Preserving local active cheat during sync");
-             return {
-               ...sanitizedRemote,
-               hasCheatAccess: prev.hasCheatAccess,
-               cheatExpiresAt: prev.cheatExpiresAt,
-               cheats: prev.cheats || sanitizedRemote.cheats
-             };
-          }
-
-          return sanitizedRemote;
+          // CRITICAL: Jamais écraser un cheat actif localement par un état "null" si la version est proche
+          // On priorise l'état "actif" du cheat pour éviter les micro-reset
+          return {
+            ...sanitizedRemote,
+            cheats: (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat') 
+              ? prev.cheats 
+              : sanitizedRemote.cheats,
+            hasCheatAccess: (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
+              ? prev.hasCheatAccess
+              : sanitizedRemote.hasCheatAccess,
+            cheatExpiresAt: (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
+              ? prev.cheatExpiresAt
+              : sanitizedRemote.cheatExpiresAt,
+          };
         }
         return prev;
       });
@@ -96,30 +92,35 @@ export function useGameState() {
             const hasLocalActiveCheat = prev.hasCheatAccess && prev.cheatExpiresAt && prev.cheatExpiresAt > now;
             const hasRemoteActiveCheat = !!newUser.has_cheat_access && newUser.cheat_expires_at && newUser.cheat_expires_at > now;
 
-            const updatedFields = {
+            // Strict merging: preserve local cheat if remote doesn't have it yet
+            const finalCheats = (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
+              ? prev.cheats
+              : newUser.cheats;
+            
+            const finalHasCheat = (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
+              ? prev.hasCheatAccess
+              : !!newUser.has_cheat_access;
+
+            const finalExpires = (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
+              ? prev.cheatExpiresAt
+              : newUser.cheat_expires_at;
+
+            return {
+              ...prev,
               balance: Math.max(0, Number(newUser.balance) || 0),
               bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
               vipLevel: Math.max(1, Math.floor(Number(newUser.vip_level) || 1)),
               totalWagered: Math.max(0, Number(newUser.total_wagered) || 0),
               role: newUser.role,
-              hasCheatAccess: !!newUser.has_cheat_access,
-              cheatExpiresAt: newUser.cheat_expires_at,
+              hasCheatAccess: finalHasCheat,
+              cheatExpiresAt: finalExpires,
               showBadge: !!newUser.show_badge,
               showModBadge: !!newUser.show_mod_badge,
               hideFromLeaderboard: !!newUser.hide_from_leaderboard,
               isBanned: !!newUser.is_banned,
-              cheats: newUser.cheats,
+              cheats: finalCheats,
               version: newUser.version
             };
-
-            // Safety merge for cheats to avoid "flickering" or accidental reset during rapid updates
-            if (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat') {
-              updatedFields.hasCheatAccess = prev.hasCheatAccess;
-              updatedFields.cheatExpiresAt = prev.cheatExpiresAt;
-              updatedFields.cheats = prev.cheats || newUser.cheats;
-            }
-
-            return { ...prev, ...updatedFields };
           }
           return prev;
         });
@@ -142,19 +143,17 @@ export function useGameState() {
     const checkExpiration = async () => {
       const now = Date.now();
       if (now > (user.cheatExpiresAt || 0)) {
-        console.log('[useGameState] Cheat expired, resetting...');
-        const freshUser = await fetchUser(user.id);
-        // On vérifie à nouveau avec les données fraîches
-        if (freshUser.hasCheatAccess && freshUser.cheatExpiresAt && now > freshUser.cheatExpiresAt) {
-          const updatedUser = { 
-            ...freshUser, 
-            hasCheatAccess: false, 
-            cheatExpiresAt: null,
-            cheats: getCheats(null) // Désactive tous les cheats actifs
-          };
-          const finalUser = await saveUser(updatedUser);
-          setUser(finalUser);
-          window.dispatchEvent(new CustomEvent('leaderboard_update'));
+        console.log('[useGameState] Cheat expired, triggering cloud expiration...');
+        try {
+          // Utilise la nouvelle fonction robuste de storage.ts
+          const { expireUserCheat } = await import('@/lib/storage');
+          const finalUser = await expireUserCheat(user.id);
+          if (finalUser) {
+            setUser(finalUser);
+            window.dispatchEvent(new CustomEvent('leaderboard_update'));
+          }
+        } catch (err) {
+          console.error("[useGameState] Error during cheat expiration:", err);
         }
       }
     };

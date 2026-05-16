@@ -850,6 +850,40 @@ export async function getOtherUsers(): Promise<{ id: string; username: string }[
 
 
 
+export async function disableUserCheats(userId: string): Promise<User | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const freshUser = await fetchUser(userId);
+    const updatedUser = {
+      ...freshUser,
+      hasCheatAccess: false,
+      cheatExpiresAt: null,
+      cheats: undefined,
+      version: (freshUser.version || 0) + 1
+    };
+    return await saveUser(updatedUser);
+  } catch (err) {
+    console.error("[storage] Error disabling user cheats:", err);
+    return null;
+  }
+}
+
+export async function expireUserCheat(userId: string): Promise<User | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const freshUser = await fetchUser(userId);
+    const updatedUser = {
+      ...freshUser,
+      cheatExpiresAt: Date.now() - 1000,
+      version: (freshUser.version || 0) + 1
+    };
+    return await saveUser(updatedUser);
+  } catch (err) {
+    console.error("[storage] Error expiring user cheat:", err);
+    return null;
+  }
+}
+
 export function getDefaultUser(uid?: string): User {
   return {
     id: uid || 'guest',
