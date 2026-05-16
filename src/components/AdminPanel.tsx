@@ -64,8 +64,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     duration: 3600
   });
 
-  const primaryAccent = tweaks.get('primaryAccent') || '#dcfce7';
-  const enableHaptics = tweaks.get('enableHaptics') || true;
+  const primaryAccent = tweaks.primaryAccent.useState();
+  const enableHaptics = tweaks.enableHaptics.useState();
   const isAdmin = user.role === 'admin';
   const isMod = user.role === 'admin' || user.role === 'moderator';
 

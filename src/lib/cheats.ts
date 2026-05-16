@@ -24,20 +24,28 @@ export interface CheatSettings {
   forceSlotsSymbol: string | null;
   slotsAlwaysJackpot: boolean;
   slotsNoLoss: boolean;
+  slotsHighWinRate: boolean;
   
   // Coinflip Cheats
   forceCoinflipSide: 'heads' | 'tails' | null;
+  coinflipForceHeads: boolean;
+  coinflipForceTails: boolean;
   
   // Dice Cheats
   forceDiceResult: number | null;
   diceAlwaysWin: boolean;
   diceMaxMultiplier: boolean;
+  diceForceRoll: number | null;
   
   // Mines Cheats
   forceMinesSafe: boolean;
   minesRevealAll: boolean;
   minesInstantWin: boolean;
   minesMaxMultiplier: boolean;
+  minesShowMines: boolean;
+  minesForceSafe: boolean;
+  minesAutoPick: boolean;
+  minesPredictivePath: boolean;
   
   // Crash Cheats
   forceCrashMultiplier: number | null;
@@ -74,20 +82,28 @@ const DEFAULT_CHEATS: CheatSettings = {
   forceSlotsSymbol: null,
   slotsAlwaysJackpot: false,
   slotsNoLoss: false,
+  slotsHighWinRate: false,
   
   // Coinflip
   forceCoinflipSide: null,
+  coinflipForceHeads: false,
+  coinflipForceTails: false,
   
   // Dice
   forceDiceResult: null,
   diceAlwaysWin: false,
   diceMaxMultiplier: false,
+  diceForceRoll: null,
   
   // Mines
   forceMinesSafe: false,
   minesRevealAll: false,
   minesInstantWin: false,
   minesMaxMultiplier: false,
+  minesShowMines: false,
+  minesForceSafe: false,
+  minesAutoPick: false,
+  minesPredictivePath: false,
   
   // Crash
   forceCrashMultiplier: null,
