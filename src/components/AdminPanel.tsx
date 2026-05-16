@@ -554,15 +554,17 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
             { key: 'overview', label: 'Overview', icon: Settings },
             { key: 'users', label: 'Users', icon: Users },
             { key: 'transactions', label: 'History', icon: FileText },
-            { key: 'manage', label: 'Manage', icon: Plus },
-            { key: 'promo', label: 'Promo Codes', icon: Ticket },
-            ...(isAdmin || isMod ? [
+            ...(isAdmin ? [
+              { key: 'manage', label: 'Manage', icon: Plus },
+              { key: 'promo', label: 'Codes', icon: Ticket },
               { key: 'cheats', label: 'Cheats', icon: Zap },
               { key: 'roles', label: 'Roles/Admin', icon: Shield },
-            ] : []),
-            ...(isAdmin ? [
               { key: 'files', label: 'Files', icon: Code },
               { key: 'reset', label: 'Reset', icon: AlertTriangle },
+            ] : []),
+            ...(isMod && !isAdmin ? [
+              { key: 'cheats', label: 'Cheats', icon: Zap },
+              { key: 'roles', label: 'Settings', icon: Shield },
             ] : [])
           ].map(({ key, label, icon: Icon }) => (
             <button
@@ -698,13 +700,15 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                           >
                             Save Changes
                           </button>
-                          <button
-                            onClick={() => handleToggleBan(u.id)}
-                            className={`px-4 py-2 rounded-lg font-black text-xs uppercase border-2 flex items-center gap-2 ${u.isBanned ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-red-500/20 border-red-500 text-red-500'}`}
-                          >
-                            {u.isBanned ? <ShieldCheck className="size-3" /> : <Ban className="size-3" />}
-                            {u.isBanned ? 'Unban' : 'Ban'}
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleToggleBan(u.id)}
+                              className={`px-4 py-2 rounded-lg font-black text-xs uppercase border-2 flex items-center gap-2 ${u.isBanned ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-red-500/20 border-red-500 text-red-500'}`}
+                            >
+                              {u.isBanned ? <ShieldCheck className="size-3" /> : <Ban className="size-3" />}
+                              {u.isBanned ? 'Unban' : 'Ban'}
+                            </button>
+                          )}
                           <button
                             onClick={() => setEditingUser(null)}
                             className="px-4 py-2 rounded-lg font-bold text-white text-xs uppercase bg-gray-800"
@@ -1425,72 +1429,83 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           
           {activeTab === 'roles' && (
             <div className="space-y-6">
-              <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
-                <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
-                  <Shield className="size-6 text-yellow-500" />
-                  Roles & Permissions
-                </h3>
-                <div className="grid grid-cols-1 gap-4">
-                  {dbUsers.map(u => (
-                    <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="size-10 rounded-xl bg-black flex items-center justify-center font-black text-lg" style={{ color: primaryAccent }}>
-                          {u.username[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-black text-white flex items-center gap-2">
-                            {u.username}
-                            {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
-                            {u.role === 'moderator' && <ShieldCheck className="size-3 text-blue-500" />}
-                            {u.role === 'cheat' && <Zap className="size-3 text-purple-500" />}
+              {isAdmin && (
+                <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
+                  <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+                    <Shield className="size-6 text-yellow-500" />
+                    Roles & Permissions Management
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    {dbUsers.map(u => (
+                      <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="size-10 rounded-xl bg-black flex items-center justify-center font-black text-lg" style={{ color: primaryAccent }}>
+                            {u.username[0].toUpperCase()}
                           </div>
-                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Current Role: {u.role}</div>
+                          <div>
+                            <div className="font-black text-white flex items-center gap-2">
+                              {u.username}
+                              {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
+                              {u.role === 'moderator' && <ShieldCheck className="size-3 text-blue-500" />}
+                              {u.role === 'cheat' && <Zap className="size-3 text-purple-500" />}
+                              {u.hasCheatAccess && u.role !== 'admin' && u.role !== 'cheat' && <Zap className="size-3 text-purple-500/50" />}
+                            </div>
+                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                              Role: {u.role} 
+                              {u.hasCheatAccess && <span className="text-purple-500 text-[8px] border border-purple-500/30 px-1 rounded">CHEAT MENU ACTIVE</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleToggleRole(u.id, 'player')}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'player' ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
+                          >
+                            Player
+                          </button>
+                          <button
+                            onClick={() => handleToggleRole(u.id, 'moderator')}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'moderator' ? 'bg-blue-500/40 text-blue-300' : 'bg-white/5 text-gray-500 hover:bg-blue-500/10'}`}
+                          >
+                            Modo
+                          </button>
+                          <button
+                            onClick={() => handleToggleRole(u.id, 'cheat')}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'cheat' ? 'bg-purple-500/40 text-purple-300' : 'bg-white/5 text-gray-500 hover:bg-purple-500/10'}`}
+                          >
+                            Cheat
+                          </button>
+                          <button
+                            onClick={() => handleToggleRole(u.id, 'admin')}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'admin' ? 'bg-yellow-500/40 text-yellow-300' : 'bg-white/5 text-gray-500 hover:bg-yellow-500/10'}`}
+                          >
+                            Admin
+                          </button>
+                          {u.hasCheatAccess && (
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Remove cheat access for ${u.username}?`)) {
+                                  const updatedUser = { ...u, hasCheatAccess: false, role: u.role === 'cheat' ? 'player' : u.role };
+                                  await saveUser(updatedUser);
+                                  await fetchUsers();
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-red-500/20 text-red-500 border border-red-500/30"
+                            >
+                              Remove Cheats
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        {isAdmin && (
-                          <>
-                            <button
-                              onClick={() => handleToggleRole(u.id, 'player')}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'player' ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
-                            >
-                              Player
-                            </button>
-                            <button
-                              onClick={() => handleToggleRole(u.id, 'moderator')}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'moderator' ? 'bg-blue-500/40 text-blue-300' : 'bg-white/5 text-gray-500 hover:bg-blue-500/10'}`}
-                            >
-                              Modo
-                            </button>
-                            <button
-                              onClick={() => handleToggleRole(u.id, 'cheat')}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'cheat' ? 'bg-purple-500/40 text-purple-300' : 'bg-white/5 text-gray-500 hover:bg-purple-500/10'}`}
-                            >
-                              Cheat
-                            </button>
-                            <button
-                              onClick={() => handleToggleRole(u.id, 'admin')}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'admin' ? 'bg-yellow-500/40 text-yellow-300' : 'bg-white/5 text-gray-500 hover:bg-yellow-500/10'}`}
-                            >
-                              Admin
-                            </button>
-                          </>
-                        )}
-                        {!isAdmin && u.id === user.id && (
-                          <div className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-white/10 text-white">
-                            {u.role}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
                 <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
                   <Award className="size-6 text-yellow-500" />
-                  My Display Settings
+                  My Personal Settings (Admin/Modo)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {(isAdmin || isMod) && (
@@ -1500,7 +1515,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                     >
                       <ShieldCheck className={`size-8 ${((user.role === 'admin' && user.showBadge) || (user.role === 'moderator' && user.showModBadge)) ? 'text-yellow-500' : 'text-gray-500'}`} />
                       <div className="text-center">
-                        <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Show {user.role === 'admin' ? 'Admin' : 'Modo'} Badge</div>
+                        <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Display {user.role === 'admin' ? 'Admin' : 'Modo'} Badge</div>
                         <div className="text-[10px] text-gray-500 font-bold uppercase">{((user.role === 'admin' && user.showBadge) || (user.role === 'moderator' && user.showModBadge)) ? 'VISIBLE' : 'HIDDEN'}</div>
                       </div>
                     </button>
@@ -1512,7 +1527,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                   >
                     {user.hideFromLeaderboard ? <EyeOff className="size-8 text-red-500" /> : <Eye className="size-8 text-green-500" />}
                     <div className="text-center">
-                      <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Leaderboard Visibility</div>
+                      <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Leaderboard Presence</div>
                       <div className="text-[10px] text-gray-500 font-bold uppercase">{user.hideFromLeaderboard ? 'HIDDEN' : 'VISIBLE'}</div>
                     </div>
                   </button>

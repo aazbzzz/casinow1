@@ -101,8 +101,12 @@ const DEFAULT_CHEATS: CheatSettings = {
 };
 
 export function getCheats(user?: User | null): CheatSettings {
+  if (!user || (!user.hasCheatAccess && user.role !== 'admin' && user.role !== 'moderator')) {
+    return DEFAULT_CHEATS;
+  }
+
   // 1. Priorité aux cheats spécifiques à l'utilisateur (Supabase)
-  if (user && user.cheats) {
+  if (user.cheats) {
     return { ...DEFAULT_CHEATS, ...user.cheats };
   }
 

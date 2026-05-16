@@ -81,6 +81,7 @@ export async function fetchUser(uid?: string): Promise<User> {
           password: data.password,
           role: data.role || 'player',
           showBadge: !!data.show_badge,
+          showModBadge: !!data.show_mod_badge,
           hideFromLeaderboard: !!data.hide_from_leaderboard,
           hasCheatAccess: !!data.has_cheat_access,
           balance: cleanDBNum(data.balance),
@@ -164,6 +165,7 @@ export async function saveUser(user: User): Promise<void> {
         password: cleanUser.password,
         role: cleanUser.role || 'player',
         show_badge: cleanUser.showBadge || false,
+        show_mod_badge: cleanUser.showModBadge || false,
         hide_from_leaderboard: cleanUser.hideFromLeaderboard || false,
         has_cheat_access: cleanUser.hasCheatAccess || false,
         balance: cleanUser.balance,
@@ -328,6 +330,7 @@ export async function getLeaderboard(limit = 10): Promise<User[]> {
           username: d.username,
           role: d.role || 'player',
           showBadge: !!d.show_badge,
+          showModBadge: !!d.show_mod_badge,
           hideFromLeaderboard: !!d.hide_from_leaderboard,
           hasCheatAccess: !!d.has_cheat_access,
           balance: cleanDBNum(d.balance),
@@ -774,6 +777,7 @@ export async function resetAllData(): Promise<void> {
         cheats: null,
         active_multiplier: null,
         show_badge: false,
+        show_mod_badge: false,
         hide_from_leaderboard: false,
         has_cheat_access: false
       };

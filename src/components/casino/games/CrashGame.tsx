@@ -125,8 +125,12 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     setCrashPoint(crash);
     
     setTimeout(() => {
+      const user = getUser();
+      const cheats = getCheats(user);
+      const startMult = cheats.crashStartMultiplier || 1.0;
+      
       setGameState('running');
-      setCurrentMultiplier(1.00);
+      setCurrentMultiplier(startMult);
       startTimeRef.current = Date.now();
       gameAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 1500);
