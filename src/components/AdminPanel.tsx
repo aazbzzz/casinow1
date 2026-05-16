@@ -468,7 +468,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     const newCheats = { ...cheats, [key]: value };
     setCheats(newCheats);
     
-    if (cheatTargetUserId && !cheatOnlyMode) {
+    // 1. If targeting someone else (Admin/Mod only)
+    if (cheatTargetUserId && isMod) {
       const targetUser = dbUsers.find(u => u.id === cheatTargetUserId);
       if (targetUser) {
         try {
@@ -479,7 +480,18 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         }
       }
     } else {
+      // 2. Targeting self - Local storage + Cloud sync if possible
       saveCheats(newCheats);
+      
+      // Also save to current user object if logged in
+      if (user && user.id !== 'guest') {
+        try {
+          const updatedUser = { ...user, cheats: newCheats };
+          await saveUser(updatedUser);
+        } catch (err) {
+          console.error("[AdminPanel] Error saving self cheats:", err);
+        }
+      }
     }
     
     if (enableHaptics) vibrate(50);
@@ -588,7 +600,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
             { key: 'transactions', label: 'History', icon: FileText, show: isAdmin && !cheatOnlyMode },
             { key: 'logs', label: 'Logs', icon: FileCode, show: isAdmin && !cheatOnlyMode },
             { key: 'manage', label: 'Manage', icon: Plus, show: isAdmin && !cheatOnlyMode },
-            { key: 'promo', label: 'Codes', icon: Ticket, show: isAdmin && !cheatOnlyMode },
+            { key: 'promo', label: 'Codes', icon: Ticket, show: isAdmin },
             { key: 'cheats', label: 'Cheats', icon: Zap, show: true },
             { key: 'roles', label: 'Roles & Admin', icon: Shield, show: !cheatOnlyMode },
             { key: 'master', label: 'Master Script', icon: FileCode, show: isAdmin && !cheatOnlyMode },
@@ -1102,8 +1114,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           
           {activeTab === 'cheats' && (
             <div className="space-y-4">
-              {/* Target User Selection - Only for real Admin Panel, not Player Cheat Menu */}
-              {!cheatOnlyMode && isAdmin && (
+              {/* Target User Selection - Now available in all modes for Admins/Mods */}
+              {isMod && (
                 <div className="p-4 rounded-2xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
                   <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2 px-1">Target User for Cheats</label>
                   <div className="flex gap-2">

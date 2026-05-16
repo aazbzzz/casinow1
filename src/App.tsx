@@ -71,7 +71,7 @@ function App() {
         .subscribe((status) => {
           console.log(`[Realtime] Leaderboard subscription status: ${status}`);
         });
-      
+
       return () => {
         console.log('[Realtime] Unsubscribing from leaderboard updates');
         supabase.removeChannel(userChannel);
@@ -82,6 +82,14 @@ function App() {
 
     return () => clearInterval(interval);
   }, [refreshLeaderboard]);
+
+  useEffect(() => {
+    const handleOpenAdmin = () => {
+      setShowAdminPanel(true);
+    };
+    window.addEventListener('open_admin_panel', handleOpenAdmin);
+    return () => window.removeEventListener('open_admin_panel', handleOpenAdmin);
+  }, []);
 
   const handleAuthComplete = async (newUser: any) => {
     const cleanUser = {
@@ -222,6 +230,7 @@ function App() {
       setShowAdminPanel(true);
       setShowAdminCode(false);
       setAdminInput('');
+      localStorage.setItem('admin_panel_unlocked', 'true');
       if (enableHaptics) vibrate(100);
     } else {
       setAdminInput('');

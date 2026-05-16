@@ -371,6 +371,40 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
           </div>
         </button>
 
+        {/* Quick Access Panel (Admin/Modo/Cheat) - Appears after entering code once */}
+        {localStorage.getItem('admin_panel_unlocked') === 'true' && (
+          <button
+            onClick={() => {
+              if (user.role === 'admin' || user.role === 'moderator') {
+                // If they are admin/mod, they get the full panel
+                // This will trigger the showAdminPanel state in App.tsx via a custom event
+                window.dispatchEvent(new CustomEvent('open_admin_panel'));
+              } else if (user.hasCheatAccess) {
+                // If they only have cheat access, show cheat menu
+                onShowCheatMenu?.();
+              }
+              if (enableHaptics) vibrate(50);
+            }}
+            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2 bg-white/5" 
+            style={{ borderColor: user.role === 'admin' ? '#fbbf24' : user.role === 'moderator' ? '#60a5fa' : '#a78bfa' }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {user.role === 'admin' ? <Crown className="size-6 text-yellow-500" /> : user.role === 'moderator' ? <Shield className="size-6 text-blue-500" /> : <Zap className="size-6 text-purple-500" />}
+                <div>
+                  <div className="font-black text-white uppercase italic tracking-wider">
+                    {user.role === 'admin' ? 'Admin Panel' : user.role === 'moderator' ? 'Modo Panel' : 'Cheat Menu'}
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {user.role === 'admin' ? 'Full system control' : user.role === 'moderator' ? 'Balance management' : 'Personal cheat options'}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="size-5 text-gray-500" />
+            </div>
+          </button>
+        )}
+
         <div className="p-4 rounded-xl" style={{ backgroundColor: cardBg }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
