@@ -205,7 +205,7 @@ const projectFiles: FileNode[] = [
 ];
 
 export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser, cheatOnlyMode = false }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset' | 'master' | 'logs'>(cheatOnlyMode ? 'cheats' : 'overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset' | 'master' | 'logs'>(cheatOnlyMode ? 'cheats' : 'users');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src/components', 'src/components/casino', 'src/components/casino/games']));
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
@@ -595,17 +595,10 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         
         <div className="flex gap-2 px-6 py-4 border-b-2 shrink-0 overflow-x-auto" style={{ borderColor: `${primaryAccent}20` }}>
           {[
-            { key: 'overview', label: 'Overview', icon: Settings, show: !cheatOnlyMode },
-            { key: 'users', label: 'Users', icon: Users, show: !cheatOnlyMode },
-            { key: 'promo', label: 'Promo Codes', icon: Ticket, show: isMod },
-            { key: 'transactions', label: 'History', icon: FileText, show: isAdmin && !cheatOnlyMode },
-            { key: 'logs', label: 'Logs', icon: FileCode, show: isAdmin && !cheatOnlyMode },
-            { key: 'manage', label: 'Manage', icon: Plus, show: isAdmin && !cheatOnlyMode },
+            { key: 'users', label: 'User Database', icon: Users, show: !cheatOnlyMode },
             { key: 'cheats', label: 'Cheats', icon: Zap, show: true },
-            { key: 'roles', label: 'Roles & Admin', icon: Shield, show: !cheatOnlyMode },
-            { key: 'master', label: 'Master Script', icon: FileCode, show: isAdmin && !cheatOnlyMode },
-            { key: 'files', label: 'Files', icon: Code, show: isAdmin && !cheatOnlyMode },
-            { key: 'reset', label: 'Reset All', icon: AlertTriangle, show: isAdmin && !cheatOnlyMode },
+            { key: 'roles', label: 'User Role Management', icon: Shield, show: !cheatOnlyMode },
+            { key: 'promo', label: 'Promo Code Creation', icon: Ticket, show: isAdmin },
           ].filter(tab => tab.show).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
