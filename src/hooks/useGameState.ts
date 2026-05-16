@@ -53,7 +53,7 @@ export function useGameState() {
     if (remoteQuests) setQuests(remoteQuests);
   }, []);
 
-  // Sync with backend on mount & Realtime subscription
+  // Synchronisation avec le backend au montage & Realtime subscription
   useEffect(() => {
     fetchLatestData(true);
 
@@ -90,36 +90,9 @@ export function useGameState() {
     };
   }, [fetchLatestData]);
 
-  // Sauvegarde automatique du profil utilisateur lors des changements (Débit/Crédit)
-  // On ne sauvegarde automatiquement QUE si le solde de jeu ou le wagered a changé
-  // Les transferts Bank sont gérés manuellement dans les composants pour éviter les rollbacks
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    
-    // Si c'est un changement de balance lié au jeu, on active la synchronisation
-    isPendingSync.current = true;
-    lastUpdateRef.current = Date.now();
-
-    const timer = setTimeout(async () => {
-      if (user && user.id && user.id !== 'guest') {
-        console.log(`[useGameState] Debounced sync: saving latest state to Supabase...`, { balance: user.balance });
-        await saveUser(user);
-        isPendingSync.current = false;
-      }
-    }, 1500); 
-    
-    return () => clearTimeout(timer);
-  }, [user.balance, user.totalWagered, user.vipLevel]); // On restreint les triggers
-  
   const refreshUser = useCallback(async (updatedUser?: User) => {
      if (updatedUser) {
        setUser(updatedUser);
-       // On ne fetch pas immédiatement après pour éviter de récupérer des données potentiellement 
-       // pas encore propagées dans le cache Supabase, ce qui écraserait l'état local propre.
-       // Le Realtime se chargera de la synchro si nécessaire plus tard.
      } else {
        await fetchLatestData(true);
      }

@@ -174,6 +174,10 @@ interface AdminPanelProps {
         // Update local list immediately to show changes without waiting for DB sync
         setDbUsers(prev => prev.map(u => u.id === editingUser ? updatedUser : u));
         
+        // Immediate global synchronization
+        window.dispatchEvent(new CustomEvent('casino_balance_update'));
+        window.dispatchEvent(new CustomEvent('leaderboard_update'));
+        
         // Immediate UI refresh for the edited user if it's the current user
         if (editingUser === user.id) onRefreshUser?.(updatedUser);
         
@@ -422,7 +426,6 @@ interface AdminPanelProps {
                         </div>
                       </div>
                     </div>
-                      <div className="flex flex-col gap-2">
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
@@ -439,26 +442,48 @@ interface AdminPanelProps {
                           >
                             Edit Data
                           </button>
-                          <button
-                            onClick={async () => {
-                              if (confirm(`${u.hasCheatAccess ? 'Revoke cheat access' : 'Give cheat access'} for ${u.username}?`)) {
-                                const updatedUser = { 
-                                  ...u, 
-                                  hasCheatAccess: !u.hasCheatAccess, 
-                                  cheatExpiresAt: !u.hasCheatAccess ? Date.now() + 86400000 : null,
-                                  version: (u.version || 0) + 1,
-                                  cheats: !u.hasCheatAccess ? u.cheats : getCheats(null) // Reset cheats if revoked
-                                };
-                                await saveUser(updatedUser);
-                                if (u.id === user.id) onRefreshUser?.(updatedUser);
-                                await fetchUsers();
-                                if (enableHaptics) vibrate(100);
-                              }
-                            }}
-                            className={`flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${u.hasCheatAccess ? 'bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20'}`}
-                          >
-                            {u.hasCheatAccess ? 'Remove Cheat Access' : 'Give Cheat'}
-                          </button>
+                          {u.hasCheatAccess ? (
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Retirer l'accès cheat pour ${u.username}?`)) {
+                                  const updatedUser = { 
+                                    ...u, 
+                                    hasCheatAccess: false, 
+                                    cheatExpiresAt: null,
+                                    version: (u.version || 0) + 1,
+                                    cheats: getCheats(null) // Désactive tous les cheats actifs
+                                  };
+                                  await saveUser(updatedUser);
+                                  if (u.id === user.id) onRefreshUser?.(updatedUser);
+                                  await fetchUsers();
+                                  if (enableHaptics) vibrate(100);
+                                }
+                              }}
+                              className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-500/20"
+                            >
+                              Remove Cheat
+                            </button>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Donner l'accès cheat pour ${u.username}?`)) {
+                                  const updatedUser = { 
+                                    ...u, 
+                                    hasCheatAccess: true, 
+                                    cheatExpiresAt: Date.now() + 86400000, // 24h par défaut
+                                    version: (u.version || 0) + 1
+                                  };
+                                  await saveUser(updatedUser);
+                                  if (u.id === user.id) onRefreshUser?.(updatedUser);
+                                  await fetchUsers();
+                                  if (enableHaptics) vibrate(100);
+                                }
+                              }}
+                              className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20"
+                            >
+                              Give Cheat
+                            </button>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           {!cheatOnlyMode && staffMode === 'admin' && (
@@ -501,7 +526,6 @@ interface AdminPanelProps {
                             </button>
                           )}
                         </div>
-                      </div>
                   </div>
                 ))}
               </div>

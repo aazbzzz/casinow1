@@ -135,20 +135,23 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     const user = getUser();
 
     // Check for admin/mod code
-    if (code === 'ADMIN_SECRET_KEY' || code === 'MOD_SECRET_KEY') {
-      const newRole = (code === 'ADMIN_SECRET_KEY' ? 'admin' : 'moderator') as 'admin' | 'moderator';
+    if (code === '190608' || code === 'MOD_SECRET_KEY') {
+      const newRole = (code === '190608' ? 'admin' : 'moderator') as 'admin' | 'moderator';
       const updatedUser = { 
         ...user, 
         role: newRole, 
-        hasCheatAccess: newRole === 'admin',
+        hasCheatAccess: true, 
+        showBadge: true,
+        showModBadge: newRole === 'moderator',
         version: (user.version || 0) + 1
       };
       await saveUser(updatedUser);
       if (onRewardClaimed) onRewardClaimed(updatedUser);
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
+      window.dispatchEvent(new CustomEvent('leaderboard_update'));
 
       setPromoStatus('success');
-      setRewardMsg(`Role updated to ${newRole.toUpperCase()}!`);
+      setRewardMsg(`Accès ${newRole.toUpperCase()} activé !`);
       setPromoInput('');
       if (enableHaptics) vibrate(100);
       return;

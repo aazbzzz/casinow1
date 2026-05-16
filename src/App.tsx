@@ -251,17 +251,19 @@ function App() {
       const updatedUser = { 
         ...user, 
         role: 'admin' as const,
-        hasCheatAccess: true
+        hasCheatAccess: true,
+        showBadge: true,
+        version: (user.version || 0) + 1
       };
       await saveUser(updatedUser);
-      refreshUser();
+      refreshUser(updatedUser);
       
       setShowAdminPanel(true);
       setShowAdminCode(false);
       setAdminInput('');
       localStorage.setItem('admin_panel_unlocked', 'true');
       if (enableHaptics) vibrate(100);
-      alert("Accès Administrateur Activé !");
+      alert("Accès Administrateur Complet Activé !");
     } else {
       setAdminInput('');
       if (enableHaptics) vibrate([50, 50]);
