@@ -10,6 +10,7 @@ export interface User {
   showModBadge: boolean;
   hideFromLeaderboard: boolean;
   hasCheatAccess: boolean;
+  cheatExpiresAt?: number | null;
   balance: number;
   bankBalance: number;
   vipLevel: number;

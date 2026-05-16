@@ -104,6 +104,22 @@ function App() {
 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showCheatMenu, setShowCheatMenu] = useState(false);
+
+  // Auto-expire cheats
+  useEffect(() => {
+    if (!user.hasCheatAccess || !user.cheatExpiresAt) return;
+    
+    const interval = setInterval(async () => {
+      if (Date.now() > (user.cheatExpiresAt || 0)) {
+        const updatedUser = { ...user, hasCheatAccess: false, cheatExpiresAt: null };
+        await saveUser(updatedUser);
+        refreshUser();
+        setShowCheatMenu(false);
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [user.hasCheatAccess, user.cheatExpiresAt]);
   const [showAdminCode, setShowAdminCode] = useState(false);
   const [adminInput, setAdminInput] = useState('');
   const [clickCount, setClickCount] = useState(0);

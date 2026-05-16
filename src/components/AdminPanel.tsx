@@ -454,7 +454,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     const newCheats = { ...cheats, [key]: value };
     setCheats(newCheats);
     
-    if (cheatTargetUserId) {
+    if (cheatTargetUserId && !cheatOnlyMode) {
       const targetUser = dbUsers.find(u => u.id === cheatTargetUserId);
       if (targetUser) {
         try {
@@ -671,7 +671,16 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             {u.username} 
                             {u.id === user.id && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded uppercase tracking-widest text-gray-400">You</span>}
                             {u.isBanned && <span className="text-[10px] bg-red-500/20 px-2 py-0.5 rounded uppercase tracking-widest text-red-500 font-black flex items-center gap-1"><Ban className="size-2.5" /> BANNED</span>}
-                            {u.hasCheatAccess && <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded uppercase tracking-widest text-purple-400 font-black flex items-center gap-1"><Zap className="size-2.5" /> CHEATER</span>}
+                          {u.hasCheatAccess && (
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded uppercase tracking-widest text-purple-400 font-black flex items-center gap-1"><Zap className="size-2.5" /> CHEATER</span>
+                              {u.cheatExpiresAt && (
+                                <span className="text-[8px] text-purple-400/60 font-bold">
+                                  Expires: {new Date(u.cheatExpiresAt).toLocaleTimeString()}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           </div>
                           <div className="flex flex-col gap-0.5">
                             <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-2">
@@ -694,7 +703,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                             <button
                               onClick={async () => {
                                 if (confirm(`Disable cheats for ${u.username}?`)) {
-                                  const updatedUser = { ...u, hasCheatAccess: false };
+                                  const updatedUser = { ...u, hasCheatAccess: false, cheatExpiresAt: null };
                                   await saveUser(updatedUser);
                                   fetchUsers();
                                 }
@@ -707,13 +716,13 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                           {!u.hasCheatAccess && isAdmin && (
                              <button
                              onClick={async () => {
-                               const updatedUser = { ...u, hasCheatAccess: true };
+                               const updatedUser = { ...u, hasCheatAccess: true, cheatExpiresAt: Date.now() + 3600000 }; // 1h default
                                await saveUser(updatedUser);
                                fetchUsers();
                              }}
                              className="text-[9px] bg-purple-500/10 text-purple-500 border border-purple-500/20 px-2 py-0.5 rounded font-black hover:bg-purple-500/20 transition-all"
                            >
-                             ENABLE CHEATS
+                             ENABLE CHEATS (1H)
                            </button>
                           )}
                         </div>
@@ -1092,38 +1101,60 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           
           {activeTab === 'cheats' && (
             <div className="space-y-4">
-              {/* Target User Selection */}
-              <div className="p-4 rounded-2xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
-                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2 px-1">Target User for Cheats</label>
-                <div className="flex gap-2">
-                  <select
-                    value={cheatTargetUserId || ''}
-                    onChange={(e) => {
-                      setCheatTargetUserId(e.target.value || null);
-                      if (enableHaptics) vibrate(30);
-                    }}
-                    className="flex-1 px-4 py-3 rounded-xl bg-black border-2 border-white/10 text-white font-bold"
-                  >
-                    <option value="">Me (Local Browser)</option>
-                    {dbUsers.map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.username} (ID: {u.id.slice(0, 8)}...)
-                      </option>
-                    ))}
-                  </select>
-                  {cheatTargetUserId && (
-                    <button
-                      onClick={() => setCheatTargetUserId(null)}
-                      className="px-4 py-3 rounded-xl bg-red-500/20 text-red-500 font-bold border border-red-500/30"
+              {/* Target User Selection - Only for real Admin Panel, not Player Cheat Menu */}
+              {!cheatOnlyMode && isAdmin && (
+                <div className="p-4 rounded-2xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2 px-1">Target User for Cheats</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={cheatTargetUserId || ''}
+                      onChange={(e) => {
+                        setCheatTargetUserId(e.target.value || null);
+                        if (enableHaptics) vibrate(30);
+                      }}
+                      className="flex-1 px-4 py-3 rounded-xl bg-black border-2 border-white/10 text-white font-bold"
                     >
-                      Reset to Me
-                    </button>
-                  )}
+                      <option value="">Me (Local Browser)</option>
+                      {dbUsers.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.username} (ID: {u.id.slice(0, 8)}...)
+                        </option>
+                      ))}
+                    </select>
+                    {cheatTargetUserId && (
+                      <button
+                        onClick={() => setCheatTargetUserId(null)}
+                        className="px-4 py-3 rounded-xl bg-red-500/20 text-red-500 font-bold border border-red-500/30"
+                      >
+                        Reset to Me
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-[10px] text-gray-500 font-bold uppercase tracking-widest px-1">
+                    {cheatTargetUserId ? '⚠️ Changes will affect the targeted user immediately in their browser.' : '💡 Changes only affect you in this browser session.'}
+                  </p>
                 </div>
-                <p className="mt-2 text-[10px] text-gray-500 font-bold uppercase tracking-widest px-1">
-                  {cheatTargetUserId ? '⚠️ Changes will affect the targeted user immediately in their browser.' : '💡 Changes only affect you in this browser session.'}
-                </p>
-              </div>
+              )}
+
+              {cheatOnlyMode && user.cheatExpiresAt && (
+                <div className="p-4 rounded-2xl border-2 bg-purple-500/10 border-purple-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                      <Zap className="size-6 text-purple-500" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Time Remaining</div>
+                      <div className="text-xl font-black text-white">
+                        {Math.max(0, Math.floor((user.cheatExpiresAt - Date.now()) / 1000))}s
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-[10px] font-bold text-gray-500 uppercase text-right">
+                    EXPIRES AT<br/>
+                    {new Date(user.cheatExpiresAt).toLocaleTimeString()}
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
                 {[

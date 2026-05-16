@@ -233,7 +233,9 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
         expiresAt: Date.now() + (cleanNum(promo.duration) || 3600) * 1000
       };
     } else if (promo.type === 'cheat_access') {
+      const duration = cleanNum(promo.duration) || 3600;
       updatedUser.hasCheatAccess = true;
+      updatedUser.cheatExpiresAt = Date.now() + (duration * 1000);
       if (onShowCheatMenu) onShowCheatMenu();
     }
 
@@ -265,7 +267,12 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
     });
 
     setPromoStatus('success');
-    setRewardMsg(promo.rewardText);
+    if (promo.type === 'cheat_access') {
+      const duration = cleanNum(promo.duration) || 3600;
+      setRewardMsg(`Cheat Menu Unlocked for ${Math.floor(duration / 60)}m!`);
+    } else {
+      setRewardMsg(promo.rewardText);
+    }
     setPromoInput('');
     if (enableHaptics) vibrate(200);
 
