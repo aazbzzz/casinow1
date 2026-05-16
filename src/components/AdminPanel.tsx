@@ -72,14 +72,17 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   });
 
   const formatTimeDetailed = (seconds: number) => {
+    if (seconds <= 0) return '0s';
     const d = Math.floor(seconds / (24 * 3600));
     const h = Math.floor((seconds % (24 * 3600)) / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
+    const s = Math.floor(seconds % 60);
     
-    if (d > 0) return `${d}j : ${h}h : ${m}m : ${s}s`;
-    if (h > 0) return `${h}h : ${m}m : ${s}s`;
-    if (m > 0) return `${m}m : ${s}s`;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    
+    if (d > 0) return `${d}j : ${pad(h)}h : ${pad(m)}m : ${pad(s)}s`;
+    if (h > 0) return `${h}h : ${pad(m)}m : ${pad(s)}s`;
+    if (m > 0) return `${m}m : ${pad(s)}s`;
     return `${s}s`;
   };
 
@@ -98,18 +101,20 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   }, []);
 
   useEffect(() => {
-    if (user.cheatExpiresAt) {
-      const interval = setInterval(() => {
-        const remaining = Math.max(0, Math.floor((user.cheatExpiresAt! - Date.now()) / 1000));
+    const interval = setInterval(() => {
+      // Force re-render every second to update all timers in the list
+      setDbUsers(prev => [...prev]);
+      
+      if (user.cheatExpiresAt && cheatOnlyMode) {
+        const remaining = Math.max(0, Math.floor((user.cheatExpiresAt - Date.now()) / 1000));
         setTimeLeft(remaining);
         if (remaining <= 0) {
-          clearInterval(interval);
           onClose();
         }
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [user.cheatExpiresAt, onClose]);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [user.cheatExpiresAt, cheatOnlyMode, onClose]);
 
   useEffect(() => {
     if (editingUser && scrollRef.current) {
@@ -128,8 +133,11 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           updatedUser.hasCheatAccess = false;
         }
         await saveUser(updatedUser);
-        await fetchUsers();
+        
+        // Immediate UI refresh
         if (userId === user.id) onRefreshUser?.();
+        await fetchUsers();
+        
         if (enableHaptics) vibrate(100);
       }
     } catch (err) {
@@ -150,11 +158,19 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           bankBalance: Number(editBalances.bankBalance),
           vipLevel: Number(editBalances.vipLevel)
         };
+        
+        console.log("[AdminPanel] Saving user data:", updatedUser);
         await saveUser(updatedUser);
-        await fetchUsers();
-        setEditingUser(null);
+        
+        // Immediate UI refresh for the edited user
         if (editingUser === user.id) onRefreshUser?.();
+        
+        // Update the list of users
+        await fetchUsers();
+        
+        setEditingUser(null);
         if (enableHaptics) vibrate(200);
+        alert("Modifications enregistrées avec succès !");
       }
     } catch (err) {
       console.error("[AdminPanel] Error updating user data:", err);
@@ -167,8 +183,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
     if (targetUser) {
       const updatedUser = { ...targetUser, [setting]: !targetUser[setting] };
       await saveUser(updatedUser);
-      await fetchUsers();
       if (userId === user.id) onRefreshUser?.();
+      await fetchUsers();
       if (enableHaptics) vibrate(50);
     }
   };
@@ -183,6 +199,9 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         try {
           const updatedUser = { ...targetUser, cheats: newCheats };
           await saveUser(updatedUser);
+          if (cheatTargetUserId === user.id) onRefreshUser?.();
+          // On ne fetch pas tous les users ici pour la performance, 
+          // mais on pourrait si on voulait rafraîchir la liste
         } catch (err) {
           console.error("[AdminPanel] Error saving targeted cheats:", err);
         }
@@ -193,6 +212,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
         try {
           const updatedUser = { ...user, cheats: newCheats };
           await saveUser(updatedUser);
+          onRefreshUser?.();
         } catch (err) {
           console.error("[AdminPanel] Error saving self cheats:", err);
         }
@@ -395,21 +415,24 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                           >
                             Edit Data
                           </button>
-                          {u.hasCheatAccess && (
-                            <button
-                              onClick={async () => {
-                                if (confirm(`Revoke cheat access for ${u.username}?`)) {
-                                  const updatedUser = { ...u, hasCheatAccess: false, cheatExpiresAt: null };
-                                  await saveUser(updatedUser);
-                                  await fetchUsers();
-                                  if (enableHaptics) vibrate(100);
-                                }
-                              }}
-                              className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-red-500/10 text-red-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-red-500/20 border border-red-500/30 transition-all active:scale-95"
-                            >
-                              Revoke Cheat
-                            </button>
-                          )}
+                          <button
+                            onClick={async () => {
+                              if (confirm(`${u.hasCheatAccess ? 'Revoke' : 'Give'} cheat access for ${u.username}?`)) {
+                                const updatedUser = { 
+                                  ...u, 
+                                  hasCheatAccess: !u.hasCheatAccess, 
+                                  cheatExpiresAt: !u.hasCheatAccess ? Date.now() + 86400000 : null 
+                                };
+                                await saveUser(updatedUser);
+                                if (u.id === user.id) onRefreshUser?.();
+                                await fetchUsers();
+                                if (enableHaptics) vibrate(100);
+                              }
+                            }}
+                            className={`flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${u.hasCheatAccess ? 'bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20'}`}
+                          >
+                            {u.hasCheatAccess ? 'Revoke Cheat' : 'Give Cheat'}
+                          </button>
                         </div>
                         <div className="flex gap-2">
                           {!cheatOnlyMode && staffMode === 'admin' && (
@@ -419,7 +442,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                                 setActiveTab('cheats');
                                 if (enableHaptics) vibrate(50);
                               }}
-                              className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-purple-500/10 text-purple-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-purple-500/20 border border-purple-500/30 transition-all active:scale-95"
+                              className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-white/5 text-white font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-white/10 border border-white/10 transition-all active:scale-95"
                             >
                               Control Cheats
                             </button>
@@ -871,6 +894,15 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                       </div>
                     </div>
                   </div>
+
+                  {cheatOnlyMode && timeLeft !== null && (
+                    <div className="mt-8 p-6 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex flex-col items-center gap-2">
+                      <div className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em]">Access Expires In</div>
+                      <div className="text-3xl sm:text-4xl font-black text-white tabular-nums tracking-tighter italic">
+                        {formatTimeDetailed(timeLeft)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

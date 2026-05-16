@@ -75,7 +75,8 @@ const translations = {
   },
 };
 
-export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout, onUpdateBalance, onShowCheatMenu }: { 
+export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout, onUpdateBalance, onShowCheatMenu }: { 
+  user: any,
   onRewardClaimed?: () => void,
   promoCodes: any[],
   onUpdatePromoCodes: (codes: any[]) => void,
@@ -90,14 +91,17 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
   const [promoStatus, setPromoStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
   const [promoErrorMessage, setPromoErrorMessage] = useState('');
   const [rewardMsg, setRewardMsg] = useState('');
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [cheatOnlyMode, setCheatOnlyMode] = useState(false);
-  const [activeStaffTab, setActiveStaffTab] = useState<'admin' | 'mod' | 'cheat' | null>(null);
+  const [now, setNow] = useState(Date.now());
 
-  const user = getUser();
+  // Timer update for the cheat button
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const isAdmin = user.role === 'admin';
   const isMod = user.role === 'moderator' || user.role === 'admin';
-  const hasCheatAccess = user.hasCheatAccess || (user.cheatExpiresAt && user.cheatExpiresAt > Date.now());
+  const hasCheatAccess = user.hasCheatAccess || (user.cheatExpiresAt && user.cheatExpiresAt > now);
   
   useEffect(() => {
     setT(translations[language as keyof typeof translations]);
@@ -231,29 +235,6 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
           </div>
         </button>
 
-        {user.hasCheatAccess && (
-          <button 
-            onClick={onShowCheatMenu}
-            className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98] border-2 border-purple-500/30 bg-purple-500/10 relative overflow-hidden" 
-          >
-            {user.cheatExpiresAt && (
-              <div className="absolute top-0 right-0 px-3 py-1 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-bl-xl">
-                {Math.max(0, Math.floor((user.cheatExpiresAt - Date.now()) / 1000))}s
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Zap className="size-6 text-purple-500" />
-                <div>
-                  <div className="font-semibold text-white">Cheat Menu</div>
-                  <div className="text-sm text-gray-400">Accéder aux options de triche</div>
-                </div>
-              </div>
-              <ChevronRight className="size-5 text-purple-500" />
-            </div>
-          </button>
-        )}
-        
         <button 
           onClick={toggleHaptics}
           className="w-full text-left p-4 rounded-xl transition-all active:scale-[0.98]" 
@@ -388,19 +369,6 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
           </div>
         </div>
         
-        {user.hasCheatAccess && onShowCheatMenu && (
-          <button
-            onClick={() => {
-              onShowCheatMenu();
-              if (enableHaptics) vibrate(50);
-            }}
-            className="w-full p-4 rounded-xl flex items-center justify-center gap-3 bg-yellow-500/20 text-yellow-500 font-black uppercase tracking-widest transition-all active:scale-95 border-2 border-yellow-500/30"
-          >
-            <Zap className="size-6" />
-            Cheat Menu
-          </button>
-        )}
-
         <button
           onClick={() => {
             onLogout();

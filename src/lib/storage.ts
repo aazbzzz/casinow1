@@ -84,6 +84,7 @@ export async function fetchUser(uid?: string): Promise<User> {
           showModBadge: !!data.show_mod_badge,
           hideFromLeaderboard: !!data.hide_from_leaderboard,
           hasCheatAccess: !!data.has_cheat_access,
+          cheatExpiresAt: data.cheat_expires_at || null,
           balance: cleanDBNum(data.balance),
           bankBalance: cleanDBNum(data.bank_balance),
           vipLevel: Math.max(1, cleanDBNum(data.vip_level)),
@@ -168,6 +169,7 @@ export async function saveUser(user: User): Promise<void> {
         show_mod_badge: cleanUser.showModBadge || false,
         hide_from_leaderboard: cleanUser.hideFromLeaderboard || false,
         has_cheat_access: cleanUser.hasCheatAccess || false,
+        cheat_expires_at: cleanUser.cheatExpiresAt || null,
         balance: cleanUser.balance,
         bank_balance: cleanUser.bankBalance,
         vip_level: cleanUser.vipLevel,
@@ -176,6 +178,7 @@ export async function saveUser(user: User): Promise<void> {
         is_banned: cleanUser.isBanned || false,
         cheats: cleanUser.cheats || null,
         used_promo_codes: cleanUser.usedPromoCodes || [],
+        active_multiplier: cleanUser.activeMultiplier || null,
       };
       
       const { error } = await supabase.from('users').upsert(dbData);
@@ -206,6 +209,7 @@ export async function getAllUsers(): Promise<User[]> {
         showModBadge: !!d.show_mod_badge,
         hideFromLeaderboard: !!d.hide_from_leaderboard,
         hasCheatAccess: !!d.has_cheat_access,
+        cheatExpiresAt: d.cheat_expires_at || null,
         balance: Number(d.balance) || 0,
         bankBalance: Number(d.bank_balance) || 0,
         vipLevel: Number(d.vip_level) || 1,

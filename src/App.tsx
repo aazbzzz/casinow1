@@ -120,6 +120,13 @@ function App() {
     refreshUser();
   };
 
+  // Sync showCheatMenu with user.hasCheatAccess
+  useEffect(() => {
+    if (!user.hasCheatAccess && showCheatMenu) {
+      setShowCheatMenu(false);
+    }
+  }, [user.hasCheatAccess, showCheatMenu]);
+
   // Auto-expire cheats
   useEffect(() => {
     if (!user.hasCheatAccess || !user.cheatExpiresAt) return;
@@ -237,14 +244,24 @@ function App() {
     { id: 'settings', icon: SettingsIcon, label: 'Settings' },
   ];
 
-  const handleAdminAuth = (e: React.FormEvent) => {
+  const handleAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (adminInput === '190608') {
+      // Devenir admin dans la DB
+      const updatedUser = { 
+        ...user, 
+        role: 'admin' as const,
+        hasCheatAccess: true
+      };
+      await saveUser(updatedUser);
+      refreshUser();
+      
       setShowAdminPanel(true);
       setShowAdminCode(false);
       setAdminInput('');
       localStorage.setItem('admin_panel_unlocked', 'true');
       if (enableHaptics) vibrate(100);
+      alert("Accès Administrateur Activé !");
     } else {
       setAdminInput('');
       if (enableHaptics) vibrate([50, 50]);
@@ -386,6 +403,7 @@ function App() {
           )}
           {activeSection === 'settings' && (
             <SettingsSection 
+              user={user}
               onRewardClaimed={refreshUser} 
               promoCodes={syncedPromoCodes}
               onUpdatePromoCodes={handleUpdatePromoCodes}
