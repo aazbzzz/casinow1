@@ -17,7 +17,6 @@ export interface User {
     value: number;
     expiresAt: number;
   } | null;
-};
 }
 
 export interface CryptoAsset {
