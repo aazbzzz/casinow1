@@ -85,12 +85,38 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   const revealTile = (index: number) => {
     if (!gameActive || revealed.has(index) || gameOver) return;
     
+    const user = getUser();
+    const cheats = getCheats(user);
+    
+    if (cheats.minesInstantWin) {
+      const allSafeIndices = Array.from({ length: 25 }, (_, i) => i).filter(i => !minePositions.has(i));
+      setRevealed(new Set(allSafeIndices));
+      
+      const safeCount = allSafeIndices.length;
+      const baseMultiplier = 1 + (safeCount / (25 - minesCount)) * (minesCount * 0.5);
+      const finalMultiplier = cheats.minesMaxMultiplier ? Math.max(baseMultiplier, 1000) : baseMultiplier;
+      setCurrentMultiplier(finalMultiplier);
+      
+      // Auto cashout for instant win
+      setTimeout(() => {
+        const totalPayout = Number(betAmount) * finalMultiplier;
+        const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Mines');
+        setLastWin(payoutResult);
+        setGameActive(false);
+        setGameOver(true);
+        if (enableSounds) playWin();
+        if (enableHaptics) vibrate(200);
+      }, 500);
+      
+      if (enableSounds) playConfirm();
+      if (enableHaptics) vibrate(30);
+      return;
+    }
+
     const newRevealed = new Set(revealed);
     newRevealed.add(index);
     setRevealed(newRevealed);
     
-    const user = getUser();
-    const cheats = getCheats(user);
     const hitMine = cheats.forceMinesSafe ? false : minePositions.has(index);
     
     if (hitMine) {
@@ -101,9 +127,6 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
       if (enableHaptics) vibrate([150, 80, 150]);
     } else {
       const safeCount = newRevealed.size;
-      // Multiplier logic: 1.0 + (profit margin)
-      // For a 1.20x win, profit is 0.20x.
-      // We want payout = betAmount * multiplier.
       const newMultiplier = 1 + (safeCount / (25 - minesCount)) * (minesCount * 0.5);
       setCurrentMultiplier(newMultiplier);
       if (enableSounds) playConfirm();
@@ -114,22 +137,13 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   const cashout = () => {
     if (!gameActive || revealed.size === 0) return;
     
-    const cheats = getCheats();
-    const baseMultiplier = cheats.minesMaxMultiplier ? Math.max(currentMultiplier, 10) : currentMultiplier;
+    const user = getUser();
+    const cheats = getCheats(user);
+    const baseMultiplier = cheats.minesMaxMultiplier ? Math.max(currentMultiplier, 1000) : currentMultiplier;
     const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
     const totalPayout = Number(betAmount) * finalMultiplier;
     
-    console.log({ 
-      game: 'Mines', 
-      betAmount: Number(betAmount), 
-      payout: totalPayout, 
-      multiplier: finalMultiplier, 
-      payoutType: typeof totalPayout, 
-      multiplierType: typeof finalMultiplier 
-    });
-    
     const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Mines');
-    console.log('ONWIN RETURN =', payoutResult);
     setLastWin(payoutResult);
     setGameActive(false);
     setGameOver(true);
@@ -272,7 +286,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
             // Cheat: Show mines
             const user = getUser();
             const cheats = getCheats(user);
-            const shouldShowCheatMine = gameActive && !isRevealed && isMine && cheats.forceMinesSafe;
+            const shouldShowCheatMine = gameActive && !isRevealed && isMine && cheats.minesRevealAll;
 
             return (
               <button
@@ -282,14 +296,14 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
                 className="aspect-square rounded-2xl flex items-center justify-center transition-all active:scale-90 disabled:scale-100 relative overflow-hidden group touch-manipulation"
                 style={{
                   backgroundColor: isRevealed ? (isMine ? '#ff1a1a' : primaryAccent) : 'rgba(255,255,255,0.05)',
-                  border: `2px solid ${isRevealed ? (isMine ? '#ff1a1a' : '#fff') : (shouldShowCheatMine ? '#ff1a1a60' : 'rgba(255,255,255,0.1)')}`,
-                  boxShadow: isRevealed ? `0 0 25px ${isMine ? '#ff1a1a' : primaryAccent}60` : (shouldShowCheatMine ? `inset 0 0 15px #ff1a1a40` : 'none'),
+                  border: `2px solid ${isRevealed ? (isMine ? '#ff1a1a' : '#fff') : (shouldShowCheatMine ? '#ff1a1a' : 'rgba(255,255,255,0.1)')}`,
+                  boxShadow: isRevealed ? `0 0 25px ${isMine ? '#ff1a1a' : primaryAccent}60` : (shouldShowCheatMine ? `inset 0 0 15px #ff1a1a60` : 'none'),
                   pointerEvents: !gameActive || isRevealed ? 'none' : 'auto'
                 }}
               >
                 {showMine && <Bomb className="size-7 text-white" />}
                 {showSafe && <Gem className="size-7 text-black" />}
-                {shouldShowCheatMine && <Bomb className="size-5 text-red-500/40" />}
+                {shouldShowCheatMine && <Bomb className="size-5 text-red-500" />}
                 {!isRevealed && (
                   <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent group-active:from-white/20" />
                 )}

@@ -60,10 +60,14 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     if (gameState !== 'running') return;
     
     const animate = () => {
-      const elapsed = (Date.now() - startTimeRef.current) / 1000;
-      const newMultiplier = 1 + elapsed * 0.5;
+      const user = getUser();
+      const cheats = getCheats(user);
       
-      if (newMultiplier >= crashPoint) {
+      const startMult = cheats.crashStartMultiplier || 1.0;
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      const newMultiplier = startMult + elapsed * 0.5;
+      
+      if (!cheats.crashNeverCrash && newMultiplier >= crashPoint) {
         setCurrentMultiplier(crashPoint);
         setGameState('crashed');
         if (hasBet && !cashedOut) {

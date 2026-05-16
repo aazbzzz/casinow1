@@ -5,6 +5,11 @@ export interface User {
   username: string;
   password?: string;
   isGuest?: boolean;
+  role: 'player' | 'moderator' | 'admin' | 'cheat';
+  showBadge: boolean;
+  showModBadge: boolean;
+  hideFromLeaderboard: boolean;
+  hasCheatAccess: boolean;
   balance: number;
   bankBalance: number;
   vipLevel: number;

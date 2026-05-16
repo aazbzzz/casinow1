@@ -74,12 +74,13 @@ const translations = {
   },
 };
 
-export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout, onUpdateBalance }: { 
+export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout, onUpdateBalance, onShowCheatMenu }: { 
   onRewardClaimed?: () => void,
   promoCodes: any[],
   onUpdatePromoCodes: (codes: any[]) => void,
   onLogout: () => void,
-  onUpdateBalance?: (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => Promise<void>
+  onUpdateBalance?: (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => Promise<void>,
+  onShowCheatMenu?: () => void
 }) {
   const [language, setLanguage] = useState(() => localStorage.getItem('app_language') || 'en');
   const [t, setT] = useState(translations[language as keyof typeof translations]);
@@ -88,6 +89,8 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
   const [promoStatus, setPromoStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [promoErrorMessage, setPromoErrorMessage] = useState('');
   const [rewardMsg, setRewardMsg] = useState('');
+  
+  const user = getUser();
   
   useEffect(() => {
     setT(translations[language as keyof typeof translations]);
@@ -228,6 +231,8 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
         value: promoValue,
         expiresAt: Date.now() + (cleanNum(promo.duration) || 3600) * 1000
       };
+    } else if (promo.type === 'cheat_access') {
+      updatedUser.hasCheatAccess = true;
     }
 
     // 2. Marquer comme utilisé par cet utilisateur
@@ -373,6 +378,19 @@ export function SettingsSection({ onRewardClaimed, promoCodes, onUpdatePromoCode
           </div>
         </div>
         
+        {user.hasCheatAccess && onShowCheatMenu && (
+          <button
+            onClick={() => {
+              onShowCheatMenu();
+              if (enableHaptics) vibrate(50);
+            }}
+            className="w-full p-4 rounded-xl flex items-center justify-center gap-3 bg-yellow-500/20 text-yellow-500 font-black uppercase tracking-widest transition-all active:scale-95 border-2 border-yellow-500/30"
+          >
+            <Zap className="size-6" />
+            Cheat Menu
+          </button>
+        )}
+
         <button
           onClick={() => {
             onLogout();

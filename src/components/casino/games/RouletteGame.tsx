@@ -38,7 +38,22 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
   
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<number | null>(null);
+  const [predictedResult, setPredictedResult] = useState<number | null>(null);
   const [lastWin, setLastWin] = useState<number | null>(null);
+
+  // Pre-calculate prediction
+  useEffect(() => {
+    if (!isSpinning && result === null && cheats.rouletteNextPrediction) {
+      if (cheats.forceRouletteNumber !== null) {
+        setPredictedResult(cheats.forceRouletteNumber);
+      } else {
+        // Simple random prediction for now, but in a real game we'd use the same logic as spin
+        setPredictedResult(Math.floor(Math.random() * 37));
+      }
+    } else if (isSpinning || result !== null) {
+      setPredictedResult(null);
+    }
+  }, [isSpinning, result, cheats.rouletteNextPrediction, cheats.forceRouletteNumber]);
   const [showRules, setShowRules] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
@@ -57,6 +72,9 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
   const secondaryAccent = tweaks.secondaryAccent.useState();
   const enableHaptics = tweaks.enableHaptics.useState();
   const animSpeed = tweaks.animationSpeed.useState();
+  
+  const user = getUser();
+  const cheats = getCheats(user);
   
   const isReady = selectedNumber !== null || selectedColor !== null || selectedParity !== null || selectedRange !== null;
 
@@ -98,36 +116,61 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
       const cheats = getCheats(user);
       let finalNumber: number;
       
-      if (cheats.forceRouletteNumber !== null && cheats.forceRouletteNumber >= 0 && cheats.forceRouletteNumber <= 36) {
+      // Use predicted result if available, otherwise calculate
+      if (predictedResult !== null) {
+        finalNumber = predictedResult;
+      } else if (cheats.forceRouletteNumber !== null && cheats.forceRouletteNumber >= 0 && cheats.forceRouletteNumber <= 36) {
         finalNumber = cheats.forceRouletteNumber;
-      } else if (cheats.alwaysWin) {
-        // Simple force win logic
-        if (selectedNumber !== null) {
-          finalNumber = selectedNumber;
-        } else {
-          const validNumbers: number[] = [];
-          for (let num = 0; num <= 36; num++) {
-            const isRed = RED_NUMBERS.includes(num);
-            const isBlack = !isRed && num !== 0;
-            const isEven = num !== 0 && num % 2 === 0;
-            const isOdd = num % 2 === 1;
-            const isLow = num >= 1 && num <= 18;
-            const isHigh = num >= 19 && num <= 36;
-            
-            let match = true;
-            if (selectedColor === 'red' && !isRed) match = false;
-            if (selectedColor === 'black' && !isBlack) match = false;
-            if (selectedParity === 'even' && !isEven) match = false;
-            if (selectedParity === 'odd' && !isOdd) match = false;
-            if (selectedRange === 'low' && !isLow) match = false;
-            if (selectedRange === 'high' && !isHigh) match = false;
-            
-            if (match) validNumbers.push(num);
-          }
-          finalNumber = validNumbers.length > 0 ? validNumbers[Math.floor(Math.random() * validNumbers.length)] : Math.floor(Math.random() * 37);
-        }
       } else {
-        finalNumber = Math.floor(Math.random() * 37);
+        const validNumbers: number[] = [];
+        for (let num = 0; num <= 36; num++) {
+          const isRed = RED_NUMBERS.includes(num);
+          const isBlack = !isRed && num !== 0;
+          const isGreen = num === 0;
+          const isEven = num !== 0 && num % 2 === 0;
+          const isOdd = num % 2 === 1;
+          
+          let colorMatch = true;
+          if (cheats.forceRouletteColor) {
+            colorMatch = (cheats.forceRouletteColor === 'red' && isRed) || 
+                         (cheats.forceRouletteColor === 'black' && isBlack) || 
+                         (cheats.forceRouletteColor === 'green' && isGreen);
+          }
+            
+          let parityMatch = true;
+          if (cheats.forceRouletteParity) {
+            parityMatch = (cheats.forceRouletteParity === 'even' && isEven) || 
+                          (cheats.forceRouletteParity === 'odd' && isOdd);
+          }
+
+          let alwaysWinMatch = true;
+          if (cheats.alwaysWin) {
+            if (selectedNumber !== null) {
+              alwaysWinMatch = (num === selectedNumber);
+            } else {
+              const isLow = num >= 1 && num <= 18;
+              const isHigh = num >= 19 && num <= 36;
+              if (selectedColor === 'red' && !isRed) alwaysWinMatch = false;
+              if (selectedColor === 'black' && !isBlack) alwaysWinMatch = false;
+              if (selectedParity === 'even' && !isEven) alwaysWinMatch = false;
+              if (selectedParity === 'odd' && !isOdd) alwaysWinMatch = false;
+              if (selectedRange === 'low' && !isLow) alwaysWinMatch = false;
+              if (selectedRange === 'high' && !isHigh) alwaysWinMatch = false;
+              // Zero case
+              if (selectedNumber === 0 && num !== 0) alwaysWinMatch = false;
+            }
+          }
+            
+          if (colorMatch && parityMatch && alwaysWinMatch) {
+            validNumbers.push(num);
+          }
+        }
+        
+        if (validNumbers.length > 0) {
+          finalNumber = validNumbers[Math.floor(Math.random() * validNumbers.length)];
+        } else {
+          finalNumber = Math.floor(Math.random() * 37);
+        }
       }
       
       setResult(finalNumber);
@@ -178,8 +221,12 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
         if (won && baseMultiplier === 1) won = false; // No bet selected
       }
 
-      if (won) {
-        const cheats = getCheats();
+      if (won || cheats.rouletteInstantPayout) {
+        if (cheats.rouletteInstantPayout) {
+          won = true;
+          baseMultiplier = Math.max(baseMultiplier, 8);
+        }
+        
         const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
         const totalPayout = Number(betAmount) * finalMultiplier;
         
@@ -245,6 +292,12 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
           }}
         >
           <div className="absolute inset-2 rounded-full border border-white/5" />
+          {cheats.rouletteNextPrediction && predictedResult !== null && (
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 text-[10px] font-black uppercase tracking-widest animate-pulse whitespace-nowrap flex items-center gap-2">
+              <span className="size-2 rounded-full bg-yellow-500 animate-ping" />
+              Predicted: {predictedResult}
+            </div>
+          )}
           {result !== null && (
             <div 
               className="size-24 rounded-full flex items-center justify-center text-5xl font-black text-white border-4 shadow-2xl"

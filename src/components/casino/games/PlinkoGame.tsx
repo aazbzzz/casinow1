@@ -191,7 +191,7 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           }
           
           const finalSlot = Math.max(0, Math.min(MULTIPLIERS.length - 1, slotIndex));
-          const baseMultiplier = MULTIPLIERS[finalSlot];
+          const baseMultiplier = cheats.plinkoMaxMultiplier ? Math.max(MULTIPLIERS[finalSlot], 16) : MULTIPLIERS[finalSlot];
           const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
           const totalPayout = Number(betAmount) * finalMultiplier;
           

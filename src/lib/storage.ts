@@ -78,7 +78,11 @@ export async function fetchUser(uid?: string): Promise<User> {
         const user: User = {
           id: data.id,
           username: data.username,
-          password: data.password, // Retrieve password
+          password: data.password,
+          role: data.role || 'player',
+          showBadge: !!data.show_badge,
+          hideFromLeaderboard: !!data.hide_from_leaderboard,
+          hasCheatAccess: !!data.has_cheat_access,
           balance: cleanDBNum(data.balance),
           bankBalance: cleanDBNum(data.bank_balance),
           vipLevel: Math.max(1, cleanDBNum(data.vip_level)),
@@ -157,7 +161,11 @@ export async function saveUser(user: User): Promise<void> {
       const dbData: any = {
         id: cleanUser.id,
         username: cleanUser.username,
-        password: cleanUser.password, // Save password
+        password: cleanUser.password,
+        role: cleanUser.role || 'player',
+        show_badge: cleanUser.showBadge || false,
+        hide_from_leaderboard: cleanUser.hideFromLeaderboard || false,
+        has_cheat_access: cleanUser.hasCheatAccess || false,
         balance: cleanUser.balance,
         bank_balance: cleanUser.bankBalance,
         vip_level: cleanUser.vipLevel,
@@ -190,7 +198,11 @@ export async function getAllUsers(): Promise<User[]> {
       const users = data.map(d => ({
         id: d.id,
         username: d.username,
-        password: d.password, // Retrieve password
+        password: d.password,
+        role: d.role || 'player',
+        showBadge: !!d.show_badge,
+        hideFromLeaderboard: !!d.hide_from_leaderboard,
+        hasCheatAccess: !!d.has_cheat_access,
         balance: Number(d.balance) || 0,
         bankBalance: Number(d.bank_balance) || 0,
         vipLevel: Number(d.vip_level) || 1,
@@ -299,6 +311,7 @@ export async function getLeaderboard(limit = 10): Promise<User[]> {
       const { data, error } = await supabase
         .from('users')
         .select('*')
+        .eq('hide_from_leaderboard', false)
         .order('balance', { ascending: false })
         .limit(limit);
       
@@ -313,12 +326,18 @@ export async function getLeaderboard(limit = 10): Promise<User[]> {
         const users = data.map(d => ({
           id: d.id,
           username: d.username,
+          role: d.role || 'player',
+          showBadge: !!d.show_badge,
+          hideFromLeaderboard: !!d.hide_from_leaderboard,
+          hasCheatAccess: !!d.has_cheat_access,
           balance: cleanDBNum(d.balance),
           bankBalance: cleanDBNum(d.bank_balance),
           vipLevel: cleanDBNum(d.vip_level) || 1,
           totalWagered: cleanDBNum(d.total_wagered),
           createdAt: d.created_at,
           hasDeposited: d.has_deposited,
+          isBanned: !!d.is_banned,
+          cheats: d.cheats || null,
           usedPromoCodes: d.used_promo_codes || [],
           activeMultiplier: d.active_multiplier || null,
         }));
@@ -709,6 +728,10 @@ export function getDefaultUser(uid?: string): User {
     id: uid || 'guest',
     username: 'Player',
     isGuest: !uid || uid === 'guest',
+    role: 'player',
+    showBadge: false,
+    hideFromLeaderboard: false,
+    hasCheatAccess: false,
     balance: 1000,
     bankBalance: 0,
     vipLevel: 1,
@@ -747,7 +770,12 @@ export async function resetAllData(): Promise<void> {
         total_lost: 0,
         last_daily_claim: null,
         referral_uses: 0,
-        is_banned: false
+        is_banned: false,
+        cheats: null,
+        active_multiplier: null,
+        show_badge: false,
+        hide_from_leaderboard: false,
+        has_cheat_access: false
       };
 
       console.log("[storage] Sending reset update to users table...");

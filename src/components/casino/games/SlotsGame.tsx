@@ -88,6 +88,8 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
         
         if (cheats.forceSlotsSymbol && SYMBOLS.includes(cheats.forceSlotsSymbol)) {
           finalReels = [cheats.forceSlotsSymbol, cheats.forceSlotsSymbol, cheats.forceSlotsSymbol];
+        } else if (cheats.slotsAlwaysJackpot) {
+          finalReels = ['⭐', '⭐', '⭐'];
         } else if (cheats.alwaysWin) {
           const winSymbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
           finalReels = [winSymbol, winSymbol, winSymbol];

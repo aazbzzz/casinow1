@@ -27,7 +27,6 @@ export interface CheatSettings {
   
   // Coinflip Cheats
   forceCoinflipSide: 'heads' | 'tails' | null;
-  coinflipAlwaysDouble: boolean;
   
   // Dice Cheats
   forceDiceResult: number | null;
@@ -43,12 +42,11 @@ export interface CheatSettings {
   // Crash Cheats
   forceCrashMultiplier: number | null;
   crashNeverCrash: boolean;
-  crashInstantCashout: boolean;
   crashMaxMultiplier: boolean;
+  crashStartMultiplier: number | null;
   
   // Plinko Cheats
   forcePlinkoWin: boolean;
-  plinkoAlwaysCenter: boolean;
   plinkoMaxMultiplier: boolean;
 }
 
@@ -79,7 +77,6 @@ const DEFAULT_CHEATS: CheatSettings = {
   
   // Coinflip
   forceCoinflipSide: null,
-  coinflipAlwaysDouble: false,
   
   // Dice
   forceDiceResult: null,
@@ -95,12 +92,11 @@ const DEFAULT_CHEATS: CheatSettings = {
   // Crash
   forceCrashMultiplier: null,
   crashNeverCrash: false,
-  crashInstantCashout: false,
   crashMaxMultiplier: false,
+  crashStartMultiplier: null,
   
   // Plinko
   forcePlinkoWin: false,
-  plinkoAlwaysCenter: false,
   plinkoMaxMultiplier: false,
 };
 

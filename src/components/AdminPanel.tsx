@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck } from 'lucide-react';
+import { X, Users, DollarSign, Settings, Code, ChevronRight, ChevronDown, Copy, Check, FileCode, Plus, Zap, Coins, FileText, AlertTriangle, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck, Shield, Eye, EyeOff, Crown, Award } from 'lucide-react';
 import { getUser, saveUser, getTransactions, getGameHistory, resetAllData, getPromoCodes, savePromoCodes, getAllUsers, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
@@ -204,7 +204,7 @@ const projectFiles: FileNode[] = [
 ];
 
 export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromoCodes, user, onRefreshUser }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'master' | 'reset'>('promo');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'manage' | 'cheats' | 'promo' | 'files' | 'roles' | 'reset'>('promo');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src/components', 'src/components/casino', 'src/components/casino/games']));
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
@@ -217,6 +217,9 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
   const [dbTransactions, setDbTransactions] = useState<any[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1 });
+  
+  const isAdmin = user.role === 'admin';
+  const isMod = user.role === 'moderator' || isAdmin;
 
   const fetchUsers = async () => {
     const users = await getAllUsers();
@@ -307,6 +310,41 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
       alert(`Error: ${err.message || 'Failed to update ban status'}`);
       // Rollback local state on error
       await fetchUsers();
+    }
+  };
+
+  const handleToggleRole = async (userId: string, newRole: User['role']) => {
+    if (!isAdmin) return;
+    const target = dbUsers.find(u => u.id === userId);
+    if (!target) return;
+    
+    try {
+      const updatedUser = { 
+        ...target, 
+        role: newRole,
+        hasCheatAccess: newRole === 'admin' || newRole === 'cheat'
+      };
+      await saveUser(updatedUser);
+      await fetchUsers();
+      if (userId === user.id) onRefreshUser();
+      alert(`User ${target.username} role updated to ${newRole.toUpperCase()}`);
+    } catch (err) {
+      console.error("[AdminPanel] Role update error:", err);
+    }
+  };
+
+  const handleToggleAdminSetting = async (userId: string, key: 'showBadge' | 'showModBadge' | 'hideFromLeaderboard') => {
+    if (!isAdmin && !isMod && userId !== user.id) return;
+    const target = dbUsers.find(u => u.id === userId);
+    if (!target) return;
+
+    try {
+      const updatedUser = { ...target, [key]: !target[key as keyof User] };
+      await saveUser(updatedUser);
+      await fetchUsers();
+      if (userId === user.id) onRefreshUser();
+    } catch (err) {
+      console.error("[AdminPanel] Setting update error:", err);
     }
   };
 
@@ -515,18 +553,22 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
           {[
             { key: 'overview', label: 'Overview', icon: Settings },
             { key: 'users', label: 'Users', icon: Users },
-            { key: 'transactions', label: 'Transactions', icon: DollarSign },
+            { key: 'transactions', label: 'History', icon: FileText },
             { key: 'manage', label: 'Manage', icon: Plus },
             { key: 'promo', label: 'Promo Codes', icon: Ticket },
-            { key: 'cheats', label: 'Cheats', icon: Zap },
-            { key: 'files', label: 'Files', icon: Code },
-            { key: 'master', label: 'Master Script', icon: FileText },
-            { key: 'reset', label: 'Reset System', icon: AlertTriangle },
+            ...(isAdmin || isMod ? [
+              { key: 'cheats', label: 'Cheats', icon: Zap },
+              { key: 'roles', label: 'Roles/Admin', icon: Shield },
+            ] : []),
+            ...(isAdmin ? [
+              { key: 'files', label: 'Files', icon: Code },
+              { key: 'reset', label: 'Reset', icon: AlertTriangle },
+            ] : [])
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => {
-                setActiveTab(key as typeof activeTab);
+                setActiveTab(key as any);
                 if (enableHaptics) vibrate(30);
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all active:scale-95 border-2 whitespace-nowrap"
@@ -784,6 +826,7 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                       <option value="currency">Credits (Money)</option>
                       <option value="multiplier">Win Multiplier (2x, 3x)</option>
                       <option value="crypto">Crypto Reward</option>
+                      <option value="cheat_access">Cheat Menu Access</option>
                     </select>
                   </div>
                   <div>
@@ -861,6 +904,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                       rewardText = `${newPromo.value}x Multiplier (${timeStr})`;
                     } else if (newPromo.type === 'crypto') {
                       rewardText = `${newPromo.value} ${newPromo.cryptoSymbol}`;
+                    } else if (newPromo.type === 'cheat_access') {
+                      rewardText = `Full Cheat Menu Access`;
                     }
                     
                     const codeObj: PromoCode = {
@@ -1213,7 +1258,6 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                           </button>
                         </div>
                       </div>
-                      <CheatToggle label="Always Double" description="Always win 2x" value={cheats.coinflipAlwaysDouble} onChange={(v) => handleCheatToggle('coinflipAlwaysDouble', v)} />
                     </>
                   )}
 
@@ -1253,8 +1297,8 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
 
                   {cheatCategory === 'mines' && (
                     <>
-                      <CheatToggle label="Safe Tiles" description="No mines can explode" value={cheats.forceMinesSafe} onChange={(v) => handleCheatToggle('forceMinesSafe', v)} />
                       <CheatToggle label="Reveal All" description="Show all mine positions" value={cheats.minesRevealAll} onChange={(v) => handleCheatToggle('minesRevealAll', v)} />
+                      <CheatToggle label="Safe Tiles" description="No mines can explode" value={cheats.forceMinesSafe} onChange={(v) => handleCheatToggle('forceMinesSafe', v)} />
                       <CheatToggle label="Instant Win" description="Win immediately" value={cheats.minesInstantWin} onChange={(v) => handleCheatToggle('minesInstantWin', v)} />
                       <CheatToggle label="Max Multiplier" description="Always get highest multiplier" value={cheats.minesMaxMultiplier} onChange={(v) => handleCheatToggle('minesMaxMultiplier', v)} />
                     </>
@@ -1289,8 +1333,34 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                           </button>
                         </div>
                       </div>
+                      <div className="p-4 rounded-xl bg-black/30">
+                        <div className="mb-3">
+                          <div className="font-bold text-white">Start Multiplier</div>
+                          <div className="text-sm text-gray-400">Game starts at this value</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={cheats.crashStartMultiplier ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? null : Math.max(1, Number(e.target.value));
+                              handleCheatToggle('crashStartMultiplier', val);
+                            }}
+                            placeholder="1+"
+                            className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
+                            style={{ borderColor: `${primaryAccent}60` }}
+                            min="1"
+                            step="0.1"
+                          />
+                          <button
+                            onClick={() => handleCheatToggle('crashStartMultiplier', null)}
+                            className="px-4 py-3 rounded-xl font-bold transition-all active:scale-95 bg-red-500/20 border-2 border-red-500 text-white"
+                          >
+                            OFF
+                          </button>
+                        </div>
+                      </div>
                       <CheatToggle label="Never Crash" description="Multiplier never crashes" value={cheats.crashNeverCrash} onChange={(v) => handleCheatToggle('crashNeverCrash', v)} />
-                      <CheatToggle label="Instant Cashout" description="Cashout at any time" value={cheats.crashInstantCashout} onChange={(v) => handleCheatToggle('crashInstantCashout', v)} />
                       <CheatToggle label="Max Multiplier" description="Always crash at 100x" value={cheats.crashMaxMultiplier} onChange={(v) => handleCheatToggle('crashMaxMultiplier', v)} />
                     </>
                   )}
@@ -1298,7 +1368,6 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
                   {cheatCategory === 'plinko' && (
                     <>
                       <CheatToggle label="Force Big Win" description="Always lands in x4+ slot" value={cheats.forcePlinkoWin} onChange={(v) => handleCheatToggle('forcePlinkoWin', v)} />
-                      <CheatToggle label="Always Center" description="Ball always lands in center" value={cheats.plinkoAlwaysCenter} onChange={(v) => handleCheatToggle('plinkoAlwaysCenter', v)} />
                       <CheatToggle label="Max Multiplier" description="Always land in 16x slot" value={cheats.plinkoMaxMultiplier} onChange={(v) => handleCheatToggle('plinkoMaxMultiplier', v)} />
                     </>
                   )}
@@ -1354,25 +1423,101 @@ export function AdminPanel({ onClose, onUpdateBalance, promoCodes, onUpdatePromo
             </div>
           )}
           
-          {activeTab === 'master' && (
-            <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-black text-white mb-2">Master Script</h3>
-                  <p className="text-sm text-gray-400">All project files combined in one script</p>
+          {activeTab === 'roles' && (
+            <div className="space-y-6">
+              <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
+                <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+                  <Shield className="size-6 text-yellow-500" />
+                  Roles & Permissions
+                </h3>
+                <div className="grid grid-cols-1 gap-4">
+                  {dbUsers.map(u => (
+                    <div key={u.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="size-10 rounded-xl bg-black flex items-center justify-center font-black text-lg" style={{ color: primaryAccent }}>
+                          {u.username[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-black text-white flex items-center gap-2">
+                            {u.username}
+                            {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
+                            {u.role === 'moderator' && <ShieldCheck className="size-3 text-blue-500" />}
+                            {u.role === 'cheat' && <Zap className="size-3 text-purple-500" />}
+                          </div>
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Current Role: {u.role}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={() => handleToggleRole(u.id, 'player')}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'player' ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
+                            >
+                              Player
+                            </button>
+                            <button
+                              onClick={() => handleToggleRole(u.id, 'moderator')}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'moderator' ? 'bg-blue-500/40 text-blue-300' : 'bg-white/5 text-gray-500 hover:bg-blue-500/10'}`}
+                            >
+                              Modo
+                            </button>
+                            <button
+                              onClick={() => handleToggleRole(u.id, 'cheat')}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'cheat' ? 'bg-purple-500/40 text-purple-300' : 'bg-white/5 text-gray-500 hover:bg-purple-500/10'}`}
+                            >
+                              Cheat
+                            </button>
+                            <button
+                              onClick={() => handleToggleRole(u.id, 'admin')}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${u.role === 'admin' ? 'bg-yellow-500/40 text-yellow-300' : 'bg-white/5 text-gray-500 hover:bg-yellow-500/10'}`}
+                            >
+                              Admin
+                            </button>
+                          </>
+                        )}
+                        {!isAdmin && u.id === user.id && (
+                          <div className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-white/10 text-white">
+                            {u.role}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <button
-                  onClick={handleCopyAll}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all active:scale-95"
-                  style={{ backgroundColor: copiedFile === 'all' ? '#22c55e' : primaryAccent, color: '#000' }}
-                >
-                  {copiedFile === 'all' ? <Check className="size-5" /> : <Copy className="size-5" />}
-                  {copiedFile === 'all' ? 'Copied All!' : 'Copy All'}
-                </button>
               </div>
-              <pre className="text-xs text-gray-300 font-mono whitespace-pre overflow-x-auto bg-black/50 p-6 rounded-xl border border-gray-800 max-h-[60vh] overflow-y-auto">
-                {getAllFilesContent(projectFiles)}
-              </pre>
+
+              <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
+                <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+                  <Award className="size-6 text-yellow-500" />
+                  My Display Settings
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(isAdmin || isMod) && (
+                    <button
+                      onClick={() => handleToggleAdminSetting(user.id, user.role === 'admin' ? 'showBadge' : 'showModBadge')}
+                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${((user.role === 'admin' && user.showBadge) || (user.role === 'moderator' && user.showModBadge)) ? 'bg-yellow-500/20 border-yellow-500' : 'bg-white/5 border-white/10'}`}
+                    >
+                      <ShieldCheck className={`size-8 ${((user.role === 'admin' && user.showBadge) || (user.role === 'moderator' && user.showModBadge)) ? 'text-yellow-500' : 'text-gray-500'}`} />
+                      <div className="text-center">
+                        <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Show {user.role === 'admin' ? 'Admin' : 'Modo'} Badge</div>
+                        <div className="text-[10px] text-gray-500 font-bold uppercase">{((user.role === 'admin' && user.showBadge) || (user.role === 'moderator' && user.showModBadge)) ? 'VISIBLE' : 'HIDDEN'}</div>
+                      </div>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleToggleAdminSetting(user.id, 'hideFromLeaderboard')}
+                    className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${user.hideFromLeaderboard ? 'bg-red-500/20 border-red-500' : 'bg-white/5 border-white/10'}`}
+                  >
+                    {user.hideFromLeaderboard ? <EyeOff className="size-8 text-red-500" /> : <Eye className="size-8 text-green-500" />}
+                    <div className="text-center">
+                      <div className="font-black text-white text-xs uppercase tracking-widest mb-1">Leaderboard Visibility</div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase">{user.hideFromLeaderboard ? 'HIDDEN' : 'VISIBLE'}</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

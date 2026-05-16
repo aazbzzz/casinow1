@@ -1,5 +1,5 @@
 import { User } from '@/types';
-import { Coins, Crown, ShieldAlert } from 'lucide-react';
+import { Coins, Crown, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
@@ -8,42 +8,57 @@ const tweaks = aippyTweaks(tweaksConfig as any);
 interface TopBarProps {
   user: User;
   onAdminClick?: () => void;
+  onDirectAdmin?: () => void;
 }
 
-export function TopBar({ user, onAdminClick }: TopBarProps) {
+export function TopBar({ user, onAdminClick, onDirectAdmin }: TopBarProps) {
   const primaryAccent = tweaks.primaryAccent.useState();
   
   return (
     <div className="h-20 flex items-center justify-between px-6 z-50 relative">
       <div className="flex items-center gap-4">
-        <div className="relative group cursor-pointer" onClick={onAdminClick}>
-          {/* Outer Ring Glow */}
-          <div 
-            className="absolute -inset-1 rounded-full blur-sm opacity-50 group-hover:opacity-100 transition-opacity"
-            style={{ backgroundColor: primaryAccent }}
-          />
-          {/* Avatar Container */}
-          <div className="size-12 rounded-full bg-black border-2 border-white/20 relative z-10 overflow-hidden flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="relative group cursor-pointer" onClick={onAdminClick}>
+            {/* Outer Ring Glow */}
             <div 
-              className="absolute inset-0 opacity-40"
+              className="absolute -inset-1 rounded-full blur-sm opacity-50 group-hover:opacity-100 transition-opacity"
               style={{ backgroundColor: primaryAccent }}
             />
-            <span className="text-xl font-black text-white relative z-20 italic">
-              {user.username[0].toUpperCase()}
-            </span>
-          </div>
-          {/* VIP Badge Mini */}
-          <div 
-            className="absolute -bottom-1 -right-1 size-5 rounded-full border border-black flex items-center justify-center z-20 shadow-lg"
-            style={{ backgroundColor: primaryAccent }}
-          >
-            <Crown className="size-3 text-black" fill="currentColor" />
-          </div>
-          {/* Admin Indicator (Optional, but makes it clickable as requested) */}
-          {onAdminClick && (
-            <div className="absolute -top-1 -right-1 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-               <ShieldAlert className="size-4 text-white" />
+            {/* Avatar Container */}
+            <div className="size-12 rounded-full bg-black border-2 border-white/20 relative z-10 overflow-hidden flex items-center justify-center">
+              <div 
+                className="absolute inset-0 opacity-40"
+                style={{ backgroundColor: primaryAccent }}
+              />
+              <span className="text-xl font-black text-white relative z-20 italic">
+                {user.username[0].toUpperCase()}
+              </span>
             </div>
+            {/* Role Badge Mini */}
+            {((user.role === 'admin' && user.showBadge) || 
+               (user.role === 'moderator' && user.showModBadge) || 
+               user.role === 'cheat') && (
+              <div 
+                className="absolute -bottom-1 -right-1 size-5 rounded-full border border-black flex items-center justify-center z-20 shadow-lg"
+                style={{ 
+                  backgroundColor: user.role === 'admin' ? primaryAccent : 
+                                   user.role === 'moderator' ? '#3b82f6' : '#a855f7' 
+                }}
+              >
+                {user.role === 'admin' && <Crown className="size-3 text-black" fill="currentColor" />}
+                {user.role === 'moderator' && <ShieldCheck className="size-3 text-white" />}
+                {user.role === 'cheat' && <Zap className="size-3 text-white" fill="currentColor" />}
+              </div>
+            )}
+          </div>
+
+          {(user.role === 'admin' || user.role === 'moderator') && onDirectAdmin && (
+            <button
+              onClick={onDirectAdmin}
+              className="size-10 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center transition-all active:scale-90 animate-in fade-in slide-in-from-left-2"
+            >
+              <ShieldAlert className="size-5 text-yellow-500" />
+            </button>
           )}
         </div>
         

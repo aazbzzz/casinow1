@@ -166,7 +166,9 @@ export function useGameState() {
     }
 
     const currentVIP = VIP_LEVELS.find(l => l.level === user.vipLevel) || VIP_LEVELS[0];
-    if (numericAmount > currentVIP.maxBet) {
+    const cheats = getCheats(user);
+
+    if (!cheats.maxBetOverride && numericAmount > currentVIP.maxBet) {
       // Dispatch custom event instead of alert
       window.dispatchEvent(new CustomEvent('casino_game_error', { 
         detail: { message: "Vous n’avez pas le VIP requis pour miser cette somme." } 
@@ -174,7 +176,6 @@ export function useGameState() {
       return false;
     }
 
-    const cheats = getCheats();
     const currentBalance = cleanAmount(user.balance);
     
     if (!cheats.infiniteBalance && currentBalance < numericAmount) {
@@ -258,8 +259,10 @@ export function useGameState() {
       });
     }
     
-    const cheats = getCheats();
-    const safeFinalAmount = Math.max(0, calculatedPayout);
+    const cheats = getCheats(user);
+    if (cheats.doubleWinnings) calculatedPayout *= 2;
+    if (cheats.tripleWinnings) calculatedPayout *= 3;
+    const safeFinalAmount = cheats.freezeBalance ? 0 : Math.max(0, calculatedPayout);
     
     console.log('WIN CALCULATION EXECUTION', { 
       game,

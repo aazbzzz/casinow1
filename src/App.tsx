@@ -102,8 +102,9 @@ function App() {
     refreshUser();
   };
 
-  const [showAdminCode, setShowAdminCode] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showCheatMenu, setShowCheatMenu] = useState(false);
+  const [showAdminCode, setShowAdminCode] = useState(false);
   const [adminInput, setAdminInput] = useState('');
   const [clickCount, setClickCount] = useState(0);
   const [multiplierTimeLeft, setMultiplierTimeLeft] = useState<number | null>(null);
@@ -212,6 +213,13 @@ function App() {
     }
   };
 
+  const launchAdminDirect = () => {
+    if (user.role === 'admin' || user.role === 'moderator') {
+      setShowAdminPanel(true);
+      if (enableHaptics) vibrate(100);
+    }
+  };
+
   const handleSecretClick = () => {
     setClickCount(prev => prev + 1);
     if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
@@ -235,7 +243,7 @@ function App() {
 
   return (
     <div className="h-screen w-screen bg-[#050505] text-white overflow-hidden font-sans select-none flex flex-col relative">
-      <TopBar user={user} onAdminClick={handleSecretClick} />
+      <TopBar user={user} onAdminClick={handleSecretClick} onDirectAdmin={launchAdminDirect} />
       
       {/* Active Multiplier Global Popup */}
       {multiplierTimeLeft !== null && user.activeMultiplier && (
@@ -315,7 +323,12 @@ function App() {
                         {idx + 1}
                       </div>
                       <div>
-                        <div className="font-black text-white uppercase tracking-tight">{entry.username || 'Anonyme'}</div>
+                        <div className="font-black text-white uppercase tracking-tight flex items-center gap-2">
+                          {entry.username || 'Anonyme'}
+                          {entry.role === 'admin' && entry.showBadge && <Crown className="size-3 text-yellow-500" fill="currentColor" />}
+                          {entry.role === 'moderator' && entry.showModBadge && <ShieldCheck className="size-3 text-blue-500" fill="currentColor" />}
+                          {entry.role === 'cheat' && <Zap className="size-3 text-purple-500" fill="currentColor" />}
+                        </div>
                         <div className="text-[10px] text-gray-500 font-bold uppercase">Rank {idx + 1}</div>
                       </div>
                     </div>
@@ -335,6 +348,7 @@ function App() {
               onUpdatePromoCodes={handleUpdatePromoCodes}
               onLogout={handleLogout}
               onUpdateBalance={updateBalance}
+              onShowCheatMenu={() => setShowCheatMenu(true)}
             />
           )}
         </div>
@@ -441,6 +455,18 @@ function App() {
           onUpdateBalance={updateBalance}
           user={user}
           onRefreshUser={refreshUser}
+        />
+      )}
+
+      {/* Cheat-only Panel for Promo Code Users */}
+      {showCheatMenu && user.hasCheatAccess && !showAdminPanel && (
+        <AdminPanel 
+          onClose={() => setShowCheatMenu(false)} 
+          promoCodes={[]}
+          onUpdatePromoCodes={() => {}}
+          user={user}
+          onRefreshUser={refreshUser}
+          cheatOnlyMode={true}
         />
       )}
 

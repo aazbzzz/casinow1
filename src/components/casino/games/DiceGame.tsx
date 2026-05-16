@@ -88,8 +88,9 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
       
       const won = mode === 'over' ? roll > target : roll < target;
       
-      if (won) {
-        const finalMultiplier = Number(cheats.customMultiplier) > 1 ? multiplier * Number(cheats.customMultiplier) : multiplier;
+      if (won || cheats.diceAlwaysWin) {
+        const baseMultiplier = cheats.diceMaxMultiplier ? 1000 : multiplier;
+        const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
         const totalPayout = Number(betAmount) * finalMultiplier;
         
         console.log({ 
