@@ -834,6 +834,7 @@ interface AdminPanelProps {
                       <CheatToggle label="Freeze Balance" description="Balance stays constant" value={cheats.freezeBalance} onChange={(v) => handleCheatToggle('freezeBalance', v)} /> 
                       <CheatToggle label="Double Winnings" description="All wins are doubled" value={cheats.doubleWinnings} onChange={(v) => handleCheatToggle('doubleWinnings', v)} /> 
                       <CheatToggle label="Triple Winnings" description="All wins are tripled" value={cheats.tripleWinnings} onChange={(v) => handleCheatToggle('tripleWinnings', v)} /> 
+                      <CheatToggle label="Bypass Max Bet" description="Ignore VIP betting limits" value={cheats.maxBetOverride} onChange={(v) => handleCheatToggle('maxBetOverride', v)} /> 
                       <div className="opacity-50 pointer-events-none relative">
                         <CheatToggle label="Instant Win" description="Win immediately on bet" value={cheats.instantWin} onChange={(v) => handleCheatToggle('instantWin', v)} /> 
                         <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">

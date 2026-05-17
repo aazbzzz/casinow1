@@ -106,7 +106,7 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
       </div>
       
       <div 
-        className="flex items-center gap-3 px-5 py-2.5 rounded-2xl border-2 relative group overflow-hidden"
+        className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-2.5 rounded-2xl border-2 relative group overflow-hidden whitespace-nowrap min-w-fit shrink-0"
         style={{ 
           backgroundColor: '#000',
           borderColor: `${primaryAccent}40`,
@@ -118,14 +118,14 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
           style={{ backgroundColor: primaryAccent }}
         />
         <div 
-          className="size-7 rounded-lg flex items-center justify-center shadow-lg"
+          className="size-6 sm:size-7 rounded-lg flex items-center justify-center shadow-lg shrink-0"
           style={{ backgroundColor: primaryAccent }}
         >
-          <Coins className="size-4 text-black" />
+          <Coins className="size-3.5 sm:size-4 text-black" />
         </div>
-        <div className="flex flex-col items-end">
-          <span className="text-xs font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Credits</span>
-          <span className="text-xl font-black text-white italic tracking-tighter leading-none">
+        <div className="flex flex-col items-end whitespace-nowrap">
+          <span className="text-[8px] sm:text-xs font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Credits</span>
+          <span className="text-base sm:text-xl font-black text-white italic tracking-tighter leading-none whitespace-nowrap">
             {Math.ceil(safeBalance).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
           </span>
         </div>

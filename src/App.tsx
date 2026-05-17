@@ -446,9 +446,11 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-black text-lg italic" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>{Math.ceil(entry.balance).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</div>
-                      <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Credits</div>
+                    <div className="text-right whitespace-nowrap min-w-fit shrink-0">
+                      <div className="font-black text-sm sm:text-lg italic whitespace-nowrap" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>
+                        {Math.ceil(entry.balance).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
+                      </div>
+                      <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest whitespace-nowrap">Credits</div>
                     </div>
                   </div>
                 ))}
