@@ -24,13 +24,15 @@ export function VIPSection() {
   const progressValue = getVIPProgress(safeTotalWagered, currentVIP.level);
   const safeProgress = isNaN(progressValue) ? 0 : Math.min(100, Math.max(0, progressValue));
 
-  const formatAmount = (amount: number) => {
+  const formatAmount = (amount: number, exact = false) => {
     const val = Math.ceil(Number(amount) || 0);
-    // Format compact pour les gros nombres
-    if (val >= 1000000000) return (val / 1000000000).toFixed(1) + 'B';
-    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
-    if (val >= 10000) return (val / 1000).toFixed(1) + 'K';
-    // Format avec séparateur de milliers (espace) pour le reste
+    if (!exact) {
+      // Format compact pour les gros nombres
+      if (val >= 1000000000) return (val / 1000000000).toFixed(1) + 'B';
+      if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+      if (val >= 10000) return (val / 1000).toFixed(1) + 'K';
+    }
+    // Format avec séparateur de milliers (espace) pour le reste ou si exact demandé
     return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   };
 
@@ -72,7 +74,7 @@ export function VIPSection() {
           <div className="space-y-6">
             <div>
               <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest mb-3">
-                <span className="text-gray-400">Progression : <span className="text-white">{formatAmount(safeTotalWagered)}</span> / <span className="text-white/60">{nextVIP ? formatAmount(nextVIP.wagerRequired) : 'MAX'}</span></span>
+                <span className="text-gray-400">Progression : <span className="text-white">{formatAmount(safeTotalWagered, true)}</span> / <span className="text-white/60">{nextVIP ? formatAmount(nextVIP.wagerRequired, true) : 'MAX'}</span></span>
                 <span style={{ color: primaryAccent }}>{safeProgress.toFixed(1)}%</span>
               </div>
               <div className="h-5 rounded-full bg-black/60 border border-white/10 overflow-hidden p-1 shadow-inner">
@@ -90,7 +92,7 @@ export function VIPSection() {
                   <TrendingUp className="size-3" /> Objectif Suivant
                 </div>
                 <div className="text-2xl font-black text-white italic tracking-tighter">
-                  {formatAmount(nextVIP.wagerRequired - safeTotalWagered)} <span className="text-[10px] opacity-40 uppercase not-italic font-medium ml-3 tracking-[0.2em]">requis pour VIP {nextVIP.level}</span>
+                  {formatAmount(nextVIP.wagerRequired - safeTotalWagered, true)} <span className="text-[10px] opacity-40 uppercase not-italic font-medium ml-3 tracking-[0.2em]">requis pour VIP {nextVIP.level}</span>
                 </div>
               </div>
             )}

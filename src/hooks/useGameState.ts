@@ -359,6 +359,8 @@ export function useGameState() {
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
         // Event global pour forcer les composants VIP à se rafraîchir si nécessaire
         window.dispatchEvent(new CustomEvent('user_updated_global', { detail: finalUser }));
+        // Event spécifique pour le solde et les mises
+        window.dispatchEvent(new CustomEvent('casino_balance_update'));
       });
 
       return updatedUser;
