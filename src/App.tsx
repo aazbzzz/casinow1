@@ -164,7 +164,7 @@ function App() {
           if (Date.now() > (user.cheatExpiresAt || 0)) {
             // IMPORTANT: On récupère la version la plus fraîche avant de sauvegarder
             const freshUser = await fetchUser(user.id);
-            if (freshUser.hasCheatAccess && freshUser.cheatExpiresAt && Date.now() > freshUser.cheatExpiresAt) {
+            if (freshUser && freshUser.hasCheatAccess && freshUser.cheatExpiresAt && Date.now() > freshUser.cheatExpiresAt) {
               const updatedUser: any = { 
                 ...freshUser, 
                 hasCheatAccess: false, 

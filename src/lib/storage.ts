@@ -875,7 +875,8 @@ export async function disableUserCheats(userId: string): Promise<User | null> {
   if (!isSupabaseConfigured()) return null;
   try {
     const freshUser = await fetchUser(userId);
-    const updatedUser = {
+    if (!freshUser) return null;
+    const updatedUser: User = {
       ...freshUser,
       hasCheatAccess: false,
       cheatExpiresAt: null,
@@ -893,7 +894,8 @@ export async function expireUserCheat(userId: string): Promise<User | null> {
   if (!isSupabaseConfigured()) return null;
   try {
     const freshUser = await fetchUser(userId);
-    const updatedUser = {
+    if (!freshUser) return null;
+    const updatedUser: User = {
       ...freshUser,
       cheatExpiresAt: Date.now() - 1000,
       version: (freshUser.version || 0) + 1

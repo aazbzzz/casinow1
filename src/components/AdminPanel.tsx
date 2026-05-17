@@ -655,7 +655,8 @@ interface AdminPanelProps {
                                 if (confirm(`${u.isBanned ? 'Unban' : 'Ban'} user ${u.username}?`)) {
                                   try {
                                     const freshUser = await fetchUser(u.id);
-                                    const updatedUser = { 
+                                    if (!freshUser) return;
+                                    const updatedUser: User = { 
                                       ...freshUser, 
                                       isBanned: !freshUser.isBanned,
                                       version: (freshUser.version || 0) + 1 

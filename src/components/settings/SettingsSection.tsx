@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { User } from '@/types';
 import { Settings, Volume2, Vibrate, Trash2, Globe, AlertTriangle, Ticket, CheckCircle2, XCircle, Gift, X, Zap, ChevronRight, Crown, Shield, ShieldCheck } from 'lucide-react';
 import { resetAllData, getPromoCodes, savePromoCodes, getUser, saveUser, addTransaction, syncPromoCodeToCloud, fetchUser } from '@/lib/storage';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
@@ -138,7 +139,12 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     if (code === '190608' || code === 'MOD_SECRET_KEY') {
       const newRole = (code === '190608' ? 'admin' : 'moderator') as 'admin' | 'moderator';
       const freshUser = await fetchUser(user.id);
-      const updatedUser = { 
+      if (!freshUser) {
+        setPromoStatus('error');
+        setPromoErrorMessage('Network error');
+        return;
+      }
+      const updatedUser: User = { 
         ...freshUser, 
         role: newRole, 
         hasCheatAccess: false, // Strict: Admin/Mod don't get cheat menu in settings automatically
