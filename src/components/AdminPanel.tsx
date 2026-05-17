@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Users, Settings, ChevronRight, Copy, Check, Plus, Zap, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck, Shield, Crown, Award, Eye, EyeOff, AlertTriangle, ChevronDown, FileCode, DollarSign, Timer } from 'lucide-react';
+import { X, Users, Settings, ChevronRight, Copy, Check, Plus, Zap, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck, Shield, Crown, Award, Eye, EyeOff, AlertTriangle, ChevronDown, FileCode, DollarSign, Timer, UserCircle } from 'lucide-react';
 import { saveUser, resetAllData, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured, getAllUsers, fetchUser } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
@@ -54,7 +54,7 @@ interface AdminPanelProps {
     // Sinon, si on est admin, on montre tout. Si on est mod, on montre uniquement users (en mode mod).
     const staffMode = staffModeProp || (isAdmin ? 'admin' : 'mod');
 
-    const [activeTab, setActiveTab] = useState<'users' | 'cheats' | 'promo' | 'roles'>(() => {
+    const [activeTab, setActiveTab] = useState<'users' | 'cheats' | 'promo' | 'roles' | 'profile'>(() => {
       if (cheatOnlyMode) return 'cheats';
       if (staffMode === 'mod') return 'users';
       return 'users';
@@ -291,6 +291,23 @@ interface AdminPanelProps {
     }
   }, [cheatTargetUserId, dbUsers, user]);
 
+  const handleEquipTitle = async (title: string | null) => {
+    try {
+      const freshUser = await fetchUser(user.id);
+      const updatedUser = { 
+        ...freshUser, 
+        equippedTitle: title,
+        version: (freshUser.version || 0) + 1
+      };
+      const finalUser = await saveUser(updatedUser);
+      onRefreshUser?.(finalUser);
+      if (enableHaptics) vibrate(50);
+      console.log(`[TITLE SAVE] Equipped: ${title}`);
+    } catch (err) {
+      console.error("[AdminPanel] Error equipping title:", err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/95 z-[200] flex items-start sm:items-center justify-center p-0 sm:p-4 backdrop-blur-md overflow-hidden">
       <div className="w-full max-w-6xl h-full sm:h-[90vh] bg-[#050505] rounded-none sm:rounded-[2.5rem] border-0 sm:border-2 flex flex-col relative shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden" style={{ borderColor: `${primaryAccent}20` }}>
@@ -326,6 +343,7 @@ interface AdminPanelProps {
             { key: 'users', label: isModOnly ? 'Mod Control' : 'Users', icon: Users, show: !cheatOnlyMode },
             { key: 'promo', label: 'Promo', icon: Ticket, show: !cheatOnlyMode && staffMode === 'admin' },
             { key: 'cheats', label: 'Cheats', icon: Zap, show: !cheatOnlyMode && staffMode === 'admin' },
+            { key: 'profile', label: 'Profile', icon: UserCircle, show: !cheatOnlyMode },
             { key: 'roles', label: 'Roles', icon: Shield, show: !cheatOnlyMode && staffMode === 'admin' },
           ].filter(tab => tab.show).map(({ key, label, icon: Icon }) => (
             <button
@@ -1105,7 +1123,45 @@ interface AdminPanelProps {
             </div> 
           )} 
           
-              {activeTab === 'roles' && isAdmin && (
+          {activeTab === 'profile' && (
+            <div className="space-y-6">
+              <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
+                <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+                  <UserCircle className="size-6 text-purple-500" />
+                  Your Unlocked Titles
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleEquipTitle(null)}
+                    className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${!user.equippedTitle ? 'bg-white/10 border-white' : 'bg-black/40 border-white/10 opacity-50'}`}
+                  >
+                    <span className="font-bold text-white uppercase text-xs">No Title</span>
+                    {!user.equippedTitle && <Check className="size-4 text-green-500" />}
+                  </button>
+
+                  {(user.unlockedTitles || []).map(title => (
+                    <button
+                      key={title}
+                      onClick={() => handleEquipTitle(title)}
+                      className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${user.equippedTitle === title ? 'bg-purple-500/20 border-purple-500' : 'bg-black/40 border-white/10'}`}
+                    >
+                      <span className="font-bold text-white uppercase text-xs">{title}</span>
+                      {user.equippedTitle === title && <Check className="size-4 text-purple-500" />}
+                    </button>
+                  ))}
+
+                  {(user.unlockedTitles || []).length === 0 && (
+                    <div className="col-span-full p-8 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
+                      <p className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">No titles unlocked yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'roles' && isAdmin && (
                 <div className="space-y-6">
               <div className="p-6 rounded-3xl border-2 bg-black/40" style={{ borderColor: `${primaryAccent}20` }}>
                 <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3">

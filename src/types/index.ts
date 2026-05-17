@@ -18,6 +18,8 @@ export interface User {
   createdAt: string;
   hasDeposited?: boolean;
   usedPromoCodes?: string[];
+  unlockedTitles?: string[];
+  equippedTitle?: string | null;
   isBanned?: boolean;
   cheats?: CheatSettings;
   version: number;

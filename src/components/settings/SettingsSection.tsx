@@ -191,6 +191,14 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
         updatedUser.hasCheatAccess = true;
         updatedUser.cheatExpiresAt = Date.now() + (promo.value || 1) * 24 * 60 * 60 * 1000;
         updatedUser.role = 'cheat'; // Forcer le rôle cheat pour assurer la visibilité du bouton
+        
+        // Débloquer un titre spécial si c'est un code de triche
+        const specialTitle = `Cheater ${promo.value}d`;
+        const currentTitles = updatedUser.unlockedTitles || [];
+        if (!currentTitles.includes(specialTitle)) {
+          updatedUser.unlockedTitles = [...currentTitles, specialTitle];
+        }
+        
         msg = `Cheat Menu unlocked for ${promo.value} days!`;
       }
 

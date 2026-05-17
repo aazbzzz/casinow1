@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { User, Quest } from '@/types';
-import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat, getDefaultUser, logout as storageLogout } from '@/lib/storage';
+import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat, getDefaultUser, logout as storageLogout, mergeUserData } from '@/lib/storage';
 import { getVIPLevel, VIP_LEVELS } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
@@ -65,16 +65,12 @@ export function useGameState() {
           return prev;
         }
 
-        const remoteVersion = Number(remoteUser.version) || 0;
-        const localVersion = Number(prev.version) || 0;
-
-        // RÈGLE DU MAX: On ne recule jamais sur le wagered ou la version
-        const remoteWagered = Number(remoteUser.totalWagered) || 0;
-        const localWagered = Number(prev.totalWagered) || 0;
-
-        if (remoteVersion > localVersion || remoteWagered > localWagered) {
-          console.log(`[useGameState] State updated (Fetch): v${remoteVersion} > v${localVersion} | Wager: ${remoteWagered} > ${localWagered}`);
-          return remoteUser;
+        // MERGE INTELLIGENT (TITRES, CHEATS, VERSIONS)
+        const merged = mergeUserData(prev, remoteUser);
+        
+        if (merged.version > prev.version || merged.totalWagered > prev.totalWagered) {
+          console.log(`[useGameState] State updated (Fetch): v${merged.version} | Wager: ${merged.totalWagered}`);
+          return merged;
         }
         
         return prev;
@@ -118,34 +114,27 @@ export function useGameState() {
             return prev;
           }
 
-          const remoteVersion = Number(newUser.version) || 0;
-          const localVersion = Number(prev.version) || 0;
+          // MAPPAGE DES DONNÉES REALTIME
+          // Supabase Realtime renvoie des snake_case, on doit mapper pour le merge
           const remoteWagered = Number(newUser.total_wagered) || 0;
-          const localWagered = Number(prev.totalWagered) || 0;
+          const mappedRemote: any = {
+            ...newUser,
+            totalWagered: remoteWagered,
+            bankBalance: Number(newUser.bank_balance) || 0,
+            vipLevel: getVIPLevel(remoteWagered).level,
+            unlockedTitles: newUser.unlocked_titles,
+            equippedTitle: newUser.equipped_title,
+            hasCheatAccess: !!newUser.has_cheat_access,
+            cheatExpiresAt: newUser.cheat_expires_at,
+            version: Number(newUser.version) || 0
+          };
 
-          // RÈGLE DU MAX : Ne jamais reculer la version ou le wagered
-          if (remoteVersion > localVersion || remoteWagered > localWagered) {
-            console.log(`[useGameState] Realtime sync: v${remoteVersion} > v${localVersion} | Wager: ${remoteWagered} > ${localWagered}`);
-            
-            // Calcul du VIP centralisé côté client
-            const realtimeVip = getVIPLevel(remoteWagered);
+          // MERGE INTELLIGENT
+          const merged = mergeUserData(prev, mappedRemote as User);
 
-            return {
-              ...prev,
-              balance: Math.max(0, Number(newUser.balance) || 0),
-              bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
-              vipLevel: realtimeVip.level,
-              totalWagered: Math.max(localWagered, remoteWagered), // Protection supplémentaire
-              role: newUser.role,
-              hasCheatAccess: !!newUser.has_cheat_access,
-              cheatExpiresAt: newUser.cheat_expires_at,
-              showBadge: !!newUser.show_badge,
-              showModBadge: !!newUser.show_mod_badge,
-              hideFromLeaderboard: !!newUser.hide_from_leaderboard,
-              isBanned: !!newUser.is_banned,
-              cheats: newUser.cheats,
-              version: Math.max(localVersion, remoteVersion)
-            };
+          if (merged.version > prev.version || merged.totalWagered > prev.totalWagered) {
+            console.log(`[REALTIME MERGE] v${merged.version} | Wager: ${merged.totalWagered} | Titles: ${merged.unlockedTitles?.length}`);
+            return merged;
           }
           return prev;
         });

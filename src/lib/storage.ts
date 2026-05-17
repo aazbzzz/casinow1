@@ -107,16 +107,61 @@ function mapDBUserToUser(data: any): User {
     totalWagered: totalWagered,
     createdAt: data.created_at ?? data.createdAt,
     hasDeposited: !!(data.has_deposited ?? data.hasDeposited),
-    usedPromoCodes: data.used_promo_codes ?? data.usedPromoCodes ?? [],
+    usedPromoCodes: Array.isArray(data.used_promo_codes ?? data.usedPromoCodes) ? (data.used_promo_codes ?? data.usedPromoCodes) : [],
+    unlockedTitles: Array.isArray(data.unlocked_titles ?? data.unlockedTitles) ? (data.unlocked_titles ?? data.unlockedTitles) : [],
+    equippedTitle: data.equipped_title ?? data.equippedTitle ?? null,
     isBanned: !!(data.is_banned ?? data.isBanned),
     cheats: data.cheats || null,
     version: Number(data.version) || 0,
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
   };
 
-  console.log(`[storage] User Mapped: ${user.username} | Wagered: ${user.totalWagered} | VIP: ${user.vipLevel} | v${user.version}`);
+  console.log(`[storage] User Mapped: ${user.username} | Wager: ${user.totalWagered} | Titles: ${user.unlockedTitles?.length} | Equipped: ${user.equippedTitle} | v${user.version}`);
 
   return user;
+}
+
+/**
+ * Intelligent User Merger
+ * Prevents accidental resets of titles, cheats, and versions
+ */
+export function mergeUserData(local: User, remote: User): User {
+  // RÈGLE DU MAX : Ne jamais reculer la version ou le wagered
+  const finalVersion = Math.max(local.version || 0, remote.version || 0);
+  const finalWagered = Math.max(local.totalWagered || 0, remote.totalWagered || 0);
+
+  // MERGE TITLES : Combiner les titres débloqués (jamais de suppression)
+  const localTitles = local.unlockedTitles || [];
+  const remoteTitles = remote.unlockedTitles || [];
+  const mergedTitles = Array.from(new Set([...localTitles, ...remoteTitles]));
+
+  // MERGE PROMOS : Combiner les codes utilisés
+  const localPromos = local.usedPromoCodes || [];
+  const remotePromos = remote.usedPromoCodes || [];
+  const mergedPromos = Array.from(new Set([...localPromos, ...remotePromos]));
+
+  // CHEAT ACCESS : Si l'un des deux a l'accès, on le garde
+  const hasCheat = local.hasCheatAccess || remote.hasCheatAccess;
+  const cheatExpiry = Math.max(local.cheatExpiresAt || 0, remote.cheatExpiresAt || 0) || null;
+
+  console.log(`[TITLE MERGE] Local: ${localTitles.length} | Remote: ${remoteTitles.length} | Result: ${mergedTitles.length}`);
+
+  return {
+    ...remote, // On prend les données distantes comme base (balance, etc.)
+    version: finalVersion,
+    totalWagered: finalWagered,
+    vipLevel: getVIPLevel(finalWagered).level,
+    unlockedTitles: mergedTitles,
+    usedPromoCodes: mergedPromos,
+    hasCheatAccess: hasCheat,
+    cheatExpiresAt: cheatExpiry,
+    // On garde le titre équipé local s'il est débloqué, sinon celui distant
+    equippedTitle: (local.equippedTitle && mergedTitles.includes(local.equippedTitle)) 
+      ? local.equippedTitle 
+      : remote.equippedTitle,
+    // Cheats : Priorité au local si la version locale est plus récente ou égale
+    cheats: (local.version >= remote.version) ? (local.cheats || remote.cheats) : (remote.cheats || local.cheats)
+  };
 }
 
 export async function fetchUser(uid?: string): Promise<User> {
@@ -936,6 +981,8 @@ export function getDefaultUser(uid?: string): User {
     createdAt: new Date().toISOString(),
     hasDeposited: false,
     usedPromoCodes: [],
+    unlockedTitles: [],
+    equippedTitle: null,
     version: 0,
     activeMultiplier: undefined,
   };
