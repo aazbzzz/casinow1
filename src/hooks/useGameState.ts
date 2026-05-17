@@ -281,6 +281,13 @@ export function useGameState() {
     const numericAmount = cleanAmount(amount);
     if (numericAmount <= 0) return false;
 
+    // VÉRIFICATION LIMITE VIP
+    const currentVIP = getVIPLevel(user.totalWagered);
+    if (numericAmount > currentVIP.maxBet) {
+      alert(`⚠️ Limite VIP : Votre niveau VIP ${currentVIP.level} limite vos mises à ${currentVIP.maxBet.toLocaleString()} crédits. Misez plus pour augmenter votre limite !`);
+      return false;
+    }
+
     const currentBalance = cleanAmount(user.balance);
     const cheats = getCheats(user);
 
