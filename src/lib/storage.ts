@@ -59,30 +59,22 @@ export function logout(): void {
  * Robust User Mapper
  * Handles both snake_case (DB) and camelCase (JS)
  */
-function mapDBUserToUser(data: any): User {
+export function mapDBUserToUser(data: any): User {
+  if (!data) return getDefaultUser();
+
   const cleanDBNum = (val: any, fallback = 0): number => {
     if (val === null || val === undefined) return fallback;
-    let num = fallback;
-    if (typeof val === 'number') {
-      num = isNaN(val) ? fallback : val;
-    } else if (typeof val === 'string') {
-      let cleaned = val.replace(/\s/g, '');
-      const lastComma = cleaned.lastIndexOf(',');
-      const lastDot = cleaned.lastIndexOf('.');
-      if (lastComma > lastDot) {
-        cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-      } else if (lastDot > lastComma) {
-        cleaned = cleaned.replace(/,/g, '');
-      } else {
-        cleaned = cleaned.replace(',', '.');
-      }
+    if (typeof val === 'number') return isNaN(val) ? fallback : Math.ceil(val);
+    if (typeof val === 'string') {
+      let cleaned = val.replace(/\s/g, '').replace(',', '.');
       const parsed = parseFloat(cleaned);
-      num = isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
+      return isNaN(parsed) || !isFinite(parsed) ? fallback : Math.ceil(parsed);
     }
-    return Math.ceil(num);
+    return fallback;
   };
 
   // 1. EXTRACTION DES DONNÉES (Source de vérité)
+  // On accepte total_wagered (DB) ou totalWagered (JS)
   const totalWagered = Math.max(0, cleanDBNum(data.total_wagered ?? data.totalWagered, 0));
   const balance = Math.max(0, cleanDBNum(data.balance, 0));
   const bankBalance = Math.max(0, cleanDBNum(data.bank_balance ?? data.bankBalance, 0));
@@ -122,11 +114,9 @@ function mapDBUserToUser(data: any): User {
     isBanned: !!(data.is_banned ?? data.isBanned),
     cheats: rootCheats,
     lastSeen: lastSeen,
-    version: Number(data.version) || 0,
+    version: Number(data.version ?? data.version) || 0,
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
   };
-
-  console.log(`[storage] User Mapped: ${user.username} | Wager: ${user.totalWagered} | Titles: ${user.unlockedTitles?.length} | Equipped: ${user.equippedTitle} | v${user.version}`);
 
   return user;
 }
@@ -140,24 +130,25 @@ export function mergeUserData(local: User, remote: User): User {
   const finalVersion = Math.max(local.version || 0, remote.version || 0);
   const finalWagered = Math.max(local.totalWagered || 0, remote.totalWagered || 0);
 
+  // On crée une base propre en mappant remote si c'est un objet brut de la DB
+  const cleanRemote = (remote as any).id ? mapDBUserToUser(remote) : remote;
+
   // MERGE TITLES : Combiner les titres débloqués (jamais de suppression)
   const localTitles = local.unlockedTitles || [];
-  const remoteTitles = remote.unlockedTitles || [];
+  const remoteTitles = cleanRemote.unlockedTitles || [];
   const mergedTitles = Array.from(new Set([...localTitles, ...remoteTitles]));
 
   // MERGE PROMOS : Combiner les codes utilisés
   const localPromos = local.usedPromoCodes || [];
-  const remotePromos = remote.usedPromoCodes || [];
+  const remotePromos = cleanRemote.usedPromoCodes || [];
   const mergedPromos = Array.from(new Set([...localPromos, ...remotePromos]));
 
   // CHEAT ACCESS : Si l'un des deux a l'accès, on le garde
-  const hasCheat = local.hasCheatAccess || remote.hasCheatAccess;
-  const cheatExpiry = Math.max(local.cheatExpiresAt || 0, remote.cheatExpiresAt || 0) || null;
-
-  console.log(`[TITLE MERGE] Local: ${localTitles.length} | Remote: ${remoteTitles.length} | Result: ${mergedTitles.length}`);
+  const hasCheat = local.hasCheatAccess || cleanRemote.hasCheatAccess;
+  const cheatExpiry = Math.max(local.cheatExpiresAt || 0, cleanRemote.cheatExpiresAt || 0) || null;
 
   return {
-    ...remote, // On prend les données distantes comme base (balance, etc.)
+    ...cleanRemote, // On prend les données distantes comme base (balance, role, etc.)
     version: finalVersion,
     totalWagered: finalWagered,
     vipLevel: getVIPLevel(finalWagered).level,
@@ -168,15 +159,15 @@ export function mergeUserData(local: User, remote: User): User {
     // On garde le titre équipé local s'il est débloqué, sinon celui distant
     equippedTitle: (local.equippedTitle && mergedTitles.includes(local.equippedTitle)) 
       ? local.equippedTitle 
-      : remote.equippedTitle,
+      : cleanRemote.equippedTitle,
     // Cheats : Priorité au local si la version locale est plus récente ou égale
-    cheats: (local.version >= remote.version) ? (local.cheats || remote.cheats) : (remote.cheats || local.cheats)
+    cheats: (local.version >= cleanRemote.version) ? (local.cheats || cleanRemote.cheats) : (cleanRemote.cheats || local.cheats)
   };
 }
 
-export async function fetchUser(uid?: string): Promise<User> {
+export async function fetchUser(uid?: string): Promise<User | null> {
   const targetUid = uid || getCurrentUID();
-  if (!targetUid) return getDefaultUser();
+  if (!targetUid || targetUid === 'guest') return null;
 
   if (isSupabaseConfigured()) {
     try {
@@ -193,9 +184,11 @@ export async function fetchUser(uid?: string): Promise<User> {
         return user;
       } else if (error && error.code !== 'PGRST116') {
         console.error("[storage] fetchUser Cloud error:", error);
+        return null; // On renvoie null pour indiquer une erreur réseau/serveur
       }
     } catch (err) {
       console.error("[storage] fetchUser critical error:", err);
+      return null;
     }
   }
 
@@ -205,10 +198,10 @@ export async function fetchUser(uid?: string): Promise<User> {
       const parsed = JSON.parse(stored);
       return mapDBUserToUser(parsed);
     } catch (e) {
-      return getDefaultUser(targetUid);
+      return null;
     }
   }
-  return getDefaultUser(targetUid);
+  return null;
 }
 
 export function getUser(uid?: string): User {
@@ -232,38 +225,30 @@ export async function saveUser(user: User): Promise<User> {
 
   const cleanNum = (val: any, fallback = 0): number => {
     if (val === null || val === undefined) return fallback;
-    let num = fallback;
-    if (typeof val === 'number') {
-      num = isNaN(val) || !isFinite(val) ? fallback : val;
-    } else if (typeof val === 'string') {
-      let cleaned = val.replace(/\s/g, '');
-      const lastComma = cleaned.lastIndexOf(',');
-      const lastDot = cleaned.lastIndexOf('.');
-      
-      if (lastComma > lastDot) {
-        cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-      } else if (lastDot > lastComma) {
-        cleaned = cleaned.replace(/,/g, '');
-      } else {
-        cleaned = cleaned.replace(',', '.');
-      }
-      
+    if (typeof val === 'number') return isNaN(val) ? fallback : Math.ceil(val);
+    if (typeof val === 'string') {
+      let cleaned = val.replace(/\s/g, '').replace(',', '.');
       const parsed = parseFloat(cleaned);
-      num = isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
+      return isNaN(parsed) || !isFinite(parsed) ? fallback : Math.ceil(parsed);
     }
-    return Math.ceil(num);
+    return fallback;
   };
 
-  const totalWagered = Math.max(0, cleanNum(user.totalWagered, 0));
+  // On extrait les valeurs numériques avec précaution
+  // On vérifie totalWagered (camelCase) et total_wagered (snake_case) au cas où
+  const totalWagered = Math.max(0, cleanNum(user.totalWagered ?? (user as any).total_wagered, 0));
+  const balance = Math.max(0, cleanNum(user.balance, 0));
+  const bankBalance = Math.max(0, cleanNum(user.bankBalance, 0));
+  
   const computedVip = getVIPLevel(totalWagered);
 
   const cleanUser: User = {
     ...user,
-    balance: Math.max(0, cleanNum(user.balance, 0)),
-    bankBalance: Math.max(0, cleanNum(user.bankBalance, 0)),
+    balance: balance,
+    bankBalance: bankBalance,
     totalWagered: totalWagered,
     vipLevel: computedVip.level,
-    version: (user.version || 0) + 1
+    version: (Number(user.version) || 0) + 1
   };
 
   console.log("[VIP DB SAVE]", { 
@@ -292,19 +277,19 @@ export async function saveUser(user: User): Promise<User> {
         role: cleanUser.role,
         balance: cleanUser.balance,
         bank_balance: cleanUser.bankBalance,
-        vip_level: cleanUser.vipLevel,
-        total_wagered: cleanUser.totalWagered,
-        show_badge: cleanUser.showBadge,
-        show_mod_badge: cleanUser.showModBadge,
-        hide_from_leaderboard: cleanUser.hideFromLeaderboard,
-        has_cheat_access: cleanUser.hasCheatAccess,
+        vip_level: Math.floor(cleanUser.vipLevel || 1),
+        total_wagered: Math.floor(cleanUser.totalWagered || 0),
+        show_badge: !!cleanUser.showBadge,
+        show_mod_badge: !!cleanUser.showModBadge,
+        hide_from_leaderboard: !!cleanUser.hideFromLeaderboard,
+        has_cheat_access: !!cleanUser.hasCheatAccess,
         cheat_expires_at: cleanUser.cheatExpiresAt,
-        has_deposited: cleanUser.hasDeposited,
-        is_banned: cleanUser.isBanned,
+        has_deposited: !!cleanUser.hasDeposited,
+        is_banned: !!cleanUser.isBanned,
         cheats: extendedCheats, // Conteneur pour titres & cheats
-        used_promo_codes: cleanUser.usedPromoCodes,
+        used_promo_codes: Array.isArray(cleanUser.usedPromoCodes) ? cleanUser.usedPromoCodes : [],
         active_multiplier: cleanUser.activeMultiplier,
-        version: cleanUser.version,
+        version: Math.floor(cleanUser.version || 0),
       };
       
       console.log(`[storage] UPSERT User Payload (Nesting Titles in Cheats):`, { 
@@ -339,57 +324,7 @@ export async function getAllUsers(): Promise<User[]> {
         .order('balance', { ascending: false });
       
       if (!error && data) {
-        const cleanDBNum = (val: any, fallback = 0): number => {
-          if (val === null || val === undefined) return fallback;
-          let num = fallback;
-          if (typeof val === 'number') {
-            num = isNaN(val) || !isFinite(val) ? fallback : val;
-          } else if (typeof val === 'string') {
-            let cleaned = val.replace(/\s/g, '');
-            const lastComma = cleaned.lastIndexOf(',');
-            const lastDot = cleaned.lastIndexOf('.');
-            
-            if (lastComma > lastDot) {
-              cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-            } else if (lastDot > lastComma) {
-              cleaned = cleaned.replace(/,/g, '');
-            } else {
-              cleaned = cleaned.replace(',', '.');
-            }
-            const parsed = parseFloat(cleaned);
-            num = isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
-          }
-          return Math.ceil(num);
-        };
-
-        const users = data.map(d => {
-          const rootCheats = d.cheats || {};
-          return {
-            id: d.id,
-            username: d.username,
-            password: d.password,
-            role: d.role || 'player',
-            showBadge: !!d.show_badge,
-            showModBadge: !!d.show_mod_badge,
-            hideFromLeaderboard: !!d.hide_from_leaderboard,
-            hasCheatAccess: !!d.has_cheat_access,
-            cheatExpiresAt: d.cheat_expires_at || null,
-            balance: Math.max(0, cleanDBNum(d.balance, 0)),
-            bankBalance: Math.max(0, cleanDBNum(d.bank_balance, 0)),
-            vipLevel: Math.max(1, Math.floor(cleanDBNum(d.vip_level, 1))),
-            totalWagered: Math.max(0, cleanDBNum(d.total_wagered, 0)),
-            createdAt: d.created_at,
-            hasDeposited: d.has_deposited,
-            isBanned: !!d.is_banned,
-            cheats: rootCheats,
-            lastSeen: d.last_seen || rootCheats.lastSeen || null,
-            unlockedTitles: Array.isArray(d.unlocked_titles) ? d.unlocked_titles : (Array.isArray(rootCheats.unlockedTitles) ? rootCheats.unlockedTitles : []),
-            equippedTitle: d.equipped_title || rootCheats.equippedTitle || null,
-            version: d.version || 0,
-            usedPromoCodes: d.used_promo_codes || [],
-            activeMultiplier: d.active_multiplier || null,
-          };
-        });
+        const users = data.map(d => mapDBUserToUser(d));
         
         // On met à jour le cache local pour la performance
         localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
@@ -500,34 +435,7 @@ export async function getLeaderboard(limit = 10): Promise<User[]> {
         .limit(limit);
       
       if (!error && data) {
-        const cleanDBNum = (val: any, fallback = 0): number => {
-          if (val === null || val === undefined) return fallback;
-          if (typeof val === 'number') return isNaN(val) || !isFinite(val) ? fallback : val;
-          if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || fallback;
-          return fallback;
-        };
-
-        const users = data.map(d => ({
-          id: d.id,
-          username: d.username,
-          role: d.role || 'player',
-          showBadge: !!d.show_badge,
-          showModBadge: !!d.show_mod_badge,
-          hideFromLeaderboard: !!d.hide_from_leaderboard,
-          hasCheatAccess: !!d.has_cheat_access,
-          balance: Math.max(0, cleanDBNum(d.balance, 0)),
-          bankBalance: Math.max(0, cleanDBNum(d.bank_balance, 0)),
-          vipLevel: Math.max(1, Math.floor(cleanDBNum(d.vip_level, 1))),
-          totalWagered: Math.max(0, cleanDBNum(d.total_wagered, 0)),
-          createdAt: d.created_at,
-          hasDeposited: d.has_deposited,
-          isBanned: !!d.is_banned,
-          cheats: d.cheats || null,
-          version: d.version || 0,
-          usedPromoCodes: d.used_promo_codes || [],
-          activeMultiplier: d.active_multiplier || null,
-        }));
-
+        const users = data.map(d => mapDBUserToUser(d));
         localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
         return users;
       }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Users, Settings, ChevronRight, Copy, Check, Plus, Zap, Ticket, Trash2, Globe, Lock, Ban, ShieldCheck, Shield, Crown, Award, Eye, EyeOff, AlertTriangle, ChevronDown, FileCode, DollarSign, Timer, UserCircle } from 'lucide-react';
-import { saveUser, resetAllData, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured, getAllUsers, fetchUser } from '@/lib/storage';
+import { saveUser, resetAllData, type PromoCode, syncPromoCodeToCloud, isSupabaseConfigured, getAllUsers, fetchUser, mapDBUserToUser } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
@@ -115,20 +115,48 @@ interface AdminPanelProps {
   useEffect(() => {
     fetchUsers();
 
-    // Listener pour la synchronisation globale
+    if (!isSupabaseConfigured()) return;
+
+    // REALTIME: Écouter les changements pour TOUS les utilisateurs (Admin view)
+    const adminChannel = supabase
+      .channel('admin-users-sync')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'users' 
+      }, (payload: any) => {
+        const newUser = payload.new;
+        if (!newUser) return;
+
+        // On utilise mapDBUserToUser pour assurer la cohérence des champs
+        // Note: On doit importer mapDBUserToUser de storage
+        // (Je vais l'ajouter aux imports)
+        setDbUsers(prev => {
+          const exists = prev.find(u => u.id === newUser.id);
+          if (exists) {
+            if ((newUser.version || 0) >= (exists.version || 0)) {
+              // On fusionne pour éviter de perdre des champs JS-only si newUser est incomplet
+              return prev.map(u => u.id === newUser.id ? { ...u, ...newUser, totalWagered: newUser.total_wagered, bankBalance: newUser.bank_balance } : u);
+            }
+            return prev;
+          }
+          return prev; // On n'ajoute pas de nouveaux utilisateurs ici pour éviter de polluer la liste filtrée/ordonnée
+        });
+      })
+      .subscribe();
+
+    // Listener pour la synchronisation locale (via CustomEvents)
     const handleGlobalUpdate = (e: any) => {
       const updatedUser = e.detail;
       if (updatedUser) {
         setDbUsers(prev => {
           const exists = prev.find(u => u.id === updatedUser.id);
           if (exists) {
-            // Si l'utilisateur existe, on le met à jour s'il est plus récent
             if ((updatedUser.version || 0) >= (exists.version || 0)) {
               return prev.map(u => u.id === updatedUser.id ? updatedUser : u);
             }
             return prev;
           } else {
-            // Si c'est un nouvel utilisateur, on l'ajoute et on retrie (optionnel)
             return [...prev, updatedUser];
           }
         });
@@ -136,7 +164,10 @@ interface AdminPanelProps {
     };
 
     window.addEventListener('user_updated_global', handleGlobalUpdate);
-    return () => window.removeEventListener('user_updated_global', handleGlobalUpdate);
+    return () => {
+      supabase.removeChannel(adminChannel);
+      window.removeEventListener('user_updated_global', handleGlobalUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -164,6 +195,10 @@ interface AdminPanelProps {
   const handleToggleRole = async (userId: string, newRole: 'admin' | 'moderator' | 'player' | 'cheat') => {
     try {
       const freshUser = await fetchUser(userId);
+      if (!freshUser) {
+        alert("Erreur réseau : Impossible de récupérer l'utilisateur.");
+        return;
+      }
       const updatedUser = { 
         ...freshUser, 
         role: newRole,
@@ -193,6 +228,9 @@ interface AdminPanelProps {
       // Update local list
       setDbUsers(prev => prev.map(u => u.id === userId ? finalUser : u));
       
+      // Global Sync
+      window.dispatchEvent(new CustomEvent('user_updated_global', { detail: finalUser }));
+      
       if (userId === user.id) onRefreshUser?.(finalUser);
       if (enableHaptics) vibrate(100);
     } catch (err) {
@@ -206,6 +244,10 @@ interface AdminPanelProps {
     try {
       // IMPORTANT: On récupère la version la plus fraîche du serveur avant de modifier
       const freshUser = await fetchUser(editingUser);
+      if (!freshUser) {
+        alert("Erreur réseau : Impossible de mettre à jour l'utilisateur.");
+        return;
+      }
       
       const updatedUser = { 
         ...freshUser, 
@@ -222,6 +264,7 @@ interface AdminPanelProps {
       setDbUsers(prev => prev.map(u => u.id === editingUser ? finalUser : u));
       
       // Immediate global synchronization
+      window.dispatchEvent(new CustomEvent('user_updated_global', { detail: finalUser }));
       window.dispatchEvent(new CustomEvent('casino_balance_update'));
       window.dispatchEvent(new CustomEvent('leaderboard_update'));
       
@@ -239,6 +282,7 @@ interface AdminPanelProps {
   const handleToggleAdminSetting = async (userId: string, setting: 'showBadge' | 'showModBadge' | 'hideFromLeaderboard') => {
     try {
       const freshUser = await fetchUser(userId);
+      if (!freshUser) return;
       const updatedUser = { ...freshUser, [setting]: !freshUser[setting] };
       const finalUser = await saveUser(updatedUser);
       
@@ -261,6 +305,7 @@ interface AdminPanelProps {
     if (cheatTargetUserId && isMod) {
       try {
         const freshUser = await fetchUser(cheatTargetUserId);
+        if (!freshUser) return;
         const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
         const finalUser = await saveUser(updatedUser);
         // We don't call onRefreshUser here because we are targeting someone else
@@ -272,6 +317,7 @@ interface AdminPanelProps {
       if (user && user.id !== 'guest') {
         try {
           const freshUser = await fetchUser(user.id);
+          if (!freshUser) return;
           const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
           const finalUser = await saveUser(updatedUser);
           onRefreshUser?.(finalUser);
@@ -302,6 +348,7 @@ interface AdminPanelProps {
   const handleEquipTitle = async (title: string | null) => {
     try {
       const freshUser = await fetchUser(user.id);
+      if (!freshUser) return;
       const updatedUser = { 
         ...freshUser, 
         equippedTitle: title,
@@ -1148,7 +1195,7 @@ interface AdminPanelProps {
                           <div className="text-sm text-gray-400">Choose landing slot</div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {[16, 12, 9, 4, 2, 1.2, 0.5, 0.2].map(mult => (
+                          {[16, 9, 4.2, 2, 1.2, 0.6, 0.3, 0.2].map(mult => (
                             <button
                               key={mult}
                               onClick={() => handleCheatToggle('forcePlinkoMultiplier', cheats.forcePlinkoMultiplier === mult ? null : mult)}

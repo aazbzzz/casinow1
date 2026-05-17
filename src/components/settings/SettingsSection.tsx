@@ -176,6 +176,11 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     try {
       console.log(`[PROMO] Attempting to claim code: "${code}" for user: ${user.username} (${user.id})`);
       const freshUser = await fetchUser(user.id);
+      if (!freshUser) {
+        setPromoStatus('error');
+        setPromoErrorMessage('Erreur réseau : Impossible de récupérer votre profil.');
+        return;
+      }
       const updatedUser = { ...freshUser };
       let msg = '';
 

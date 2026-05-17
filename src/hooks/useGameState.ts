@@ -81,18 +81,43 @@ export function useGameState() {
 
   // Synchronisation périodique du "lastSeen" pour l'indicateur en ligne
   useEffect(() => {
-    if (!user.id || user.id === 'guest') return;
+    const uid = getCurrentUID();
+    if (!uid || uid === 'guest') return;
 
-    const updatePresence = () => {
-      setUser(prev => {
-        const updated = { ...prev, lastSeen: Date.now() };
-        saveUser(updated);
-        return updated;
-      });
+    const updatePresence = async () => {
+      // Protection: Ne pas mettre à jour la présence si une action critique est en cours
+      if (isPendingSync.current) return;
+
+      try {
+        // On récupère les données les plus fraîches du serveur
+        const freshUser = await fetchUser(uid);
+        if (!freshUser) return;
+
+        // On fusionne avec l'état local actuel pour ne pas perdre de mises récentes
+        // (ex: si une mise vient d'être faite mais n'est pas encore en DB)
+        setUser(prev => {
+          const merged = mergeUserData(prev, freshUser);
+          const updated = { 
+            ...merged, 
+            lastSeen: Date.now()
+          };
+          
+          // On sauvegarde la version fusionnée
+          saveUser(updated).then(saved => {
+            setUser(current => {
+              if (saved.version >= current.version) return saved;
+              return current;
+            });
+          });
+
+          return updated;
+        });
+      } catch (err) {
+        console.error("[useGameState] Presence update failed:", err);
+      }
     };
 
-    updatePresence(); // Initial
-    const interval = setInterval(updatePresence, 45000); // Toutes les 45s
+    const interval = setInterval(updatePresence, 60000); // Toutes les 60s
     return () => clearInterval(interval);
   }, [user.id]);
 
@@ -131,23 +156,11 @@ export function useGameState() {
             return prev;
           }
 
-          // MAPPAGE DES DONNÉES REALTIME
-          // Supabase Realtime renvoie des snake_case, on doit mapper pour le merge
-          const remoteWagered = Number(newUser.total_wagered) || 0;
-          const mappedRemote: any = {
-            ...newUser,
-            totalWagered: remoteWagered,
-            bankBalance: Number(newUser.bank_balance) || 0,
-            vipLevel: getVIPLevel(remoteWagered).level,
-            unlockedTitles: newUser.unlocked_titles,
-            equippedTitle: newUser.equipped_title,
-            hasCheatAccess: !!newUser.has_cheat_access,
-            cheatExpiresAt: newUser.cheat_expires_at,
-            version: Number(newUser.version) || 0
-          };
+          // MAPPAGE DES DONNÉES REALTIME via la fonction centrale
+          const mappedRemote = mapDBUserToUser(newUser);
 
           // MERGE INTELLIGENT
-          const merged = mergeUserData(prev, mappedRemote as User);
+          const merged = mergeUserData(prev, mappedRemote);
 
           if (merged.version > prev.version || merged.totalWagered > prev.totalWagered) {
             console.log(`[REALTIME MERGE] v${merged.version} | Wager: ${merged.totalWagered} | Titles: ${merged.unlockedTitles?.length}`);

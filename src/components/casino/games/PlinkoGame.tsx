@@ -27,8 +27,8 @@ interface Ball {
   radius: number;
 }
 
-const MULTIPLIERS = [16, 12, 9, 4, 2, 1.2, 0.5, 0.2, 0.5, 1.2, 2, 4, 9, 12, 16];
-const ROWS = 12;
+const MULTIPLIERS = [16, 9, 4.2, 2, 1.2, 0.6, 0.3, 0.2, 0.3, 0.6, 1.2, 2, 4.2, 9, 16];
+const ROWS = 14;
 
 export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGameProps) {
   const [betAmount, setBetAmount] = useState(10);
@@ -248,34 +248,27 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
           const totalPayout = Number(betAmount) * finalMultiplier;
           
+          // Toujours utiliser onWin pour Plinko car même un multi < 1 (ex: 0.5x) 
+          // doit rendre une partie de la mise à l'utilisateur.
+          // Le système useGameState gère les multiplicateurs < 1 correctement.
+          console.log({ 
+            game: 'Plinko', 
+            betAmount: Number(betAmount), 
+            payout: totalPayout, 
+            multiplier: finalMultiplier, 
+            payoutType: typeof totalPayout, 
+            multiplierType: typeof finalMultiplier 
+          });
+
+          const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Plinko');
+          console.log('ONWIN RETURN =', payoutResult);
+          setLastMultiplier(finalMultiplier);
+          setLastPayout(payoutResult);
+          
           if (finalMultiplier >= 1) {
-            console.log({ 
-              game: 'Plinko', 
-              betAmount: Number(betAmount), 
-              payout: totalPayout, 
-              multiplier: finalMultiplier, 
-              payoutType: typeof totalPayout, 
-              multiplierType: typeof finalMultiplier 
-            });
-            const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Plinko');
-            console.log('ONWIN RETURN =', payoutResult);
-            setLastMultiplier(finalMultiplier);
-            setLastPayout(payoutResult);
-            
             if (enableSounds) playWin();
             if (enableHaptics) vibrate(200);
           } else {
-            // Perte si multiplicateur < 1
-            console.log({ 
-              game: 'Plinko', 
-              betAmount: Number(betAmount), 
-              payout: totalPayout, 
-              multiplier: finalMultiplier, 
-              outcome: 'loss' 
-            });
-            onLoss(Number(betAmount), 'Plinko');
-            setLastMultiplier(finalMultiplier);
-            setLastPayout(totalPayout); // Affiche le montant récupéré (ex: 2 si mise de 10 et multi 0.2)
             if (enableHaptics) vibrate([50, 50]);
           }
           

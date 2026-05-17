@@ -283,6 +283,10 @@ function App() {
     if (adminInput === '190608') {
       try {
         const freshUser = await fetchUser(user.id);
+        if (!freshUser) {
+          alert("Erreur réseau : Impossible de vérifier l'administrateur.");
+          return;
+        }
         const updatedUser = { 
           ...freshUser, 
           role: 'admin' as const,
