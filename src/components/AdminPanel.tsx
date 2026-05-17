@@ -63,7 +63,11 @@ interface AdminPanelProps {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1, username: '' });
   const [addMoneyAmount, setAddMoneyAmount] = useState(1000);
-  const [cheats, setCheats] = useState<CheatSettings>(() => getCheats(user));
+  const [cheats, setCheats] = useState<CheatSettings>(() => {
+    const initial = getCheats(user);
+    // RÈGLE : Ne jamais activer alwaysWin par défaut à l'ouverture du panel
+    return { ...initial, alwaysWin: false };
+  });
   const [cheatTargetUserId, setCheatTargetUserId] = useState<string | null>(null);
   const isInternalUpdate = useRef(false);
   const [cheatCategory, setCheatCategory] = useState<'global' | 'roulette' | 'slots' | 'coinflip' | 'dice' | 'mines' | 'crash' | 'plinko'>('global');
