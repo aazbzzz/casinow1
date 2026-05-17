@@ -98,7 +98,7 @@ export async function fetchUser(uid?: string): Promise<User> {
         const computedVip = getVIPLevel(totalWagered);
         const dbVipLevel = Math.max(1, Math.floor(cleanDBNum(data.vip_level, 1)));
         
-        const user: User = {
+        const mappedUser: User = {
           id: data.id,
           username: data.username,
           password: data.password,
@@ -120,10 +120,13 @@ export async function fetchUser(uid?: string): Promise<User> {
           version: data.version || 0,
           activeMultiplier: data.active_multiplier || null,
         };
+
+        console.log('[FETCH USER RAW]', data);
+        console.log('[FETCH USER MAPPED]', mappedUser.totalWagered, mappedUser.vipLevel);
         
         // Mise à jour du cache local
-        localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
-        return user;
+        localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${mappedUser.id}`, JSON.stringify(mappedUser));
+        return mappedUser;
       } else if (error) {
         // PGRST116 = not found, on ne logge pas d'erreur critique
         if (error.code !== 'PGRST116') {
@@ -149,9 +152,13 @@ export function getUser(uid?: string): User {
   if (targetUid) {
     const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
     if (stored) {
-      const user = JSON.parse(stored);
-      console.log(`[storage] getUser (cache) v${user.version}`);
-      return user;
+      try {
+        const user = JSON.parse(stored);
+        console.log(`[storage] getUser (cache) v${user.version}`, user.totalWagered, user.vipLevel);
+        return user;
+      } catch (e) {
+        console.error("[storage] getUser parse error", e);
+      }
     }
   }
   return getDefaultUser(targetUid || undefined);
@@ -197,6 +204,8 @@ export async function saveUser(user: User): Promise<User> {
     vipLevel: Math.max(currentVipLevel, computedVip.level),
     version: (user.version || 0) + 1
   };
+
+  console.log('[SAVE USER]', cleanUser.totalWagered, cleanUser.vipLevel);
 
   // 1. Mise à jour immédiate du cache local (Optimistic UI)
   localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
