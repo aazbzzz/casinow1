@@ -199,7 +199,12 @@ export function useGameState() {
       };
       
       saveUser(newUser).then(finalUser => {
-        setUser(finalUser);
+        setUser(current => {
+          if (finalUser.version >= current.version) {
+            return finalUser;
+          }
+          return current;
+        });
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
@@ -309,12 +314,20 @@ export function useGameState() {
       };
 
       console.log("[VIP DEBUG] Bet:", numericAmount);
-      console.log("[VIP DEBUG] New wagered:", newWagered);
-      console.log("[VIP DEBUG] New VIP:", vipData.level);
+      console.log("[VIP DEBUG] Total Wagered:", newWagered);
+      console.log("[VIP DEBUG] Current VIP:", vipData.level);
+      console.log("[VIP DEBUG] Version:", updatedUser.version);
 
       // Sauvegarde Cloud et Cache
       saveUser(updatedUser).then(finalUser => {
-        setUser(finalUser);
+        setUser(current => {
+          if (finalUser.version >= current.version) {
+            console.log(`[useGameState] saveUser success (v${finalUser.version})`);
+            return finalUser;
+          }
+          console.log(`[useGameState] saveUser ignored: state is newer (current v${current.version} > saved v${finalUser.version})`);
+          return current;
+        });
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
         // Event global pour forcer les composants VIP à se rafraîchir si nécessaire
@@ -363,7 +376,12 @@ export function useGameState() {
       };
 
       saveUser(newUser).then(finalUser => {
-        setUser(finalUser);
+        setUser(current => {
+          if (finalUser.version >= current.version) {
+            return finalUser;
+          }
+          return current;
+        });
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
@@ -405,7 +423,12 @@ export function useGameState() {
       };
 
       saveUser(newUser).then(finalUser => {
-        setUser(finalUser);
+        setUser(current => {
+          if (finalUser.version >= current.version) {
+            return finalUser;
+          }
+          return current;
+        });
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
@@ -440,7 +463,12 @@ export function useGameState() {
       };
 
       saveUser(newUser).then(finalUser => {
-        setUser(finalUser);
+        setUser(current => {
+          if (finalUser.version >= current.version) {
+            return finalUser;
+          }
+          return current;
+        });
         isPendingSync.current = false;
       });
       

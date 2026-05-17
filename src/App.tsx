@@ -86,11 +86,11 @@ function App() {
           // 1. Rafraîchir le leaderboard
           refreshLeaderboard();
 
-          // 2. Si c'est l'utilisateur actuel, rafraîchir son profil
+          // 2. Si c'est l'utilisateur actuel, on ne fait RIEN ici.
+          // useGameState gère déjà son propre abonnement realtime plus précis.
           const updatedUser = payload.new;
           if (updatedUser && updatedUser.id === getCurrentUID()) {
-            console.log('[Realtime] Current user update detected, refreshing...');
-            refreshUser();
+            console.log('[Realtime] Global update for current user ignored (handled by useGameState)');
           }
 
           // 3. Notifier le système pour les autres composants (ex: Admin Panel)
