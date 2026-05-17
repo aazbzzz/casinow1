@@ -79,6 +79,23 @@ export function useGameState() {
     if (remoteQuests) setQuests(remoteQuests);
   }, []);
 
+  // Synchronisation périodique du "lastSeen" pour l'indicateur en ligne
+  useEffect(() => {
+    if (!user.id || user.id === 'guest') return;
+
+    const updatePresence = () => {
+      setUser(prev => {
+        const updated = { ...prev, lastSeen: Date.now() };
+        saveUser(updated);
+        return updated;
+      });
+    };
+
+    updatePresence(); // Initial
+    const interval = setInterval(updatePresence, 45000); // Toutes les 45s
+    return () => clearInterval(interval);
+  }, [user.id]);
+
   // Synchronisation avec le backend au montage & Realtime subscription
   useEffect(() => {
     const uid = getCurrentUID();

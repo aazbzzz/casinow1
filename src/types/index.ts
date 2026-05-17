@@ -20,6 +20,7 @@ export interface User {
   usedPromoCodes?: string[];
   unlockedTitles?: string[];
   equippedTitle?: string | null;
+  lastSeen?: number | null;
   isBanned?: boolean;
   cheats?: CheatSettings;
   version: number;

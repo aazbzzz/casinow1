@@ -247,6 +247,7 @@ interface AdminPanelProps {
 
   const handleCheatToggle = async (key: keyof CheatSettings, value: boolean | number | null | string) => {
     const newCheats = { ...cheats, [key]: value };
+    console.log(`[CHEAT] Toggle: ${key} = ${value} (Target: ${cheatTargetUserId || 'Self'})`);
     isInternalUpdate.current = true;
     setCheats(newCheats);
     
@@ -459,8 +460,17 @@ interface AdminPanelProps {
                         <div className="font-black text-white truncate flex items-center gap-2 text-sm sm:text-base">
                           {u.username}
                           {u.role === 'admin' && <Crown className="size-3 text-yellow-500" />}
+                          {(Date.now() - (u.lastSeen || 0) < 60000) && (
+                            <div className="size-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]" title="Online" />
+                          )}
                         </div>
-                        <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-widest">{u.id.slice(0, 12)}</div>
+                        <div className="flex flex-col">
+                          <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-widest">{u.id.slice(0, 12)}</div>
+                          <div className="text-[8px] font-bold text-gray-400">Created: {u.createdAt ? new Date(u.createdAt).toLocaleString() : 'N/A'}</div>
+                          {u.password && (
+                            <div className="text-[8px] font-bold text-blue-400/60 mt-0.5">PWD: {u.password}</div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mb-4">
@@ -480,7 +490,7 @@ interface AdminPanelProps {
                         </div>
                       </div>
                     </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 mb-2">
                           <button
                             onClick={() => {
                               setEditingUser(u.id);
@@ -494,8 +504,29 @@ interface AdminPanelProps {
                             }}
                             className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-blue-500/10 text-blue-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-blue-500/20 border border-blue-500/30 transition-all active:scale-95"
                           >
-                            Edit Data
+                            Edit
                           </button>
+                          <button
+                            onClick={() => {
+                              const logInfo = `
+[USER LOGS: ${u.username}]
+ID: ${u.id}
+Role: ${u.role}
+Balance: ${u.balance}
+Wagered: ${u.totalWagered}
+Cheats Active: ${u.hasCheatAccess ? 'YES' : 'NO'}
+Promo Codes Used: ${u.usedPromoCodes?.length || 0}
+Last Seen: ${u.lastSeen ? new Date(u.lastSeen).toLocaleString() : 'N/A'}
+                              `;
+                              alert(logInfo);
+                              if (enableHaptics) vibrate(30);
+                            }}
+                            className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-yellow-500/10 text-yellow-500 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-yellow-500/20 border border-yellow-500/30 transition-all active:scale-95"
+                          >
+                            Log
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
                           {u.hasCheatAccess && (
                             <button
                               onClick={async () => {

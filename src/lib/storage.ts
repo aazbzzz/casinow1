@@ -112,6 +112,7 @@ function mapDBUserToUser(data: any): User {
     equippedTitle: data.equipped_title ?? data.equippedTitle ?? null,
     isBanned: !!(data.is_banned ?? data.isBanned),
     cheats: data.cheats || null,
+    lastSeen: data.last_seen || data.lastSeen || null,
     version: Number(data.version) || 0,
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
   };
@@ -284,15 +285,26 @@ export async function saveUser(user: User): Promise<User> {
         is_banned: cleanUser.isBanned,
         cheats: cleanUser.cheats,
         used_promo_codes: cleanUser.usedPromoCodes,
+        unlocked_titles: cleanUser.unlockedTitles,
+        equipped_title: cleanUser.equippedTitle,
+        last_seen: cleanUser.lastSeen,
         active_multiplier: cleanUser.activeMultiplier,
         version: cleanUser.version,
       };
       
+      console.log(`[storage] UPSERT User Payload:`, { 
+        id: dbData.id, 
+        version: dbData.version, 
+        hasCheatAccess: dbData.has_cheat_access,
+        titles: dbData.unlocked_titles?.length,
+        cheatsActive: !!dbData.cheats
+      });
+
       const { error } = await supabase.from('users').upsert(dbData, { onConflict: 'id' });
       if (error) {
         console.error("[storage] saveUser Cloud error:", error);
       } else {
-        console.log("[VIP DB SUCCESS]");
+        console.log("[VIP DB SUCCESS] User saved to cloud.");
       }
     } catch (err) {
       console.error("[storage] saveUser critical error:", err);
@@ -353,6 +365,9 @@ export async function getAllUsers(): Promise<User[]> {
           hasDeposited: d.has_deposited,
           isBanned: !!d.is_banned,
           cheats: d.cheats || null,
+          lastSeen: d.last_seen || null,
+          unlockedTitles: d.unlocked_titles || [],
+          equippedTitle: d.equipped_title || null,
           version: d.version || 0,
           usedPromoCodes: d.used_promo_codes || [],
           activeMultiplier: d.active_multiplier || null,

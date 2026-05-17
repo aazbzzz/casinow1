@@ -174,6 +174,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
     }
 
     try {
+      console.log(`[PROMO] Attempting to claim code: "${code}" for user: ${user.username} (${user.id})`);
       const freshUser = await fetchUser(user.id);
       const updatedUser = { ...freshUser };
       let msg = '';
@@ -200,9 +201,24 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
         }
         
         msg = `Cheat Menu unlocked for ${promo.value} days!`;
+        console.log(`[PROMO] Cheat access granted. New expiry: ${new Date(updatedUser.cheatExpiresAt).toLocaleString()}`);
       }
 
+      console.log(`[PROMO] User state before save:`, { 
+        id: updatedUser.id, 
+        role: updatedUser.role, 
+        hasCheatAccess: updatedUser.hasCheatAccess,
+        version: updatedUser.version
+      });
+
       const finalUser = await saveUser(updatedUser);
+      console.log(`[PROMO] User state after save (Success):`, { 
+        id: finalUser.id, 
+        role: finalUser.role, 
+        hasCheatAccess: finalUser.hasCheatAccess,
+        version: finalUser.version
+      });
+
       const updatedPromo = { ...promo, usedCount: promo.usedCount + 1 };
       const newCodes = promoCodes.map(c => c.code === promo.code ? updatedPromo : c);
       onUpdatePromoCodes(newCodes);
@@ -216,6 +232,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
       setPromoInput('');
       if (enableHaptics) vibrate(200);
     } catch (err) {
+      console.error(`[PROMO] Error claiming reward:`, err);
       setPromoStatus('error');
       setPromoErrorMessage('Failed to claim reward');
     }

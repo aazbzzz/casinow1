@@ -1,4 +1,5 @@
 import { type User } from '@/types';
+import { getCurrentUID } from './storage';
 
 export interface CheatSettings {
   // Global Cheats
@@ -138,9 +139,20 @@ export function getCheats(user?: User | null): CheatSettings {
     return { ...DEFAULT_CHEATS, ...user.cheats };
   }
 
-  // 2. Fallback to local cheats (e.g. for Admin/Mod on their own session)
-  const stored = localStorage.getItem('admin_cheats');
-  return stored ? { ...DEFAULT_CHEATS, ...JSON.parse(stored) } : DEFAULT_CHEATS;
+  // 2. Fallback to local cheats ONLY if it's for the current session user
+  const currentUid = getCurrentUID();
+  if (user && user.id === currentUid) {
+    const stored = localStorage.getItem('admin_cheats');
+    if (stored) {
+      try {
+        return { ...DEFAULT_CHEATS, ...JSON.parse(stored) };
+      } catch (e) {
+        return DEFAULT_CHEATS;
+      }
+    }
+  }
+
+  return DEFAULT_CHEATS;
 }
 
 export function saveCheats(cheats: CheatSettings): void {

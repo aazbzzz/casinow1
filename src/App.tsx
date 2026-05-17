@@ -425,6 +425,9 @@ function App() {
                       <div>
                         <div className="font-black text-white uppercase tracking-tight flex items-center gap-2">
                           {entry.username || 'Anonyme'}
+                          {(Date.now() - (entry.lastSeen || 0) < 60000) && (
+                            <div className="size-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]" title="Online" />
+                          )}
                           {entry.role === 'admin' && entry.showBadge && (
                             <Crown className="size-3 text-yellow-500" fill="currentColor" />
                           )}
