@@ -1,5 +1,5 @@
 import assetsData from "@/config/assets";
-import { Trophy, TrendingUp, Crown } from 'lucide-react';
+import { Trophy, TrendingUp, Crown, Zap } from 'lucide-react';
 import { VIP_LEVELS, getVIPLevel, getNextVIPLevel, getVIPProgress } from '@/lib/vip';
 import { useGameState } from '@/hooks/useGameState';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
