@@ -834,8 +834,18 @@ interface AdminPanelProps {
                       <CheatToggle label="Freeze Balance" description="Balance stays constant" value={cheats.freezeBalance} onChange={(v) => handleCheatToggle('freezeBalance', v)} /> 
                       <CheatToggle label="Double Winnings" description="All wins are doubled" value={cheats.doubleWinnings} onChange={(v) => handleCheatToggle('doubleWinnings', v)} /> 
                       <CheatToggle label="Triple Winnings" description="All wins are tripled" value={cheats.tripleWinnings} onChange={(v) => handleCheatToggle('tripleWinnings', v)} /> 
-                      <CheatToggle label="Instant Win" description="Win immediately on bet" value={cheats.instantWin} onChange={(v) => handleCheatToggle('instantWin', v)} /> 
-                      <CheatToggle label="Instant Loss" description="Lose immediately on bet" value={cheats.instantLoss} onChange={(v) => handleCheatToggle('instantLoss', v)} /> 
+                      <div className="opacity-50 pointer-events-none relative">
+                        <CheatToggle label="Instant Win" description="Win immediately on bet" value={cheats.instantWin} onChange={(v) => handleCheatToggle('instantWin', v)} /> 
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
+                          <span className="text-yellow-500 font-black text-xs uppercase tracking-widest">En cours de développement</span>
+                        </div>
+                      </div>
+                      <div className="opacity-50 pointer-events-none relative">
+                        <CheatToggle label="Instant Loss" description="Lose immediately on bet" value={cheats.instantLoss} onChange={(v) => handleCheatToggle('instantLoss', v)} /> 
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
+                          <span className="text-yellow-500 font-black text-xs uppercase tracking-widest">En cours de développement</span>
+                        </div>
+                      </div>
                       <div className="p-4 rounded-xl bg-black/30"> 
                         <div className="mb-3"> 
                           <div className="font-bold text-white">Custom Multiplier</div> 
@@ -876,6 +886,47 @@ interface AdminPanelProps {
                           <button onClick={() => handleCheatToggle('forceRouletteNumber', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white">OFF</button> 
                         </div> 
                       </div> 
+                      <div className="p-4 rounded-xl bg-black/30">
+                        <div className="mb-3">
+                          <div className="font-bold text-white">Force Color</div>
+                          <div className="text-sm text-gray-400">Choose winning color</div>
+                        </div>
+                        <div className="flex gap-2">
+                          {['red', 'black', 'green'].map(color => (
+                            <button
+                              key={color}
+                              onClick={() => handleCheatToggle('forceRouletteColor', cheats.forceRouletteColor === color ? null : color)}
+                              className={`flex-1 py-3 rounded-xl font-bold border-2 transition-all active:scale-95 uppercase text-[10px] tracking-widest ${cheats.forceRouletteColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''}`}
+                              style={{
+                                backgroundColor: color === 'red' ? '#ff1a1a' : color === 'black' ? '#111' : '#10b981',
+                                borderColor: cheats.forceRouletteColor === color ? '#fff' : 'transparent',
+                                color: '#fff'
+                              }}
+                            >
+                              {color}
+                            </button>
+                          ))}
+                          <button onClick={() => handleCheatToggle('forceRouletteColor', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white text-[10px]">OFF</button>
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-xl bg-black/30">
+                        <div className="mb-3">
+                          <div className="font-bold text-white">Force Parity</div>
+                          <div className="text-sm text-gray-400">Choose ODD or EVEN</div>
+                        </div>
+                        <div className="flex gap-2">
+                          {['even', 'odd'].map(parity => (
+                            <button
+                              key={parity}
+                              onClick={() => handleCheatToggle('forceRouletteParity', cheats.forceRouletteParity === parity ? null : parity)}
+                              className={`flex-1 py-3 rounded-xl font-bold border-2 transition-all active:scale-95 uppercase text-[10px] tracking-widest ${cheats.forceRouletteParity === parity ? 'bg-blue-500 border-white text-white' : 'bg-black/50 border-white/10 text-gray-400'}`}
+                            >
+                              {parity}
+                            </button>
+                          ))}
+                          <button onClick={() => handleCheatToggle('forceRouletteParity', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white text-[10px]">OFF</button>
+                        </div>
+                      </div>
                     </> 
                   )} 
 

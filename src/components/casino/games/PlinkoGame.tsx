@@ -130,6 +130,40 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
         const ball = ballRef.current;
         
         ball.vy += 0.5;
+        
+        // Cheat Steering
+        const user = getUser();
+        const cheats = getCheats(user);
+        let targetX: number | null = null;
+        
+        if (cheats.plinkoMaxMultiplier) {
+           // Slots 0 or 14 (16x)
+           targetX = ball.x < width / 2 ? slotWidth / 2 : width - slotWidth / 2;
+         } else if (cheats.forcePlinkoWin) {
+           // Slots with mult >= 4
+           const validIndices = MULTIPLIERS.map((m, i) => m >= 4 ? i : -1).filter(i => i !== -1);
+           const targetIdx = validIndices.reduce((prev, curr) => {
+             const prevX = prev * slotWidth + slotWidth / 2;
+             const currX = curr * slotWidth + slotWidth / 2;
+             return Math.abs(currX - ball.x) < Math.abs(prevX - ball.x) ? curr : prev;
+           });
+           targetX = targetIdx * slotWidth + slotWidth / 2;
+         } else if (cheats.alwaysWin) {
+           // Slots with mult >= 1
+           const validIndices = MULTIPLIERS.map((m, i) => m >= 1 ? i : -1).filter(i => i !== -1);
+           const targetIdx = validIndices.reduce((prev, curr) => {
+             const prevX = prev * slotWidth + slotWidth / 2;
+             const currX = curr * slotWidth + slotWidth / 2;
+             return Math.abs(currX - ball.x) < Math.abs(prevX - ball.x) ? curr : prev;
+           });
+           targetX = targetIdx * slotWidth + slotWidth / 2;
+         }
+
+        if (targetX !== null) {
+          const dx = targetX - ball.x;
+          ball.vx += dx * 0.01; // Gentle pull
+        }
+
         ball.x += ball.vx;
         ball.y += ball.vy;
         
@@ -180,14 +214,25 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           const cheats = getCheats(user);
           let slotIndex = Math.floor(ball.x / slotWidth);
           
-          if (cheats.forcePlinkoWin) {
+          if (cheats.plinkoMaxMultiplier) {
+            // Force 16x (nearest)
+            slotIndex = ball.x < width / 2 ? 0 : MULTIPLIERS.length - 1;
+          } else if (cheats.forcePlinkoWin) {
             const winningSlots = MULTIPLIERS.map((m, i) => ({ mult: m, idx: i })).filter(s => s.mult >= 4);
-            const randomWin = winningSlots[Math.floor(Math.random() * winningSlots.length)];
-            slotIndex = randomWin.idx;
+            const nearest = winningSlots.reduce((prev, curr) => {
+              const prevDist = Math.abs((prev.idx * slotWidth + slotWidth/2) - ball.x);
+              const currDist = Math.abs((curr.idx * slotWidth + slotWidth/2) - ball.x);
+              return currDist < prevDist ? curr : prev;
+            });
+            slotIndex = nearest.idx;
           } else if (cheats.alwaysWin) {
             const winningSlots = MULTIPLIERS.map((m, i) => ({ mult: m, idx: i })).filter(s => s.mult >= 1);
-            const randomWin = winningSlots[Math.floor(Math.random() * winningSlots.length)];
-            slotIndex = randomWin.idx;
+            const nearest = winningSlots.reduce((prev, curr) => {
+              const prevDist = Math.abs((prev.idx * slotWidth + slotWidth/2) - ball.x);
+              const currDist = Math.abs((curr.idx * slotWidth + slotWidth/2) - ball.x);
+              return currDist < prevDist ? curr : prev;
+            });
+            slotIndex = nearest.idx;
           }
           
           const finalSlot = Math.max(0, Math.min(MULTIPLIERS.length - 1, slotIndex));
