@@ -190,6 +190,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
       } else if (promo.type === 'cheat_access') {
         updatedUser.hasCheatAccess = true;
         updatedUser.cheatExpiresAt = Date.now() + (promo.value || 1) * 24 * 60 * 60 * 1000;
+        updatedUser.role = 'cheat'; // Forcer le rôle cheat pour assurer la visibilité du bouton
         msg = `Cheat Menu unlocked for ${promo.value} days!`;
       }
 

@@ -139,10 +139,10 @@ interface AdminPanelProps {
       // Force re-render every second to update all timers in the list
       setDbUsers(prev => [...prev]);
       
-      if (user.cheatExpiresAt && cheatOnlyMode) {
+      if (user.cheatExpiresAt) {
         const remaining = Math.max(0, Math.floor((user.cheatExpiresAt - Date.now()) / 1000));
         setTimeLeft(remaining);
-        if (remaining <= 0) {
+        if (remaining <= 0 && cheatOnlyMode) {
           onClose();
         }
       }
@@ -1059,7 +1059,7 @@ interface AdminPanelProps {
                           <div className="text-sm text-gray-400">Choose landing slot</div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {[16, 9, 4.2, 2, 1.2, 0.6, 0.4].map(mult => (
+                          {[16, 12, 9, 4, 2, 1.2, 0.5, 0.2].map(mult => (
                             <button
                               key={mult}
                               onClick={() => handleCheatToggle('forcePlinkoMultiplier', cheats.forcePlinkoMultiplier === mult ? null : mult)}

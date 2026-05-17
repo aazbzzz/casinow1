@@ -27,7 +27,7 @@ interface Ball {
   radius: number;
 }
 
-const MULTIPLIERS = [16, 12, 9, 4, 2, 1.2, 0.7, 0.1, 0.7, 1.2, 2, 4, 9, 12, 16];
+const MULTIPLIERS = [16, 12, 9, 4, 2, 1.2, 0.5, 0.2, 0.5, 1.2, 2, 4, 9, 12, 16];
 const ROWS = 12;
 
 export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGameProps) {
@@ -248,7 +248,7 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
           const totalPayout = Number(betAmount) * finalMultiplier;
           
-          if (totalPayout > 0) {
+          if (finalMultiplier >= 1) {
             console.log({ 
               game: 'Plinko', 
               betAmount: Number(betAmount), 
@@ -262,19 +262,20 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
             setLastMultiplier(finalMultiplier);
             setLastPayout(payoutResult);
             
-            if (finalMultiplier >= 1 && enableSounds) playWin();
+            if (enableSounds) playWin();
             if (enableHaptics) vibrate(200);
           } else {
+            // Perte si multiplicateur < 1
             console.log({ 
               game: 'Plinko', 
               betAmount: Number(betAmount), 
-              payout: 0, 
+              payout: totalPayout, 
               multiplier: finalMultiplier, 
               outcome: 'loss' 
             });
             onLoss(Number(betAmount), 'Plinko');
             setLastMultiplier(finalMultiplier);
-            setLastPayout(0);
+            setLastPayout(totalPayout); // Affiche le montant récupéré (ex: 2 si mise de 10 et multi 0.2)
             if (enableHaptics) vibrate([50, 50]);
           }
           
