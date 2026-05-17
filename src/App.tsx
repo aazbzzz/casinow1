@@ -31,7 +31,7 @@ import tweaksConfig from '@/config/tweaksConfig.json';
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 function App() {
-  const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, updateBankBalance, refreshUser } = useGameState();
+  const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, updateBankBalance, refreshUser, error: gameError, clearError } = useGameState();
   const [activeSection, setActiveSection] = useState<'casino' | 'wallet' | 'vip' | 'quests' | 'settings' | 'leaderboard'>('casino');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState(() => !getCurrentUID());
@@ -588,6 +588,27 @@ function App() {
       {/* Auth Modal */}
       {showAuth && (
         <AuthModal onAuthComplete={handleAuthComplete} />
+      )}
+
+      {/* Game Error Modal (VIP Limit, etc.) */}
+      {gameError && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-[#0a0a0a] border-2 border-red-500/50 rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-in zoom-in-95 duration-200 text-center">
+            <div className="size-20 rounded-3xl bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center mx-auto mb-6">
+              <ShieldAlert className="size-10 text-red-500" />
+            </div>
+            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Mise Bloquée</h3>
+            <p className="text-gray-400 text-sm leading-relaxed mb-8 font-medium">
+              {gameError}
+            </p>
+            <button
+              onClick={clearError}
+              className="w-full py-4 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs transition-all active:scale-95 hover:brightness-110 shadow-xl"
+            >
+              J'ai compris
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

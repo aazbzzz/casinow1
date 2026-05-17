@@ -31,9 +31,12 @@ const cleanAmount = (val: any): number => {
 export function useGameState() {
   const [user, setUser] = useState<User>(() => getUser());
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const isInitialMount = useRef(true);
   const isPendingSync = useRef(false);
   const lastUpdateRef = useRef(Date.now());
+
+  const clearError = useCallback(() => setError(null), []);
 
   const fetchLatestData = useCallback(async (force = false) => {
     const uid = getCurrentUID();
@@ -284,7 +287,7 @@ export function useGameState() {
     // VÉRIFICATION LIMITE VIP
     const currentVIP = getVIPLevel(user.totalWagered);
     if (numericAmount > currentVIP.maxBet) {
-      alert(`⚠️ Limite VIP : Votre niveau VIP ${currentVIP.level} limite vos mises à ${currentVIP.maxBet.toLocaleString()} crédits. Misez plus pour augmenter votre limite !`);
+      setError(`Votre niveau VIP ${currentVIP.level} limite vos mises à ${currentVIP.maxBet.toLocaleString()} crédits. Misez plus pour augmenter votre limite !`);
       return false;
     }
 
@@ -491,6 +494,8 @@ export function useGameState() {
     withdrawFromBank,
     updateBankBalance,
     refreshUser,
+    error,
+    clearError,
   };
 }
 
