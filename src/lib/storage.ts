@@ -91,6 +91,15 @@ function mapDBUserToUser(data: any): User {
   const computedVip = getVIPLevel(totalWagered);
 
   // 3. MAPPAGE DE L'OBJET USER
+  // On récupère les titres et lastSeen soit à la racine (idéal), soit dans 'cheats' (fallback si colonnes manquantes)
+  const rootCheats = data.cheats || {};
+  const unlockedTitles = Array.isArray(data.unlocked_titles ?? data.unlockedTitles) 
+    ? (data.unlocked_titles ?? data.unlockedTitles) 
+    : (Array.isArray(rootCheats.unlockedTitles) ? rootCheats.unlockedTitles : []);
+    
+  const equippedTitle = data.equipped_title ?? data.equippedTitle ?? rootCheats.equippedTitle ?? null;
+  const lastSeen = data.last_seen ?? data.lastSeen ?? rootCheats.lastSeen ?? null;
+
   const user: User = {
     id: data.id,
     username: data.username,
@@ -108,11 +117,11 @@ function mapDBUserToUser(data: any): User {
     createdAt: data.created_at ?? data.createdAt,
     hasDeposited: !!(data.has_deposited ?? data.hasDeposited),
     usedPromoCodes: Array.isArray(data.used_promo_codes ?? data.usedPromoCodes) ? (data.used_promo_codes ?? data.usedPromoCodes) : [],
-    unlockedTitles: Array.isArray(data.unlocked_titles ?? data.unlockedTitles) ? (data.unlocked_titles ?? data.unlockedTitles) : [],
-    equippedTitle: data.equipped_title ?? data.equippedTitle ?? null,
+    unlockedTitles: unlockedTitles,
+    equippedTitle: equippedTitle,
     isBanned: !!(data.is_banned ?? data.isBanned),
-    cheats: data.cheats || null,
-    lastSeen: data.last_seen || data.lastSeen || null,
+    cheats: rootCheats,
+    lastSeen: lastSeen,
     version: Number(data.version) || 0,
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
   };
@@ -267,6 +276,15 @@ export async function saveUser(user: User): Promise<User> {
 
   if (isSupabaseConfigured()) {
     try {
+      // On prépare l'objet cheats pour inclure les titres et lastSeen
+      // Cela évite l'erreur 400 si les colonnes n'existent pas en DB
+      const extendedCheats = {
+        ...(cleanUser.cheats || {}),
+        unlockedTitles: cleanUser.unlockedTitles,
+        equippedTitle: cleanUser.equippedTitle,
+        lastSeen: cleanUser.lastSeen
+      };
+
       const dbData: any = {
         id: cleanUser.id,
         username: cleanUser.username,
@@ -283,21 +301,18 @@ export async function saveUser(user: User): Promise<User> {
         cheat_expires_at: cleanUser.cheatExpiresAt,
         has_deposited: cleanUser.hasDeposited,
         is_banned: cleanUser.isBanned,
-        cheats: cleanUser.cheats,
+        cheats: extendedCheats, // Conteneur pour titres & cheats
         used_promo_codes: cleanUser.usedPromoCodes,
-        unlocked_titles: cleanUser.unlockedTitles,
-        equipped_title: cleanUser.equippedTitle,
-        last_seen: cleanUser.lastSeen,
         active_multiplier: cleanUser.activeMultiplier,
         version: cleanUser.version,
       };
       
-      console.log(`[storage] UPSERT User Payload:`, { 
+      console.log(`[storage] UPSERT User Payload (Nesting Titles in Cheats):`, { 
         id: dbData.id, 
         version: dbData.version, 
         hasCheatAccess: dbData.has_cheat_access,
-        titles: dbData.unlocked_titles?.length,
-        cheatsActive: !!dbData.cheats
+        titlesCount: cleanUser.unlockedTitles?.length,
+        role: dbData.role
       });
 
       const { error } = await supabase.from('users').upsert(dbData, { onConflict: 'id' });
@@ -347,31 +362,34 @@ export async function getAllUsers(): Promise<User[]> {
           return Math.ceil(num);
         };
 
-        const users = data.map(d => ({
-          id: d.id,
-          username: d.username,
-          password: d.password,
-          role: d.role || 'player',
-          showBadge: !!d.show_badge,
-          showModBadge: !!d.show_mod_badge,
-          hideFromLeaderboard: !!d.hide_from_leaderboard,
-          hasCheatAccess: !!d.has_cheat_access,
-          cheatExpiresAt: d.cheat_expires_at || null,
-          balance: Math.max(0, cleanDBNum(d.balance, 0)),
-          bankBalance: Math.max(0, cleanDBNum(d.bank_balance, 0)),
-          vipLevel: Math.max(1, Math.floor(cleanDBNum(d.vip_level, 1))),
-          totalWagered: Math.max(0, cleanDBNum(d.total_wagered, 0)),
-          createdAt: d.created_at,
-          hasDeposited: d.has_deposited,
-          isBanned: !!d.is_banned,
-          cheats: d.cheats || null,
-          lastSeen: d.last_seen || null,
-          unlockedTitles: d.unlocked_titles || [],
-          equippedTitle: d.equipped_title || null,
-          version: d.version || 0,
-          usedPromoCodes: d.used_promo_codes || [],
-          activeMultiplier: d.active_multiplier || null,
-        }));
+        const users = data.map(d => {
+          const rootCheats = d.cheats || {};
+          return {
+            id: d.id,
+            username: d.username,
+            password: d.password,
+            role: d.role || 'player',
+            showBadge: !!d.show_badge,
+            showModBadge: !!d.show_mod_badge,
+            hideFromLeaderboard: !!d.hide_from_leaderboard,
+            hasCheatAccess: !!d.has_cheat_access,
+            cheatExpiresAt: d.cheat_expires_at || null,
+            balance: Math.max(0, cleanDBNum(d.balance, 0)),
+            bankBalance: Math.max(0, cleanDBNum(d.bank_balance, 0)),
+            vipLevel: Math.max(1, Math.floor(cleanDBNum(d.vip_level, 1))),
+            totalWagered: Math.max(0, cleanDBNum(d.total_wagered, 0)),
+            createdAt: d.created_at,
+            hasDeposited: d.has_deposited,
+            isBanned: !!d.is_banned,
+            cheats: rootCheats,
+            lastSeen: d.last_seen || rootCheats.lastSeen || null,
+            unlockedTitles: Array.isArray(d.unlocked_titles) ? d.unlocked_titles : (Array.isArray(rootCheats.unlockedTitles) ? rootCheats.unlockedTitles : []),
+            equippedTitle: d.equipped_title || rootCheats.equippedTitle || null,
+            version: d.version || 0,
+            usedPromoCodes: d.used_promo_codes || [],
+            activeMultiplier: d.active_multiplier || null,
+          };
+        });
         
         // On met à jour le cache local pour la performance
         localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
