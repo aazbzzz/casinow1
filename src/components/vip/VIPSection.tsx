@@ -21,8 +21,13 @@ export function VIPSection() {
   // RÈGLE ABSOLUE : Recalculer le VIP en temps réel à partir de la mise totale
   const currentVIP = getVIPLevel(safeTotalWagered) || VIP_LEVELS[0];
   const nextVIP = getNextVIPLevel(currentVIP.level);
+  
+  // Progression calculée dynamiquement pour la barre
   const progressValue = getVIPProgress(safeTotalWagered, currentVIP.level);
   const safeProgress = isNaN(progressValue) ? 0 : Math.min(100, Math.max(0, progressValue));
+
+  // Calcul du montant manquant pour le prochain niveau
+  const amountToNext = nextVIP ? Math.max(0, nextVIP.wagerRequired - safeTotalWagered) : 0;
 
   const formatAmount = (amount: number, exact = false) => {
     const val = Math.ceil(Number(amount) || 0);
@@ -92,7 +97,7 @@ export function VIPSection() {
                   <TrendingUp className="size-3" /> Objectif Suivant
                 </div>
                 <div className="text-2xl font-black text-white italic tracking-tighter">
-                  {formatAmount(nextVIP.wagerRequired - safeTotalWagered, true)} <span className="text-[10px] opacity-40 uppercase not-italic font-medium ml-3 tracking-[0.2em]">requis pour VIP {nextVIP.level}</span>
+                  {formatAmount(amountToNext, true)} <span className="text-[10px] opacity-40 uppercase not-italic font-medium ml-3 tracking-[0.2em]">requis pour VIP {nextVIP.level}</span>
                 </div>
               </div>
             )}

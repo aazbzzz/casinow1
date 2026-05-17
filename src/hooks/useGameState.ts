@@ -49,37 +49,24 @@ export function useGameState() {
     
     if (remoteUser) {
       setUser(prev => {
+        // PROTECTION: Ignorer si une action locale est en cours (bet, win, etc.)
+        if (isPendingSync.current) return prev;
+
         // Sanitisation forcée des données distantes
         const sanitizedRemote = {
           ...remoteUser,
           balance: Math.max(0, Number(remoteUser.balance) || 0),
           bankBalance: Math.max(0, Number(remoteUser.bankBalance) || 0),
           totalWagered: Math.max(0, Number(remoteUser.totalWagered) || 0),
-          vipLevel: Math.max(1, Math.floor(Number(remoteUser.vipLevel) || 1)),
+          // VIP calculé localement pour être sûr
+          vipLevel: getVIPLevel(Number(remoteUser.totalWagered) || 0).level,
+          version: Number(remoteUser.version) || 0
         };
 
         // On n'écrase QUE si la version distante est strictement plus récente
         if (sanitizedRemote.version > prev.version) {
-          console.log(`[useGameState] State updated from server: Remote (v${sanitizedRemote.version}) > Local (v${prev.version})`);
-          
-          const now = Date.now();
-          const hasLocalActiveCheat = prev.hasCheatAccess && prev.cheatExpiresAt && prev.cheatExpiresAt > now;
-          const hasRemoteActiveCheat = sanitizedRemote.hasCheatAccess && sanitizedRemote.cheatExpiresAt && sanitizedRemote.cheatExpiresAt > now;
-          
-          // CRITICAL: Jamais écraser un cheat actif localement par un état "null" si la version est proche
-          // On priorise l'état "actif" du cheat pour éviter les micro-reset
-          return {
-            ...sanitizedRemote,
-            cheats: (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat') 
-              ? prev.cheats 
-              : sanitizedRemote.cheats,
-            hasCheatAccess: (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
-              ? prev.hasCheatAccess
-              : sanitizedRemote.hasCheatAccess,
-            cheatExpiresAt: (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
-              ? prev.cheatExpiresAt
-              : sanitizedRemote.cheatExpiresAt,
-          };
+          console.log(`[useGameState] State updated from server: v${sanitizedRemote.version} > v${prev.version}`);
+          return sanitizedRemote;
         }
         return prev;
       });
@@ -116,58 +103,31 @@ export function useGameState() {
         if (!newUser) return;
 
         setUser(prev => {
-          if (newUser.version > prev.version) {
-            console.log(`[useGameState] Realtime sync: v${newUser.version} > v${prev.version}`);
+          // PROTECTION: Ignorer si une action locale est en cours
+          if (isPendingSync.current) return prev;
+
+          const remoteVersion = Number(newUser.version) || 0;
+          if (remoteVersion > prev.version) {
+            console.log(`[useGameState] Realtime sync: v${remoteVersion} > v${prev.version}`);
             
-            const now = Date.now();
-            const hasLocalActiveCheat = prev.hasCheatAccess && prev.cheatExpiresAt && prev.cheatExpiresAt > now;
-            const hasRemoteActiveCheat = !!newUser.has_cheat_access && newUser.cheat_expires_at && newUser.cheat_expires_at > now;
-
-            // Strict merging: preserve local cheat if remote doesn't have it yet
-            const finalCheats = (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
-              ? prev.cheats
-              : newUser.cheats;
-            
-            const finalHasCheat = (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
-              ? prev.hasCheatAccess
-              : !!newUser.has_cheat_access;
-
-            const finalExpires = (hasLocalActiveCheat && !hasRemoteActiveCheat && prev.role !== 'cheat')
-              ? prev.cheatExpiresAt
-              : newUser.cheat_expires_at;
-
-            // PROTECTION: Never overwrite totalWagered/vipLevel with older values
             const remoteWagered = Number(newUser.total_wagered) || 0;
-            const localWagered = Number(prev.totalWagered) || 0;
-            
-            const finalTotalWagered = remoteWagered >= localWagered ? remoteWagered : localWagered;
-            
-            const realtimeVip = getVIPLevel(finalTotalWagered);
-
-            console.log("[VIP REALTIME]", { 
-              remoteWagered, 
-              localWagered, 
-              finalTotalWagered, 
-              remoteVip: Number(newUser.vip_level) || 1, 
-              localVip: Number(prev.vipLevel) || 1, 
-              finalVipLevel: realtimeVip.level 
-            });
+            const realtimeVip = getVIPLevel(remoteWagered);
 
             return {
               ...prev,
               balance: Math.max(0, Number(newUser.balance) || 0),
               bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
               vipLevel: realtimeVip.level,
-              totalWagered: finalTotalWagered,
+              totalWagered: remoteWagered,
               role: newUser.role,
-              hasCheatAccess: finalHasCheat,
-              cheatExpiresAt: finalExpires,
+              hasCheatAccess: !!newUser.has_cheat_access,
+              cheatExpiresAt: newUser.cheat_expires_at,
               showBadge: !!newUser.show_badge,
               showModBadge: !!newUser.show_mod_badge,
               hideFromLeaderboard: !!newUser.hide_from_leaderboard,
               isBanned: !!newUser.is_banned,
-              cheats: finalCheats,
-              version: newUser.version
+              cheats: newUser.cheats,
+              version: remoteVersion
             };
           }
           return prev;
@@ -228,14 +188,14 @@ export function useGameState() {
       const newBalance = currentBalance + numericAmount;
       
       // Calculate VIP on update
-      const newWagered = prev.totalWagered;
+      const newWagered = Number(prev.totalWagered) || 0;
       const computedVip = getVIPLevel(newWagered);
-      const finalVipLevel = Math.max(Number(prev.vipLevel) || 1, computedVip.level);
 
       const newUser = { 
         ...prev, 
         balance: newBalance,
-        vipLevel: finalVipLevel
+        vipLevel: computedVip.level,
+        version: (Number(prev.version) || 0) + 1
       };
       
       saveUser(newUser).then(finalUser => {
@@ -399,6 +359,7 @@ export function useGameState() {
         ...prev,
         balance: newBalance,
         bankBalance: newBankBalance,
+        version: (Number(prev.version) || 0) + 1
       };
 
       saveUser(newUser).then(finalUser => {
@@ -440,6 +401,7 @@ export function useGameState() {
         ...prev,
         balance: newBalance,
         bankBalance: newBankBalance,
+        version: (Number(prev.version) || 0) + 1
       };
 
       saveUser(newUser).then(finalUser => {
@@ -474,6 +436,7 @@ export function useGameState() {
       const newUser = {
         ...prev,
         bankBalance: newBankBalance,
+        version: (Number(prev.version) || 0) + 1
       };
 
       saveUser(newUser).then(finalUser => {

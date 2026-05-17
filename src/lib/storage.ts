@@ -92,13 +92,6 @@ function mapDBUserToUser(data: any): User {
   const computedVip = getVIPLevel(totalWagered);
   const finalVipLevel = computedVip.level;
 
-  console.log("[VIP DB READ]", { 
-    raw_total_wagered: data.total_wagered, 
-    mapped_total_wagered: totalWagered, 
-    raw_vip: data.vip_level, 
-    final_vip: finalVipLevel 
-  });
-
   const user: User = {
     id: data.id,
     username: data.username,
@@ -118,7 +111,7 @@ function mapDBUserToUser(data: any): User {
     usedPromoCodes: data.used_promo_codes ?? data.usedPromoCodes ?? [],
     isBanned: !!(data.is_banned ?? data.isBanned),
     cheats: data.cheats || null,
-    version: data.version || 0,
+    version: Number(data.version) || 0,
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
   };
 
