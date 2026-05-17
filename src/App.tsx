@@ -91,6 +91,7 @@ function App() {
           const updatedUser = payload.new;
           if (updatedUser && updatedUser.id === getCurrentUID()) {
             console.log('[Realtime] Global update for current user ignored (handled by useGameState)');
+            return; // EXIT HERE to avoid dispatching raw DB object for current user
           }
 
           // 3. Notifier le système pour les autres composants (ex: Admin Panel)

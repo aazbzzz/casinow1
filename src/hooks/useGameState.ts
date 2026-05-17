@@ -205,9 +205,13 @@ export function useGameState() {
     return () => clearInterval(interval);
   }, [user.hasCheatAccess, user.cheatExpiresAt, user.role, user.id]);
 
-  const refreshUser = useCallback(async (updatedUser?: User) => {
+  const refreshUser = useCallback(async (updatedUser?: any) => {
      if (updatedUser) {
-       setUser(updatedUser);
+       // On s'assure que l'objet est bien mappé s'il vient de la DB (snake_case)
+       const cleanUser = (updatedUser.id && (updatedUser.total_wagered !== undefined || updatedUser.bank_balance !== undefined)) 
+         ? mapDBUserToUser(updatedUser) 
+         : updatedUser;
+       setUser(cleanUser);
      } else {
        await fetchLatestData(true);
      }
@@ -241,8 +245,11 @@ export function useGameState() {
           }
           return current;
         });
-        isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
+      }).catch(err => {
+        console.error("[useGameState] updateBalance save error:", err);
+      }).finally(() => {
+        isPendingSync.current = false;
       });
 
       if (type === 'win' || type === 'deposit' || type === 'withdraw') {
@@ -363,10 +370,13 @@ export function useGameState() {
           }
           return current;
         });
-        isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
         window.dispatchEvent(new CustomEvent('user_updated_global', { detail: finalUser }));
         window.dispatchEvent(new CustomEvent('casino_balance_update'));
+      }).catch(err => {
+        console.error("[useGameState] placeBet save error:", err);
+      }).finally(() => {
+        isPendingSync.current = false;
       });
 
       return updatedUser;
@@ -415,8 +425,11 @@ export function useGameState() {
           }
           return current;
         });
-        isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
+      }).catch(err => {
+        console.error("[useGameState] bank operation save error:", err);
+      }).finally(() => {
+        isPendingSync.current = false;
       });
       
       reportScore(newUser.balance);
@@ -462,8 +475,11 @@ export function useGameState() {
           }
           return current;
         });
-        isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
+      }).catch(err => {
+        console.error("[useGameState] withdrawFromBank save error:", err);
+      }).finally(() => {
+        isPendingSync.current = false;
       });
       
       reportScore(newUser.balance);
