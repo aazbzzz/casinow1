@@ -105,12 +105,23 @@ export function useGameState() {
               ? prev.cheatExpiresAt
               : newUser.cheat_expires_at;
 
+            // PROTECTION: Never overwrite totalWagered/vipLevel with older values
+            const finalTotalWagered = Math.max(
+              Number(prev.totalWagered) || 0,
+              Number(newUser.total_wagered) || 0
+            );
+            
+            const finalVipLevel = Math.max(
+              Number(prev.vipLevel) || 1,
+              Number(newUser.vip_level) || 1
+            );
+
             return {
               ...prev,
               balance: Math.max(0, Number(newUser.balance) || 0),
               bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
-              vipLevel: Math.max(1, Math.floor(Number(newUser.vip_level) || 1)),
-              totalWagered: Math.max(0, Number(newUser.total_wagered) || 0),
+              vipLevel: finalVipLevel,
+              totalWagered: finalTotalWagered,
               role: newUser.role,
               hasCheatAccess: finalHasCheat,
               cheatExpiresAt: finalExpires,

@@ -218,7 +218,11 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           const cheats = getCheats(user);
           let slotIndex = Math.floor(ball.x / slotWidth);
           
-          if (cheats.plinkoMaxMultiplier) {
+          if (cheats.forcePlinkoMultiplier !== null) {
+            // Force the EXACT multiplier index
+            const targetIdx = MULTIPLIERS.indexOf(cheats.forcePlinkoMultiplier);
+            if (targetIdx !== -1) slotIndex = targetIdx;
+          } else if (cheats.plinkoMaxMultiplier) {
             // Force 16x (nearest)
             slotIndex = ball.x < width / 2 ? 0 : MULTIPLIERS.length - 1;
           } else if (cheats.forcePlinkoWin) {

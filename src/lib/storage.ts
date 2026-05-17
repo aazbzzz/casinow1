@@ -81,7 +81,6 @@ export async function fetchUser(uid?: string): Promise<User> {
         };
 
         const totalWagered = Math.max(0, cleanDBNum(data.total_wagered, 0));
-        // Recalculate VIP from totalWagered to ensure consistency
         const { getVIPLevel } = await import('./vip');
         const computedVip = getVIPLevel(totalWagered);
         const dbVipLevel = Math.max(1, Math.floor(cleanDBNum(data.vip_level, 1)));
