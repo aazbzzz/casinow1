@@ -61,6 +61,7 @@ interface AdminPanelProps {
     });
   const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [viewingLogs, setViewingLogs] = useState<User | null>(null);
   const [editBalances, setEditBalances] = useState({ balance: 0, bankBalance: 0, vipLevel: 1, username: '' });
   const [addMoneyAmount, setAddMoneyAmount] = useState(1000);
   const [cheats, setCheats] = useState<CheatSettings>(() => {
@@ -252,6 +253,8 @@ interface AdminPanelProps {
   const handleCheatToggle = async (key: keyof CheatSettings, value: boolean | number | null | string) => {
     const newCheats = { ...cheats, [key]: value };
     console.log(`[CHEAT] Toggle: ${key} = ${value} (Target: ${cheatTargetUserId || 'Self'})`);
+    
+    // On ne modifie JAMAIS le rôle de l'utilisateur ici, seulement ses cheats
     isInternalUpdate.current = true;
     setCheats(newCheats);
     
@@ -342,6 +345,48 @@ interface AdminPanelProps {
             <X className="size-5 sm:size-6 text-white" />
           </button>
         </div>
+
+        {/* User Log Modal */}
+        {viewingLogs && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="w-full max-w-md bg-[#0a0a0a] border-2 border-yellow-500/30 rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(234,179,8,0.1)]">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="size-14 rounded-2xl bg-yellow-500/10 flex items-center justify-center border-2 border-yellow-500/20">
+                  <FileCode className="size-8 text-yellow-500" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">User Activity Logs</h3>
+                  <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{viewingLogs.username}</div>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-8">
+                {[
+                  { label: 'User ID', value: viewingLogs.id, color: 'text-gray-400' },
+                  { label: 'Current Role', value: viewingLogs.role.toUpperCase(), color: 'text-blue-400' },
+                  { label: 'Current Balance', value: `${Math.ceil(viewingLogs.balance).toLocaleString()} Credits`, color: 'text-green-400' },
+                  { label: 'Total Wagered', value: `${Math.ceil(viewingLogs.totalWagered).toLocaleString()} Credits`, color: 'text-purple-400' },
+                  { label: 'VIP Level', value: `Level ${viewingLogs.vipLevel}`, color: 'text-yellow-400' },
+                  { label: 'Cheat Access', value: viewingLogs.hasCheatAccess ? 'ACTIVE' : 'INACTIVE', color: viewingLogs.hasCheatAccess ? 'text-green-500' : 'text-red-500' },
+                  { label: 'Last Seen', value: viewingLogs.lastSeen ? new Date(viewingLogs.lastSeen).toLocaleString() : 'Never', color: 'text-gray-300' },
+                  { label: 'Promo Codes Used', value: viewingLogs.usedPromoCodes?.length || 0, color: 'text-gray-300' },
+                ].map((log, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{log.label}</span>
+                    <span className={`text-xs font-bold ${log.color}`}>{log.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setViewingLogs(null)}
+                className="w-full py-4 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs transition-all active:scale-95 hover:brightness-110 shadow-xl"
+              >
+                Close Logs
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-1 px-4 py-2 sm:px-6 sm:py-4 border-b-2 shrink-0 overflow-x-auto no-scrollbar" style={{ borderColor: `${primaryAccent}20` }}>
           {[
@@ -512,17 +557,7 @@ interface AdminPanelProps {
                           </button>
                           <button
                             onClick={() => {
-                              const logInfo = `
-[USER LOGS: ${u.username}]
-ID: ${u.id}
-Role: ${u.role}
-Balance: ${u.balance}
-Wagered: ${u.totalWagered}
-Cheats Active: ${u.hasCheatAccess ? 'YES' : 'NO'}
-Promo Codes Used: ${u.usedPromoCodes?.length || 0}
-Last Seen: ${u.lastSeen ? new Date(u.lastSeen).toLocaleString() : 'N/A'}
-                              `;
-                              alert(logInfo);
+                              setViewingLogs(u);
                               if (enableHaptics) vibrate(30);
                             }}
                             className="flex-1 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-yellow-500/10 text-yellow-500 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-yellow-500/20 border border-yellow-500/30 transition-all active:scale-95"

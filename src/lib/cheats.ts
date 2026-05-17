@@ -65,7 +65,7 @@ const DEFAULT_CHEATS: CheatSettings = {
   // Global
   alwaysWin: false,
   customMultiplier: 1,
-  infiniteBalance: false,
+  infiniteBalance: false, // Ne pas activer par défaut pour les admins
   autoPlay: false,
   instantWin: false,
   instantLoss: false,
