@@ -6,6 +6,28 @@ import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
 import { getCheats } from '@/lib/cheats';
 
+const cleanAmount = (val: any): number => {
+  if (val === null || val === undefined) return 0;
+  let num = 0;
+  if (typeof val === 'number') {
+    num = isNaN(val) ? 0 : val;
+  } else if (typeof val === 'string') {
+    let cleaned = val.replace(/\s/g, '');
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (lastDot > lastComma) {
+      cleaned = cleaned.replace(/,/g, '');
+    } else {
+      cleaned = cleaned.replace(',', '.');
+    }
+    const parsed = parseFloat(cleaned);
+    num = isNaN(parsed) ? 0 : parsed;
+  }
+  return Math.ceil(num);
+};
+
 export function useGameState() {
   const [user, setUser] = useState<User>(() => getUser());
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -111,7 +133,6 @@ export function useGameState() {
               Number(newUser.total_wagered) || 0
             );
             
-            const { getVIPLevel } = require('@/lib/vip');
             const computedVip = getVIPLevel(finalTotalWagered);
             
             const finalVipLevel = Math.max(
@@ -186,48 +207,28 @@ export function useGameState() {
    }, [fetchLatestData]);
 
   const updateBalance = useCallback(async (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
-    const cleanAmount = (val: any): number => {
-      if (val === null || val === undefined) return 0;
-      let num = 0;
-      if (typeof val === 'number') {
-        num = isNaN(val) ? 0 : val;
-      } else if (typeof val === 'string') {
-        // Handle European formats (1.000,50) and US formats (1,000.50)
-        let cleaned = val.replace(/\s/g, '');
-        const lastComma = cleaned.lastIndexOf(',');
-        const lastDot = cleaned.lastIndexOf('.');
-        
-        if (lastComma > lastDot) {
-          // Comma is likely decimal separator
-          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (lastDot > lastComma) {
-          // Dot is likely decimal separator
-          cleaned = cleaned.replace(/,/g, '');
-        } else {
-          // Only one or none. Just replace comma with dot if present
-          cleaned = cleaned.replace(',', '.');
-        }
-        
-        const parsed = parseFloat(cleaned);
-        num = isNaN(parsed) ? 0 : parsed;
-      }
-      return Math.ceil(num);
-    };
-
     const numericAmount = cleanAmount(amount);
     if (numericAmount === 0 && type !== 'bet') return;
 
     isPendingSync.current = true;
     
-    // On met à jour l'état local immédiatement pour la réactivité (Optimistic)
-    // Mais on laisse saveUser gérer la version finale
     setUser(prev => {
       const currentBalance = cleanAmount(prev.balance);
       const newBalance = currentBalance + numericAmount;
-      const newUser = { ...prev, balance: newBalance };
+      
+      // Calculate VIP on update
+      const newWagered = prev.totalWagered;
+      const computedVip = getVIPLevel(newWagered);
+      const finalVipLevel = Math.max(Number(prev.vipLevel) || 1, computedVip.level);
+
+      const newUser = { 
+        ...prev, 
+        balance: newBalance,
+        vipLevel: finalVipLevel
+      };
       
       saveUser(newUser).then(finalUser => {
-        setUser(finalUser); // On se synchronise avec la version confirmée par le serveur
+        setUser(finalUser);
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
       });
@@ -241,33 +242,10 @@ export function useGameState() {
   }, []);
   
   const recordWin = useCallback((betAmount: number | string, payout: number | string, multiplier: number | string, game: string) => {
-    const cleanAmount = (val: any): number => {
-      if (val === null || val === undefined) return 0;
-      let num = 0;
-      if (typeof val === 'number') {
-        num = isNaN(val) ? 0 : val;
-      } else if (typeof val === 'string') {
-        let cleaned = val.replace(/\s/g, '');
-        const lastComma = cleaned.lastIndexOf(',');
-        const lastDot = cleaned.lastIndexOf('.');
-        if (lastComma > lastDot) {
-          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (lastDot > lastComma) {
-          cleaned = cleaned.replace(/,/g, '');
-        } else {
-          cleaned = cleaned.replace(',', '.');
-        }
-        const parsed = parseFloat(cleaned);
-        num = isNaN(parsed) ? 0 : parsed;
-      }
-      return Math.ceil(num);
-    };
-
     const numBet = cleanAmount(betAmount);
     const numPayout = cleanAmount(payout);
     const numMultiplier = cleanAmount(multiplier);
 
-    // Calcul du gain réel
     let calculatedPayout = numPayout;
     
     if (calculatedPayout <= 0 && numMultiplier > 0) {
@@ -278,7 +256,6 @@ export function useGameState() {
       calculatedPayout = numBet * Math.max(1, numMultiplier);
     }
     
-    // On utilise les données de l'état actuel pour le multiplicateur
     if (user.activeMultiplier && user.activeMultiplier.expiresAt > Date.now()) {
       const bonusMult = cleanAmount(user.activeMultiplier.value) || 1;
       calculatedPayout *= bonusMult;
@@ -300,34 +277,12 @@ export function useGameState() {
     }).catch(console.error);
     
     return safeFinalAmount;
-  }, [updateBalance, user.activeMultiplier]);
+  }, [updateBalance, user]);
 
   const recordLoss = useCallback((amount: number | string, game: string) => {
     const cheats = getCheats(user);
     if (cheats.infiniteBalance) return;
     
-    const cleanAmount = (val: any): number => {
-      if (val === null || val === undefined) return 0;
-      let num = 0;
-      if (typeof val === 'number') {
-        num = isNaN(val) ? 0 : val;
-      } else if (typeof val === 'string') {
-        let cleaned = val.replace(/\s/g, '');
-        const lastComma = cleaned.lastIndexOf(',');
-        const lastDot = cleaned.lastIndexOf('.');
-        if (lastComma > lastDot) {
-          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (lastDot > lastComma) {
-          cleaned = cleaned.replace(/,/g, '');
-        } else {
-          cleaned = cleaned.replace(',', '.');
-        }
-        const parsed = parseFloat(cleaned);
-        num = isNaN(parsed) ? 0 : parsed;
-      }
-      return Math.ceil(num);
-    };
-
     const numBet = cleanAmount(amount);
     
     addGameHistory({
@@ -340,28 +295,6 @@ export function useGameState() {
   }, [user]);
 
   const placeBet = useCallback((amount: number | string, game: string): boolean => {
-    const cleanAmount = (val: any): number => {
-      if (val === null || val === undefined) return 0;
-      let num = 0;
-      if (typeof val === 'number') {
-        num = isNaN(val) ? 0 : val;
-      } else if (typeof val === 'string') {
-        let cleaned = val.replace(/\s/g, '');
-        const lastComma = cleaned.lastIndexOf(',');
-        const lastDot = cleaned.lastIndexOf('.');
-        if (lastComma > lastDot) {
-          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (lastDot > lastComma) {
-          cleaned = cleaned.replace(/,/g, '');
-        } else {
-          cleaned = cleaned.replace(',', '.');
-        }
-        const parsed = parseFloat(cleaned);
-        num = isNaN(parsed) ? 0 : parsed;
-      }
-      return Math.ceil(num);
-    };
-
     const numericAmount = cleanAmount(amount);
     if (numericAmount <= 0) return false;
 
@@ -370,17 +303,15 @@ export function useGameState() {
 
     if (!cheats.infiniteBalance && currentBalance < numericAmount) return false;
     
-    // Cheat: Instant Loss
     if (cheats.instantLoss) {
       recordLoss(numericAmount, game);
-      return false; // Prevent game from starting
+      return false;
     }
 
-    // Cheat: Instant Win
     if (cheats.instantWin) {
       const winMultiplier = cheats.customMultiplier > 1 ? cheats.customMultiplier : 2;
       recordWin(numericAmount, numericAmount * winMultiplier, winMultiplier, game);
-      return false; // Prevent game from starting
+      return false;
     }
 
     isPendingSync.current = true;
@@ -390,14 +321,17 @@ export function useGameState() {
       const newBalance = Math.max(0, prevBalance - numericAmount);
       const newWagered = (Number(prev.totalWagered) || 0) + numericAmount;
       
-      // Let saveUser handle the versioning and VIP calculation
+      const computedVip = getVIPLevel(newWagered);
+      const finalVipLevel = Math.max(Number(prev.vipLevel) || 1, computedVip.level);
+
       const updatedUser = {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
+        vipLevel: finalVipLevel
       };
 
-      console.log(`[useGameState] placeBet: Wagered ${numericAmount}, Total: ${newWagered}`);
+      console.log(`[useGameState] placeBet: Wagered ${numericAmount}, Total: ${newWagered}, VIP: ${finalVipLevel}`);
 
       saveUser(updatedUser).then(finalUser => {
         setUser(finalUser);
