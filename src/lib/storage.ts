@@ -70,14 +70,27 @@ export async function fetchUser(uid?: string): Promise<User> {
       if (!error && data) {
         const cleanDBNum = (val: any, fallback = 0): number => {
           if (val === null || val === undefined) return fallback;
+          let num = fallback;
           const type = typeof val;
-          if (type === 'number') return isNaN(val) ? fallback : val;
-          if (type === 'string') {
-            const cleaned = val.replace(/\s/g, '').replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+          if (type === 'number') {
+            num = isNaN(val) ? fallback : val;
+          } else if (type === 'string') {
+            let cleaned = val.replace(/\s/g, '');
+            const lastComma = cleaned.lastIndexOf(',');
+            const lastDot = cleaned.lastIndexOf('.');
+            
+            if (lastComma > lastDot) {
+              cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (lastDot > lastComma) {
+              cleaned = cleaned.replace(/,/g, '');
+            } else {
+              cleaned = cleaned.replace(',', '.');
+            }
+            
             const parsed = parseFloat(cleaned);
-            return isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
+            num = isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
           }
-          return fallback;
+          return Math.ceil(num);
         };
 
         const totalWagered = Math.max(0, cleanDBNum(data.total_wagered, 0));
@@ -149,13 +162,26 @@ export async function saveUser(user: User): Promise<User> {
 
   const cleanNum = (val: any, fallback = 0): number => {
     if (val === null || val === undefined) return fallback;
-    if (typeof val === 'number') return isNaN(val) || !isFinite(val) ? fallback : val;
-    if (typeof val === 'string') {
-      let cleaned = val.replace(/\s/g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
+    let num = fallback;
+    if (typeof val === 'number') {
+      num = isNaN(val) || !isFinite(val) ? fallback : val;
+    } else if (typeof val === 'string') {
+      let cleaned = val.replace(/\s/g, '');
+      const lastComma = cleaned.lastIndexOf(',');
+      const lastDot = cleaned.lastIndexOf('.');
+      
+      if (lastComma > lastDot) {
+        cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+      } else if (lastDot > lastComma) {
+        cleaned = cleaned.replace(/,/g, '');
+      } else {
+        cleaned = cleaned.replace(',', '.');
+      }
+      
       const parsed = parseFloat(cleaned);
-      return isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
+      num = isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
     }
-    return fallback;
+    return Math.ceil(num);
   };
 
   const totalWagered = Math.max(0, cleanNum(user.totalWagered, 0));
@@ -247,9 +273,25 @@ export async function getAllUsers(): Promise<User[]> {
       if (!error && data) {
         const cleanDBNum = (val: any, fallback = 0): number => {
           if (val === null || val === undefined) return fallback;
-          if (typeof val === 'number') return isNaN(val) || !isFinite(val) ? fallback : val;
-          if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]/g, '')) || fallback;
-          return fallback;
+          let num = fallback;
+          if (typeof val === 'number') {
+            num = isNaN(val) || !isFinite(val) ? fallback : val;
+          } else if (typeof val === 'string') {
+            let cleaned = val.replace(/\s/g, '');
+            const lastComma = cleaned.lastIndexOf(',');
+            const lastDot = cleaned.lastIndexOf('.');
+            
+            if (lastComma > lastDot) {
+              cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (lastDot > lastComma) {
+              cleaned = cleaned.replace(/,/g, '');
+            } else {
+              cleaned = cleaned.replace(',', '.');
+            }
+            const parsed = parseFloat(cleaned);
+            num = isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
+          }
+          return Math.ceil(num);
         };
 
         const users = data.map(d => ({

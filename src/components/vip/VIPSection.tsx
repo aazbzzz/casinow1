@@ -23,11 +23,11 @@ export function VIPSection({
   const progress = getVIPProgress(safeTotalWagered, safeVipLevel);
 
   const formatAmount = (amount: number) => {
-    const val = Number(amount) || 0;
+    const val = Math.ceil(Number(amount) || 0);
     if (val >= 1000000000) return (val / 1000000000).toFixed(1) + 'B';
     if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
     if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
-    return val.toLocaleString();
+    return val.toString();
   };
 
   return <div className="p-6">

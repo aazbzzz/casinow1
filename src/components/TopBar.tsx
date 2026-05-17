@@ -126,7 +126,7 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
         <div className="flex flex-col items-end">
           <span className="text-xs font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Credits</span>
           <span className="text-xl font-black text-white italic tracking-tighter leading-none">
-            {safeBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {Math.ceil(safeBalance)}
           </span>
         </div>
       </div>

@@ -349,7 +349,7 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
         </button>
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 shadow-lg" style={{ backgroundColor: cardBg, borderColor: primaryAccent, boxShadow: `0 0 20px ${primaryAccent}40` }}>
           <Coins className="size-5" style={{ color: primaryAccent }} />
-          <span className="font-bold text-white">{balance.toFixed(2)}</span>
+          <span className="font-bold text-white">{Math.ceil(balance)}</span>
         </div>
       </div>
       
@@ -376,7 +376,7 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
               {lastMultiplier}x
             </div>
             <div className="text-xl font-bold text-white">
-              {lastMultiplier >= 1 ? `+${lastPayout.toFixed(2)}` : `${lastPayout.toFixed(2)}`}
+              {lastMultiplier >= 1 ? `+${Math.ceil(lastPayout)}` : `${Math.ceil(lastPayout)}`}
             </div>
           </div>
         )}

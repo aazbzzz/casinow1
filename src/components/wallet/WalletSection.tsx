@@ -234,7 +234,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                     <Coins className="size-5" style={{ color: primaryAccent }} />
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Game Balance</span>
                   </div>
-                  <div className="text-3xl font-black text-white">{balanceMax.toFixed(2)}</div>
+                  <div className="text-3xl font-black text-white">{Math.ceil(balanceMax)}</div>
                 </div>
                 
                 <div 
@@ -246,7 +246,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                     <DollarSign className="size-5" style={{ color: primaryAccent }} />
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Bank Balance</span>
                   </div>
-                  <div className="text-3xl font-black text-white">{bankMax.toFixed(2)}</div>
+                  <div className="text-3xl font-black text-white">{Math.ceil(bankMax)}</div>
                 </div>
               </div>
               
@@ -463,7 +463,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                       />
                       <div className="mt-2 text-right">
                         <span className="text-[10px] font-bold text-gray-500 uppercase">Available in Bank: </span>
-                        <span className="text-[10px] font-black text-white">{bankMax.toLocaleString()} Credits</span>
+                        <span className="text-[10px] font-black text-white">{Math.ceil(bankMax)} Credits</span>
                       </div>
                     </div>
 

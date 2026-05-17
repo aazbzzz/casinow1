@@ -203,7 +203,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
         </button>
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 shadow-lg" style={{ backgroundColor: cardBg, borderColor: primaryAccent, boxShadow: `0 0 20px ${primaryAccent}40` }}>
           <Coins className="size-5" style={{ color: primaryAccent }} />
-          <span className="font-bold text-white text-lg">{balance.toFixed(2)}</span>
+          <span className="font-bold text-white text-lg">{Math.ceil(balance)}</span>
         </div>
       </div>
       
@@ -291,7 +291,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
             <div className="text-right">
               <div className="text-[10px] text-white/40 font-black uppercase tracking-widest">Current Win</div>
               <div className="text-2xl font-black text-white">
-                {(betAmount * currentMultiplier).toFixed(2)}
+                {Math.ceil(betAmount * currentMultiplier)}
               </div>
             </div>
           </div>

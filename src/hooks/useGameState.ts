@@ -184,13 +184,30 @@ export function useGameState() {
   const updateBalance = useCallback(async (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
     const cleanAmount = (val: any): number => {
       if (val === null || val === undefined) return 0;
-      if (typeof val === 'number') return isNaN(val) ? 0 : val;
-      if (typeof val === 'string') {
-        const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+      let num = 0;
+      if (typeof val === 'number') {
+        num = isNaN(val) ? 0 : val;
+      } else if (typeof val === 'string') {
+        // Handle European formats (1.000,50) and US formats (1,000.50)
+        let cleaned = val.replace(/\s/g, '');
+        const lastComma = cleaned.lastIndexOf(',');
+        const lastDot = cleaned.lastIndexOf('.');
+        
+        if (lastComma > lastDot) {
+          // Comma is likely decimal separator
+          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (lastDot > lastComma) {
+          // Dot is likely decimal separator
+          cleaned = cleaned.replace(/,/g, '');
+        } else {
+          // Only one or none. Just replace comma with dot if present
+          cleaned = cleaned.replace(',', '.');
+        }
+        
         const parsed = parseFloat(cleaned);
-        return isNaN(parsed) ? 0 : parsed;
+        num = isNaN(parsed) ? 0 : parsed;
       }
-      return 0;
+      return Math.ceil(num);
     };
 
     const numericAmount = cleanAmount(amount);
@@ -222,13 +239,30 @@ export function useGameState() {
   const placeBet = useCallback((amount: number | string, game: string): boolean => {
     const cleanAmount = (val: any): number => {
       if (val === null || val === undefined) return 0;
-      if (typeof val === 'number') return isNaN(val) ? 0 : val;
-      if (typeof val === 'string') {
-        const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+      let num = 0;
+      if (typeof val === 'number') {
+        num = isNaN(val) ? 0 : val;
+      } else if (typeof val === 'string') {
+        // Handle European formats (1.000,50) and US formats (1,000.50)
+        let cleaned = val.replace(/\s/g, '');
+        const lastComma = cleaned.lastIndexOf(',');
+        const lastDot = cleaned.lastIndexOf('.');
+        
+        if (lastComma > lastDot) {
+          // Comma is likely decimal separator
+          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (lastDot > lastComma) {
+          // Dot is likely decimal separator
+          cleaned = cleaned.replace(/,/g, '');
+        } else {
+          // Only one or none. Just replace comma with dot if present
+          cleaned = cleaned.replace(',', '.');
+        }
+        
         const parsed = parseFloat(cleaned);
-        return isNaN(parsed) ? 0 : parsed;
+        num = isNaN(parsed) ? 0 : parsed;
       }
-      return 0;
+      return Math.ceil(num);
     };
 
     const numericAmount = cleanAmount(amount);
@@ -301,13 +335,24 @@ export function useGameState() {
   const recordWin = useCallback((betAmount: number | string, payout: number | string, multiplier: number | string, game: string) => {
     const cleanAmount = (val: any): number => {
       if (val === null || val === undefined) return 0;
-      if (typeof val === 'number') return isNaN(val) ? 0 : val;
-      if (typeof val === 'string') {
-        const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+      let num = 0;
+      if (typeof val === 'number') {
+        num = isNaN(val) ? 0 : val;
+      } else if (typeof val === 'string') {
+        let cleaned = val.replace(/\s/g, '');
+        const lastComma = cleaned.lastIndexOf(',');
+        const lastDot = cleaned.lastIndexOf('.');
+        if (lastComma > lastDot) {
+          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (lastDot > lastComma) {
+          cleaned = cleaned.replace(/,/g, '');
+        } else {
+          cleaned = cleaned.replace(',', '.');
+        }
         const parsed = parseFloat(cleaned);
-        return isNaN(parsed) ? 0 : parsed;
+        num = isNaN(parsed) ? 0 : parsed;
       }
-      return 0;
+      return Math.ceil(num);
     };
 
     const numBet = cleanAmount(betAmount);
@@ -355,13 +400,24 @@ export function useGameState() {
     
     const cleanAmount = (val: any): number => {
       if (val === null || val === undefined) return 0;
-      if (typeof val === 'number') return isNaN(val) ? 0 : val;
-      if (typeof val === 'string') {
-        const cleaned = val.replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+      let num = 0;
+      if (typeof val === 'number') {
+        num = isNaN(val) ? 0 : val;
+      } else if (typeof val === 'string') {
+        let cleaned = val.replace(/\s/g, '');
+        const lastComma = cleaned.lastIndexOf(',');
+        const lastDot = cleaned.lastIndexOf('.');
+        if (lastComma > lastDot) {
+          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (lastDot > lastComma) {
+          cleaned = cleaned.replace(/,/g, '');
+        } else {
+          cleaned = cleaned.replace(',', '.');
+        }
         const parsed = parseFloat(cleaned);
-        return isNaN(parsed) ? 0 : parsed;
+        num = isNaN(parsed) ? 0 : parsed;
       }
-      return 0;
+      return Math.ceil(num);
     };
 
     const numBet = cleanAmount(amount);

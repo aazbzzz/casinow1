@@ -446,7 +446,7 @@ function App() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-lg italic" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>{entry.balance.toLocaleString()}</div>
+                      <div className="font-black text-lg italic" style={{ color: idx < 3 ? primaryAccent : '#fff' }}>{Math.ceil(entry.balance)}</div>
                       <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Credits</div>
                     </div>
                   </div>
