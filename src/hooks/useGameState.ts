@@ -128,25 +128,26 @@ export function useGameState() {
               : newUser.cheat_expires_at;
 
             // PROTECTION: Never overwrite totalWagered/vipLevel with older values
-            const finalTotalWagered = Math.max(
+            const realtimeWagered = Math.max(
               Number(prev.totalWagered) || 0,
               Number(newUser.total_wagered) || 0
             );
             
-            const computedVip = getVIPLevel(finalTotalWagered);
-            
-            const finalVipLevel = Math.max(
-              Number(prev.vipLevel) || 1,
-              Number(newUser.vip_level) || 1,
-              computedVip.level
-            );
+            const realtimeVip = getVIPLevel(realtimeWagered);
+
+            console.log("[VIP REALTIME]", { 
+              remoteWagered: newUser.total_wagered, 
+              localWagered: prev.totalWagered, 
+              finalWagered: realtimeWagered, 
+              finalVip: realtimeVip.level 
+            });
 
             return {
               ...prev,
               balance: Math.max(0, Number(newUser.balance) || 0),
               bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
-              vipLevel: finalVipLevel,
-              totalWagered: finalTotalWagered,
+              vipLevel: realtimeVip.level,
+              totalWagered: realtimeWagered,
               role: newUser.role,
               hasCheatAccess: finalHasCheat,
               cheatExpiresAt: finalExpires,
@@ -321,17 +322,18 @@ export function useGameState() {
       const newBalance = Math.max(0, prevBalance - numericAmount);
       const newWagered = (Number(prev.totalWagered) || 0) + numericAmount;
       
-      const computedVip = getVIPLevel(newWagered);
-      const finalVipLevel = Math.max(Number(prev.vipLevel) || 1, computedVip.level);
+      const vipData = getVIPLevel(newWagered);
 
       const updatedUser = {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
-        vipLevel: finalVipLevel
+        vipLevel: vipData.level
       };
 
-      console.log(`[useGameState] placeBet: Wagered ${numericAmount}, Total: ${newWagered}, VIP: ${finalVipLevel}`);
+      console.log("[VIP DEBUG] Bet:", numericAmount);
+      console.log("[VIP DEBUG] New wagered:", newWagered);
+      console.log("[VIP DEBUG] New VIP:", vipData.level);
 
       saveUser(updatedUser).then(finalUser => {
         setUser(finalUser);

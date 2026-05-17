@@ -87,9 +87,9 @@ function mapDBUserToUser(data: any): User {
   const bankBalance = Math.max(0, cleanDBNum(data.bank_balance ?? data.bankBalance, 0));
   
   // ALWAYS recalculate VIP level from totalWagered to prevent freezing
+  // RÈGLE ABSOLUE : VIP = getVIPLevel(totalWagered)
   const computedVip = getVIPLevel(totalWagered);
-  const dbVipLevel = Math.max(1, Math.floor(cleanDBNum(data.vip_level ?? data.vipLevel, 1)));
-  const finalVipLevel = Math.max(dbVipLevel, computedVip.level);
+  const finalVipLevel = computedVip.level;
 
   const user: User = {
     id: data.id,
@@ -199,18 +199,20 @@ export async function saveUser(user: User): Promise<User> {
 
   const totalWagered = Math.max(0, cleanNum(user.totalWagered, 0));
   const computedVip = getVIPLevel(totalWagered);
-  const currentVipLevel = Math.max(1, Math.floor(cleanNum(user.vipLevel, 1)));
 
   const cleanUser: User = {
     ...user,
     balance: Math.max(0, cleanNum(user.balance, 0)),
     bankBalance: Math.max(0, cleanNum(user.bankBalance, 0)),
     totalWagered: totalWagered,
-    vipLevel: Math.max(currentVipLevel, computedVip.level),
+    vipLevel: computedVip.level,
     version: (user.version || 0) + 1
   };
 
-  console.log(`[storage] saveUser: ${cleanUser.username}, Wagered: ${cleanUser.totalWagered}, VIP: ${cleanUser.vipLevel}`);
+  console.log(`[VIP SAVE]`, {
+    wagered: totalWagered,
+    vip: computedVip.level
+  });
   
   // Cache local immédiat
   localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
