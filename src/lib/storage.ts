@@ -1,5 +1,6 @@
 import { type User, type Quest } from '@/types';
 import { supabase } from './supabase';
+import { getVIPLevel } from './vip';
 export { supabase };
 
 export interface PromoCode {
@@ -53,14 +54,76 @@ export function logout(): void {
  * Supabase est la source de vérité unique.
  * localStorage est utilisé uniquement pour le cache (lecture rapide au démarrage).
  */
+/**
+ * Robust User Mapper
+ * Handles both snake_case (DB) and camelCase (JS)
+ */
+function mapDBUserToUser(data: any): User {
+  const cleanDBNum = (val: any, fallback = 0): number => {
+    if (val === null || val === undefined) return fallback;
+    let num = fallback;
+    if (typeof val === 'number') {
+      num = isNaN(val) ? fallback : val;
+    } else if (typeof val === 'string') {
+      let cleaned = val.replace(/\s/g, '');
+      const lastComma = cleaned.lastIndexOf(',');
+      const lastDot = cleaned.lastIndexOf('.');
+      if (lastComma > lastDot) {
+        cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+      } else if (lastDot > lastComma) {
+        cleaned = cleaned.replace(/,/g, '');
+      } else {
+        cleaned = cleaned.replace(',', '.');
+      }
+      const parsed = parseFloat(cleaned);
+      num = isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
+    }
+    return Math.ceil(num);
+  };
+
+  // Try both snake_case and camelCase for each field
+  const totalWagered = Math.max(0, cleanDBNum(data.total_wagered ?? data.totalWagered, 0));
+  const balance = Math.max(0, cleanDBNum(data.balance, 0));
+  const bankBalance = Math.max(0, cleanDBNum(data.bank_balance ?? data.bankBalance, 0));
+  
+  // ALWAYS recalculate VIP level from totalWagered to prevent freezing
+  const computedVip = getVIPLevel(totalWagered);
+  const dbVipLevel = Math.max(1, Math.floor(cleanDBNum(data.vip_level ?? data.vipLevel, 1)));
+  const finalVipLevel = Math.max(dbVipLevel, computedVip.level);
+
+  const user: User = {
+    id: data.id,
+    username: data.username,
+    password: data.password,
+    role: data.role || 'player',
+    showBadge: !!(data.show_badge ?? data.showBadge),
+    showModBadge: !!(data.show_mod_badge ?? data.showModBadge),
+    hideFromLeaderboard: !!(data.hide_from_leaderboard ?? data.hideFromLeaderboard),
+    hasCheatAccess: !!(data.has_cheat_access ?? data.hasCheatAccess),
+    cheatExpiresAt: data.cheat_expires_at ?? data.cheatExpiresAt ?? null,
+    balance: balance,
+    bankBalance: bankBalance,
+    vipLevel: finalVipLevel,
+    totalWagered: totalWagered,
+    createdAt: data.created_at ?? data.createdAt,
+    hasDeposited: !!(data.has_deposited ?? data.hasDeposited),
+    usedPromoCodes: data.used_promo_codes ?? data.usedPromoCodes ?? [],
+    isBanned: !!(data.is_banned ?? data.isBanned),
+    cheats: data.cheats || null,
+    version: data.version || 0,
+    activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
+  };
+
+  console.log(`[storage] Mapped User: ${user.username}, Wagered: ${user.totalWagered}, VIP: ${user.vipLevel}`);
+  return user;
+}
+
 export async function fetchUser(uid?: string): Promise<User> {
   const targetUid = uid || getCurrentUID();
   if (!targetUid) return getDefaultUser();
 
   if (isSupabaseConfigured()) {
     try {
-      console.log(`[storage] fetchUser from Cloud: ${targetUid}`);
-      // On tente de tout récupérer. Si une colonne manque, l'erreur sera capturée.
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -68,94 +131,37 @@ export async function fetchUser(uid?: string): Promise<User> {
         .single();
       
       if (!error && data) {
-        const cleanDBNum = (val: any, fallback = 0): number => {
-          if (val === null || val === undefined) return fallback;
-          let num = fallback;
-          const type = typeof val;
-          if (type === 'number') {
-            num = isNaN(val) ? fallback : val;
-          } else if (type === 'string') {
-            let cleaned = val.replace(/\s/g, '');
-            const lastComma = cleaned.lastIndexOf(',');
-            const lastDot = cleaned.lastIndexOf('.');
-            
-            if (lastComma > lastDot) {
-              cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-            } else if (lastDot > lastComma) {
-              cleaned = cleaned.replace(/,/g, '');
-            } else {
-              cleaned = cleaned.replace(',', '.');
-            }
-            
-            const parsed = parseFloat(cleaned);
-            num = isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
-          }
-          return Math.ceil(num);
-        };
-
-        const totalWagered = Math.max(0, cleanDBNum(data.total_wagered, 0));
-        const { getVIPLevel } = await import('./vip');
-        const computedVip = getVIPLevel(totalWagered);
-        const dbVipLevel = Math.max(1, Math.floor(cleanDBNum(data.vip_level, 1)));
-        
-        const mappedUser: User = {
-          id: data.id,
-          username: data.username,
-          password: data.password,
-          role: data.role || 'player',
-          showBadge: !!data.show_badge,
-          showModBadge: !!data.show_mod_badge,
-          hideFromLeaderboard: !!data.hide_from_leaderboard,
-          hasCheatAccess: !!data.has_cheat_access,
-          cheatExpiresAt: data.cheat_expires_at || null,
-          balance: Math.max(0, cleanDBNum(data.balance, 0)),
-          bankBalance: Math.max(0, cleanDBNum(data.bank_balance, 0)),
-          vipLevel: Math.max(dbVipLevel, computedVip.level),
-          totalWagered: totalWagered,
-          createdAt: data.created_at,
-          hasDeposited: !!data.has_deposited,
-          usedPromoCodes: data.used_promo_codes || [],
-          isBanned: !!data.is_banned,
-          cheats: data.cheats || null,
-          version: data.version || 0,
-          activeMultiplier: data.active_multiplier || null,
-        };
-
-        console.log('[FETCH USER RAW]', data);
-        console.log('[FETCH USER MAPPED]', mappedUser.totalWagered, mappedUser.vipLevel);
-        
-        // Mise à jour du cache local
-        localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${mappedUser.id}`, JSON.stringify(mappedUser));
-        return mappedUser;
-      } else if (error) {
-        // PGRST116 = not found, on ne logge pas d'erreur critique
-        if (error.code !== 'PGRST116') {
-          console.error("[storage] fetchUser Cloud error:", error);
-        }
+        const user = mapDBUserToUser(data);
+        localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
+        return user;
+      } else if (error && error.code !== 'PGRST116') {
+        console.error("[storage] fetchUser Cloud error:", error);
       }
     } catch (err) {
       console.error("[storage] fetchUser critical error:", err);
     }
   }
 
-  // Fallback sur le cache local si le Cloud est inaccessible
   const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
-  return stored ? JSON.parse(stored) : getDefaultUser(targetUid);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      return mapDBUserToUser(parsed);
+    } catch (e) {
+      return getDefaultUser(targetUid);
+    }
+  }
+  return getDefaultUser(targetUid);
 }
 
-/**
- * Récupère l'utilisateur depuis le cache local (lecture synchrone).
- * À utiliser UNIQUEMENT pour l'état initial, avant le fetch Cloud.
- */
 export function getUser(uid?: string): User {
   const targetUid = uid || getCurrentUID();
   if (targetUid) {
     const stored = localStorage.getItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${targetUid}`);
     if (stored) {
       try {
-        const user = JSON.parse(stored);
-        console.log(`[storage] getUser (cache) v${user.version}`, user.totalWagered, user.vipLevel);
-        return user;
+        const parsed = JSON.parse(stored);
+        return mapDBUserToUser(parsed);
       } catch (e) {
         console.error("[storage] getUser parse error", e);
       }
@@ -192,11 +198,10 @@ export async function saveUser(user: User): Promise<User> {
   };
 
   const totalWagered = Math.max(0, cleanNum(user.totalWagered, 0));
-  const { getVIPLevel } = await import('./vip');
   const computedVip = getVIPLevel(totalWagered);
   const currentVipLevel = Math.max(1, Math.floor(cleanNum(user.vipLevel, 1)));
 
-  const cleanUser = {
+  const cleanUser: User = {
     ...user,
     balance: Math.max(0, cleanNum(user.balance, 0)),
     bankBalance: Math.max(0, cleanNum(user.bankBalance, 0)),
@@ -205,65 +210,41 @@ export async function saveUser(user: User): Promise<User> {
     version: (user.version || 0) + 1
   };
 
-  console.log('[SAVE USER]', cleanUser.totalWagered, cleanUser.vipLevel);
-
-  // 1. Mise à jour immédiate du cache local (Optimistic UI)
+  console.log(`[storage] saveUser: ${cleanUser.username}, Wagered: ${cleanUser.totalWagered}, VIP: ${cleanUser.vipLevel}`);
+  
+  // Cache local immédiat
   localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${cleanUser.id}`, JSON.stringify(cleanUser));
 
-  // Mettre à jour aussi le cache global des utilisateurs
-  try {
-    const storedUsers = localStorage.getItem(STORAGE_KEYS.CACHE_USERS);
-    let users: User[] = storedUsers ? JSON.parse(storedUsers) : [];
-    const idx = users.findIndex(u => u.id === cleanUser.id);
-    if (idx !== -1) {
-      users[idx] = cleanUser;
-    } else {
-      users.push(cleanUser);
-    }
-    localStorage.setItem(STORAGE_KEYS.CACHE_USERS, JSON.stringify(users));
-  } catch (e) {}
-
-  // 2. Sauvegarde Cloud (Source de vérité)
   if (isSupabaseConfigured()) {
     try {
       const dbData: any = {
         id: cleanUser.id,
         username: cleanUser.username,
         password: cleanUser.password,
-        role: cleanUser.role || 'player',
-        show_badge: cleanUser.showBadge || false,
-        show_mod_badge: cleanUser.showModBadge || false,
-        hide_from_leaderboard: cleanUser.hideFromLeaderboard || false,
-        has_cheat_access: cleanUser.hasCheatAccess || false,
-        cheat_expires_at: cleanUser.cheatExpiresAt || null,
+        role: cleanUser.role,
         balance: cleanUser.balance,
         bank_balance: cleanUser.bankBalance,
         vip_level: cleanUser.vipLevel,
         total_wagered: cleanUser.totalWagered,
+        show_badge: cleanUser.showBadge,
+        show_mod_badge: cleanUser.showModBadge,
+        hide_from_leaderboard: cleanUser.hideFromLeaderboard,
+        has_cheat_access: cleanUser.hasCheatAccess,
+        cheat_expires_at: cleanUser.cheatExpiresAt,
         has_deposited: cleanUser.hasDeposited,
-        is_banned: cleanUser.isBanned || false,
-        cheats: cleanUser.cheats || null,
-        used_promo_codes: cleanUser.usedPromoCodes || [],
-        active_multiplier: cleanUser.activeMultiplier || null,
+        is_banned: cleanUser.isBanned,
+        cheats: cleanUser.cheats,
+        used_promo_codes: cleanUser.usedPromoCodes,
+        active_multiplier: cleanUser.activeMultiplier,
         version: cleanUser.version,
       };
       
       const { error } = await supabase.from('users').upsert(dbData, { onConflict: 'id' });
-      
       if (error) {
-        // Si l'erreur est liée à la colonne 'version' manquante, on réessaie sans elle
-        if (error.message?.includes('version') || error.code === '42703') {
-          delete dbData.version;
-          await supabase.from('users').upsert(dbData, { onConflict: 'id' });
-        } else {
-          throw error;
-        }
+        console.error("[storage] saveUser Cloud error:", error);
       }
-      
-      console.log(`[storage] Cloud Save Success: ${cleanUser.username}`);
-      window.dispatchEvent(new CustomEvent('user_updated_global', { detail: cleanUser }));
     } catch (err) {
-      console.error("[storage] saveUser Cloud error:", err);
+      console.error("[storage] saveUser critical error:", err);
     }
   }
 
