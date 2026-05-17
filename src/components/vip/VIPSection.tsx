@@ -90,7 +90,7 @@ export function VIPSection() {
                   <TrendingUp className="size-3" /> Objectif Suivant
                 </div>
                 <div className="text-2xl font-black text-white italic tracking-tighter">
-                  {formatAmount(nextVIP.wagerRequired - safeTotalWagered)} <span className="text-xs opacity-40 uppercase not-italic font-bold ml-1">requis pour VIP {nextVIP.level}</span>
+                  {formatAmount(nextVIP.wagerRequired - safeTotalWagered)} <span className="text-[10px] opacity-40 uppercase not-italic font-medium ml-3 tracking-[0.2em]">requis pour VIP {nextVIP.level}</span>
                 </div>
               </div>
             )}
