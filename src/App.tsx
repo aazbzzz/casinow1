@@ -384,7 +384,7 @@ function App() {
             />
           )}
           {activeSection === 'vip' && (
-            <VIPSection user={user} />
+            <VIPSection />
           )}
           {activeSection === 'quests' && (
             <QuestsSection quests={quests} onClaimQuest={claimQuest} />

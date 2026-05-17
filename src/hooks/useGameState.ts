@@ -331,21 +331,26 @@ export function useGameState() {
         calculatedVip: vipData.level 
       });
 
-      const updatedUser = {
+      // On crée l'objet utilisateur mis à jour
+      const updatedUser: User = {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
-        vipLevel: vipData.level
+        vipLevel: vipData.level,
+        version: (prev.version || 0) + 1
       };
 
       console.log("[VIP DEBUG] Bet:", numericAmount);
       console.log("[VIP DEBUG] New wagered:", newWagered);
       console.log("[VIP DEBUG] New VIP:", vipData.level);
 
+      // Sauvegarde Cloud et Cache
       saveUser(updatedUser).then(finalUser => {
         setUser(finalUser);
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
+        // Event global pour forcer les composants VIP à se rafraîchir si nécessaire
+        window.dispatchEvent(new CustomEvent('user_updated_global', { detail: finalUser }));
       });
 
       return updatedUser;
