@@ -448,7 +448,7 @@ interface AdminPanelProps {
                     <div className="grid grid-cols-2 gap-2 mb-4">
                       <div className="p-2 sm:p-3 rounded-xl bg-black/30 border border-white/5">
                         <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase mb-1">Balance</div>
-                        <div className="text-white font-black text-xs sm:text-sm">${Math.ceil(u.balance)}</div>
+                        <div className="text-white font-black text-xs sm:text-sm">${Math.ceil(u.balance).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</div>
                       </div>
                       <div className="p-2 sm:p-3 rounded-xl bg-black/30 border border-white/5">
                         <div className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase mb-1">Cheat Status</div>

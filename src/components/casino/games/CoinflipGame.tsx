@@ -144,7 +144,7 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
         </button>
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 shadow-lg" style={{ backgroundColor: cardBg, borderColor: primaryAccent, boxShadow: `0 0 20px ${primaryAccent}40` }}>
           <Coins className="size-5" style={{ color: primaryAccent }} />
-          <span className="font-bold text-white text-lg">{Math.ceil(balance)}</span>
+          <span className="font-bold text-white text-lg">{Math.ceil(balance).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</span>
         </div>
       </div>
       
@@ -166,7 +166,7 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
         
         {lastWin !== null && (
           <div className="text-3xl font-black animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ color: primaryAccent }}>
-            +{Math.ceil(lastWin)} 🎉
+            +{Math.ceil(lastWin).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} 🎉
           </div>
         )}
         

@@ -207,7 +207,7 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
         </button>
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 shadow-lg" style={{ backgroundColor: cardBg, borderColor: primaryAccent, boxShadow: `0 0 20px ${primaryAccent}40` }}>
           <Coins className="size-5" style={{ color: primaryAccent }} />
-          <span className="font-bold text-white text-lg">{Math.ceil(balance)}</span>
+          <span className="font-bold text-white text-lg">{Math.ceil(balance).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</span>
         </div>
       </div>
       
@@ -287,7 +287,7 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
               </div>
               {lastWin !== null && (
                 <div className="text-4xl font-black mt-2" style={{ color: primaryAccent }}>
-                  +{Math.ceil(lastWin)} 🎉
+                  +{Math.ceil(lastWin).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} 🎉
                 </div>
               )}
             </div>
@@ -313,7 +313,7 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
             className="w-full py-4 rounded-xl font-bold text-black transition-all active:scale-95 shadow-lg animate-pulse"
             style={{ backgroundColor: primaryAccent, boxShadow: `0 0 20px ${primaryAccent}60` }}
           >
-            Cashout {Math.ceil(betAmount * currentMultiplier)}
+            Cashout {Math.ceil(betAmount * currentMultiplier).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
           </button>
         )}
         

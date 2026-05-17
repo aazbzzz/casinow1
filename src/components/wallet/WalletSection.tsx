@@ -232,9 +232,9 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <Coins className="size-5" style={{ color: primaryAccent }} />
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Game Balance</span>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Main Balance</span>
                   </div>
-                  <div className="text-3xl font-black text-white">{Math.ceil(balanceMax)}</div>
+                  <div className="text-3xl font-black text-white">{Math.ceil(balanceMax).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</div>
                 </div>
                 
                 <div 
@@ -246,7 +246,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                     <DollarSign className="size-5" style={{ color: primaryAccent }} />
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Bank Balance</span>
                   </div>
-                  <div className="text-3xl font-black text-white">{Math.ceil(bankMax)}</div>
+                  <div className="text-3xl font-black text-white">{Math.ceil(bankMax).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</div>
                 </div>
               </div>
               
@@ -463,7 +463,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                       />
                       <div className="mt-2 text-right">
                         <span className="text-[10px] font-bold text-gray-500 uppercase">Available in Bank: </span>
-                        <span className="text-[10px] font-black text-white">{Math.ceil(bankMax)} Credits</span>
+                        <span className="text-[10px] font-black text-white">{Math.ceil(bankMax).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} Credits</span>
                       </div>
                     </div>
 
