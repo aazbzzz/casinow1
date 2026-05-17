@@ -86,25 +86,27 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   useEffect(() => {
     const user = getUser();
     const cheats = getCheats(user);
-    if (gameActive && !gameOver && cheats.minesAutoPick && revealed.size < (25 - minesCount)) {
+    if (gameActive && !gameOver && cheats.minesAutoPick) {
       const timer = setTimeout(() => {
-        const unrevealedSafe = Array.from({ length: 25 }, (_, i) => i)
+        const safeIndices = Array.from({ length: 25 }, (_, i) => i)
           .filter(i => !revealed.has(i) && !minePositions.has(i));
         
-        if (unrevealedSafe.length > 0) {
-          const randomIndex = unrevealedSafe[Math.floor(Math.random() * unrevealedSafe.length)];
-          revealTile(randomIndex);
+        if (safeIndices.length > 0) {
+          revealTile(safeIndices[Math.floor(Math.random() * safeIndices.length)]);
         }
-      }, 1000);
+      }, 800);
       return () => clearTimeout(timer);
     }
-  }, [gameActive, gameOver, revealed.size, minesCount]);
+  }, [gameActive, gameOver, revealed.size, minePositions]);
 
   const revealTile = (index: number) => {
     if (!gameActive || revealed.has(index) || gameOver) return;
     
     const user = getUser();
     const cheats = getCheats(user);
+    
+    // Cheat: Force Safe (First 10 picks)
+    const isForcedSafe = cheats.minesForceSafe && revealed.size < 10;
     
     if (cheats.minesInstantWin) {
       const allSafeIndices = Array.from({ length: 25 }, (_, i) => i).filter(i => !minePositions.has(i));
@@ -135,9 +137,10 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
     newRevealed.add(index);
     setRevealed(newRevealed);
     
-    const hitMine = cheats.forceMinesSafe ? false : minePositions.has(index);
+    const hitMine = isForcedSafe ? false : minePositions.has(index);
+    const shouldExplode = hitMine && !cheats.minesNoExplosion;
     
-    if (hitMine) {
+    if (shouldExplode) {
       setGameOver(true);
       setGameActive(false);
       onLoss(betAmount, 'Mines');
@@ -306,7 +309,14 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
               
               // Cheat: Show mines
               const shouldShowCheatMine = gameActive && !isRevealed && isMine && (cheats.minesRevealAll || cheats.minesShowMines);
-              const isPredictivePath = gameActive && !isRevealed && !isMine && cheats.minesPredictivePath && i % 3 === 0; // Simple pattern for predictive path
+              
+              // Cheat: Predictive Path (Highlight safe cells)
+              let isPredictivePath = false;
+              if (gameActive && !isRevealed && !isMine && cheats.minesPredictivePath) {
+                // Highlight next 3 safe indices in order for clarity
+                const allSafe = Array.from({ length: 25 }, (_, idx) => idx).filter(idx => !minePositions.has(idx) && !revealed.has(idx));
+                isPredictivePath = allSafe.slice(0, 3).includes(i);
+              }
 
               return (
                 <button

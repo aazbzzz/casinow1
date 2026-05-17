@@ -46,6 +46,7 @@ export interface CheatSettings {
   minesForceSafe: boolean;
   minesAutoPick: boolean;
   minesPredictivePath: boolean;
+  minesNoExplosion: boolean;
   
   // Crash Cheats
   forceCrashMultiplier: number | null;
@@ -56,6 +57,7 @@ export interface CheatSettings {
   // Plinko Cheats
   forcePlinkoWin: boolean;
   plinkoMaxMultiplier: boolean;
+  forcePlinkoMultiplier: number | null;
 }
 
 const DEFAULT_CHEATS: CheatSettings = {
@@ -104,6 +106,7 @@ const DEFAULT_CHEATS: CheatSettings = {
   minesForceSafe: false,
   minesAutoPick: false,
   minesPredictivePath: false,
+  minesNoExplosion: false,
   
   // Crash
   forceCrashMultiplier: null,
@@ -114,6 +117,7 @@ const DEFAULT_CHEATS: CheatSettings = {
   // Plinko
   forcePlinkoWin: false,
   plinkoMaxMultiplier: false,
+  forcePlinkoMultiplier: null,
 };
 
 export function getCheats(user?: User | null): CheatSettings {

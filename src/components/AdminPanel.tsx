@@ -997,8 +997,9 @@ interface AdminPanelProps {
                     <> 
                       <CheatToggle label="Show Mines" description="Mines are visible through cards" value={cheats.minesShowMines} onChange={(v) => handleCheatToggle('minesShowMines', v)} /> 
                       <CheatToggle label="Force Safe" description="First 10 picks are always safe" value={cheats.minesForceSafe} onChange={(v) => handleCheatToggle('minesForceSafe', v)} /> 
+                      <CheatToggle label="No Explosion" description="Mines never end the game" value={cheats.minesNoExplosion} onChange={(v) => handleCheatToggle('minesNoExplosion', v)} />
                       <CheatToggle label="Auto Pick" description="Automatically pick safe tiles" value={cheats.minesAutoPick} onChange={(v) => handleCheatToggle('minesAutoPick', v)} /> 
-                      <CheatToggle label="Predictive Path" description="Highlight a winning path" value={cheats.minesPredictivePath} onChange={(v) => handleCheatToggle('minesPredictivePath', v)} /> 
+                      <CheatToggle label="Predictive Path" description="Highlight the winning path" value={cheats.minesPredictivePath} onChange={(v) => handleCheatToggle('minesPredictivePath', v)} /> 
                     </> 
                   )} 
 
@@ -1052,6 +1053,29 @@ interface AdminPanelProps {
 
                   {cheatCategory === 'plinko' && ( 
                     <> 
+                      <div className="p-4 rounded-xl bg-black/30">
+                        <div className="mb-3">
+                          <div className="font-bold text-white">Force Multiplier</div>
+                          <div className="text-sm text-gray-400">Choose landing slot</div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {[16, 9, 4.2, 2, 1.2, 0.6, 0.4].map(mult => (
+                            <button
+                              key={mult}
+                              onClick={() => handleCheatToggle('forcePlinkoMultiplier', cheats.forcePlinkoMultiplier === mult ? null : mult)}
+                              className={`px-3 py-2 rounded-lg text-xs font-bold border-2 transition-all ${cheats.forcePlinkoMultiplier === mult ? 'bg-green-500/20 border-green-500' : 'bg-black/50 border-white/10'}`}
+                            >
+                              x{mult}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => handleCheatToggle('forcePlinkoMultiplier', null)}
+                            className="px-3 py-2 rounded-lg text-xs font-bold bg-red-500/20 border-2 border-red-500 text-white"
+                          >
+                            OFF
+                          </button>
+                        </div>
+                      </div>
                       <CheatToggle label="Force Big Win" description="Always lands in x4+ slot" value={cheats.forcePlinkoWin} onChange={(v) => handleCheatToggle('forcePlinkoWin', v)} /> 
                       <CheatToggle label="Max Multiplier" description="Always land in 16x slot" value={cheats.plinkoMaxMultiplier} onChange={(v) => handleCheatToggle('plinkoMaxMultiplier', v)} /> 
                     </> 

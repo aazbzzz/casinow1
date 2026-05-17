@@ -132,37 +132,41 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
         ball.vy += 0.5;
         
         // Cheat Steering
-        const user = getUser();
-        const cheats = getCheats(user);
-        let targetX: number | null = null;
-        
-        if (cheats.plinkoMaxMultiplier) {
-           // Slots 0 or 14 (16x)
-           targetX = ball.x < width / 2 ? slotWidth / 2 : width - slotWidth / 2;
-         } else if (cheats.forcePlinkoWin) {
-           // Slots with mult >= 4
-           const validIndices = MULTIPLIERS.map((m, i) => m >= 4 ? i : -1).filter(i => i !== -1);
-           const targetIdx = validIndices.reduce((prev, curr) => {
-             const prevX = prev * slotWidth + slotWidth / 2;
-             const currX = curr * slotWidth + slotWidth / 2;
-             return Math.abs(currX - ball.x) < Math.abs(prevX - ball.x) ? curr : prev;
-           });
-           targetX = targetIdx * slotWidth + slotWidth / 2;
-         } else if (cheats.alwaysWin) {
-           // Slots with mult >= 1
-           const validIndices = MULTIPLIERS.map((m, i) => m >= 1 ? i : -1).filter(i => i !== -1);
-           const targetIdx = validIndices.reduce((prev, curr) => {
-             const prevX = prev * slotWidth + slotWidth / 2;
-             const currX = curr * slotWidth + slotWidth / 2;
-             return Math.abs(currX - ball.x) < Math.abs(prevX - ball.x) ? curr : prev;
-           });
-           targetX = targetIdx * slotWidth + slotWidth / 2;
-         }
-
-        if (targetX !== null) {
-          const dx = targetX - ball.x;
-          ball.vx += dx * 0.01; // Gentle pull
-        }
+         const user = getUser();
+         const cheats = getCheats(user);
+         let targetX: number | null = null;
+         
+         if (cheats.forcePlinkoMultiplier !== null) {
+           // Direct multiplier target
+           const targetIdx = MULTIPLIERS.indexOf(cheats.forcePlinkoMultiplier);
+           if (targetIdx !== -1) targetX = targetIdx * slotWidth + slotWidth / 2;
+         } else if (cheats.plinkoMaxMultiplier) {
+            // Slots 0 or 14 (16x)
+            targetX = ball.x < width / 2 ? slotWidth / 2 : width - slotWidth / 2;
+          } else if (cheats.forcePlinkoWin) {
+            // Slots with mult >= 4
+            const validIndices = MULTIPLIERS.map((m, i) => m >= 4 ? i : -1).filter(i => i !== -1);
+            const targetIdx = validIndices.reduce((prev, curr) => {
+              const prevX = prev * slotWidth + slotWidth / 2;
+              const currX = curr * slotWidth + slotWidth / 2;
+              return Math.abs(currX - ball.x) < Math.abs(prevX - ball.x) ? curr : prev;
+            });
+            targetX = targetIdx * slotWidth + slotWidth / 2;
+          } else if (cheats.alwaysWin) {
+            // Slots with mult >= 1
+            const validIndices = MULTIPLIERS.map((m, i) => m >= 1 ? i : -1).filter(i => i !== -1);
+            const targetIdx = validIndices.reduce((prev, curr) => {
+              const prevX = prev * slotWidth + slotWidth / 2;
+              const currX = curr * slotWidth + slotWidth / 2;
+              return Math.abs(currX - ball.x) < Math.abs(prevX - ball.x) ? curr : prev;
+            });
+            targetX = targetIdx * slotWidth + slotWidth / 2;
+          }
+  
+          if (targetX !== null) {
+            const dx = targetX - ball.x;
+            ball.vx += dx * 0.015; // Slightly stronger pull
+          }
 
         ball.x += ball.vx;
         ball.y += ball.vy;
