@@ -128,18 +128,20 @@ export function useGameState() {
               : newUser.cheat_expires_at;
 
             // PROTECTION: Never overwrite totalWagered/vipLevel with older values
-            const realtimeWagered = Math.max(
-              Number(prev.totalWagered) || 0,
-              Number(newUser.total_wagered) || 0
-            );
+            const remoteWagered = Number(newUser.total_wagered) || 0;
+            const localWagered = Number(prev.totalWagered) || 0;
             
-            const realtimeVip = getVIPLevel(realtimeWagered);
+            const finalTotalWagered = remoteWagered >= localWagered ? remoteWagered : localWagered;
+            
+            const realtimeVip = getVIPLevel(finalTotalWagered);
 
             console.log("[VIP REALTIME]", { 
-              remoteWagered: newUser.total_wagered, 
-              localWagered: prev.totalWagered, 
-              finalWagered: realtimeWagered, 
-              finalVip: realtimeVip.level 
+              remoteWagered, 
+              localWagered, 
+              finalTotalWagered, 
+              remoteVip: Number(newUser.vip_level) || 1, 
+              localVip: Number(prev.vipLevel) || 1, 
+              finalVipLevel: realtimeVip.level 
             });
 
             return {
@@ -147,7 +149,7 @@ export function useGameState() {
               balance: Math.max(0, Number(newUser.balance) || 0),
               bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
               vipLevel: realtimeVip.level,
-              totalWagered: realtimeWagered,
+              totalWagered: finalTotalWagered,
               role: newUser.role,
               hasCheatAccess: finalHasCheat,
               cheatExpiresAt: finalExpires,
@@ -323,6 +325,11 @@ export function useGameState() {
       const newWagered = (Number(prev.totalWagered) || 0) + numericAmount;
       
       const vipData = getVIPLevel(newWagered);
+
+      console.log("[VIP CALC]", { 
+        newWagered, 
+        calculatedVip: vipData.level 
+      });
 
       const updatedUser = {
         ...prev,

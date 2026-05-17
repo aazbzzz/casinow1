@@ -91,6 +91,13 @@ function mapDBUserToUser(data: any): User {
   const computedVip = getVIPLevel(totalWagered);
   const finalVipLevel = computedVip.level;
 
+  console.log("[VIP DB READ]", { 
+    raw_total_wagered: data.total_wagered, 
+    mapped_total_wagered: totalWagered, 
+    raw_vip: data.vip_level, 
+    final_vip: finalVipLevel 
+  });
+
   const user: User = {
     id: data.id,
     username: data.username,
@@ -114,7 +121,6 @@ function mapDBUserToUser(data: any): User {
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
   };
 
-  console.log(`[storage] Mapped User: ${user.username}, Wagered: ${user.totalWagered}, VIP: ${user.vipLevel}`);
   return user;
 }
 
@@ -131,6 +137,7 @@ export async function fetchUser(uid?: string): Promise<User> {
         .single();
       
       if (!error && data) {
+        console.log("[FETCH USER RAW]", data);
         const user = mapDBUserToUser(data);
         localStorage.setItem(`${STORAGE_KEYS.USER_DATA_PREFIX}${user.id}`, JSON.stringify(user));
         return user;
@@ -209,9 +216,9 @@ export async function saveUser(user: User): Promise<User> {
     version: (user.version || 0) + 1
   };
 
-  console.log(`[VIP SAVE]`, {
-    wagered: totalWagered,
-    vip: computedVip.level
+  console.log("[VIP DB SAVE]", { 
+    total_wagered: cleanUser.totalWagered, 
+    vip_level: cleanUser.vipLevel 
   });
   
   // Cache local immédiat
@@ -244,6 +251,8 @@ export async function saveUser(user: User): Promise<User> {
       const { error } = await supabase.from('users').upsert(dbData, { onConflict: 'id' });
       if (error) {
         console.error("[storage] saveUser Cloud error:", error);
+      } else {
+        console.log("[VIP DB SUCCESS]");
       }
     } catch (err) {
       console.error("[storage] saveUser critical error:", err);
