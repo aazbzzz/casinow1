@@ -228,7 +228,10 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                 <div 
                   onClick={() => setMaxContext('wallet')}
                   className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${maxContext === 'wallet' ? 'bg-white/10' : 'bg-black/30'}`}
-                  style={{ borderColor: maxContext === 'wallet' ? primaryAccent : 'rgba(255,255,255,0.1)' }}
+                  style={{ 
+                    borderColor: maxContext === 'wallet' ? primaryAccent : 'rgba(255,255,255,0.1)',
+                    boxShadow: maxContext === 'wallet' ? `0 0 20px ${primaryAccent}40` : 'none'
+                  }}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <Coins className="size-5" style={{ color: primaryAccent }} />
@@ -240,7 +243,10 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                 <div 
                   onClick={() => setMaxContext('bank')}
                   className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${maxContext === 'bank' ? 'bg-white/10' : 'bg-black/30'}`}
-                  style={{ borderColor: maxContext === 'bank' ? primaryAccent : 'rgba(255,255,255,0.1)' }}
+                  style={{ 
+                    borderColor: maxContext === 'bank' ? primaryAccent : 'rgba(255,255,255,0.1)',
+                    boxShadow: maxContext === 'bank' ? `0 0 20px ${primaryAccent}40` : 'none'
+                  }}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="size-5" style={{ color: primaryAccent }} />
@@ -331,7 +337,7 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
                   <TrendingUp className="size-6" style={{ color: primaryAccent }} />
                   <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Total Wagered</span>
                 </div>
-                <div className="text-3xl font-black text-white">{totalWagered.toLocaleString()}</div>
+                <div className="text-3xl font-black text-white">{Math.ceil(totalWagered).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</div>
               </div>
               
               <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}40`, boxShadow: `0 0 30px ${primaryAccent}20` }}>

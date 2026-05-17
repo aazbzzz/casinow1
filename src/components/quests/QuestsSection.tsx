@@ -49,7 +49,7 @@ export function QuestsSection({ quests, onClaimQuest }: QuestsSectionProps) {
                       <div className="flex items-center gap-2">
                         <Gift className="size-4" style={{ color: primaryAccent }} />
                         <span className="text-sm font-semibold" style={{ color: primaryAccent }}>
-                          Récompense: {quest.reward}
+                          Récompense: {Math.ceil(quest.reward).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
                         </span>
                       </div>
                     </div>
@@ -59,7 +59,7 @@ export function QuestsSection({ quests, onClaimQuest }: QuestsSectionProps) {
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-gray-400">Progress</span>
                       <span className="font-semibold text-white">
-                        {quest.progress} / {quest.target}
+                        {Math.floor(quest.progress).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} / {Math.ceil(quest.target).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
                       </span>
                     </div>
                     <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
@@ -100,7 +100,7 @@ export function QuestsSection({ quests, onClaimQuest }: QuestsSectionProps) {
                     <div className="flex items-center gap-2">
                       <Gift className="size-4" style={{ color: quest.claimed ? '#666' : primaryAccent }} />
                       <span className="text-sm font-semibold" style={{ color: quest.claimed ? '#666' : primaryAccent }}>
-                        Récompense: {quest.reward}
+                        Récompense: {Math.ceil(quest.reward).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
                       </span>
                     </div>
                   </div>
