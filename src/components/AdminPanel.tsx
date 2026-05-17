@@ -881,6 +881,29 @@ interface AdminPanelProps {
 
                   {cheatCategory === 'slots' && ( 
                     <> 
+                      <div className="p-4 rounded-xl bg-black/30">
+                        <div className="mb-3">
+                          <div className="font-bold text-white">Force Symbol</div>
+                          <div className="text-sm text-gray-400">Choose which symbol will land</div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {['🍒', '🍋', '🍊', '🍇', '💎', '7️⃣', '⭐'].map(symbol => (
+                            <button
+                              key={symbol}
+                              onClick={() => handleCheatToggle('forceSlotsSymbol', cheats.forceSlotsSymbol === symbol ? null : symbol)}
+                              className={`py-3 rounded-xl text-2xl transition-all active:scale-95 border-2 ${cheats.forceSlotsSymbol === symbol ? 'bg-green-500/20 border-green-500' : 'bg-black/50 border-white/10'}`}
+                            >
+                              {symbol}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => handleCheatToggle('forceSlotsSymbol', null)}
+                            className="py-3 rounded-xl text-xs font-bold transition-all active:scale-95 border-2 bg-red-500/20 border-red-500 text-white"
+                          >
+                            OFF
+                          </button>
+                        </div>
+                      </div>
                       <CheatToggle label="Always Jackpot" description="Force triple 7s" value={cheats.slotsAlwaysJackpot} onChange={(v) => handleCheatToggle('slotsAlwaysJackpot', v)} /> 
                       <CheatToggle label="High Win Rate" description="Increase win frequency" value={cheats.slotsHighWinRate} onChange={(v) => handleCheatToggle('slotsHighWinRate', v)} /> 
                     </> 
@@ -930,6 +953,27 @@ interface AdminPanelProps {
 
                   {cheatCategory === 'crash' && ( 
                     <> 
+                      <div className="p-4 rounded-xl bg-black/30"> 
+                        <div className="mb-3"> 
+                          <div className="font-bold text-white">Force Crash Multiplier</div> 
+                          <div className="text-sm text-gray-400">Choose when the game crashes</div> 
+                        </div> 
+                        <div className="flex gap-2"> 
+                          <input 
+                            type="number" 
+                            value={cheats.forceCrashMultiplier ?? ''} 
+                            onChange={(e) => { 
+                              const val = e.target.value === '' ? null : Math.max(1.01, Number(e.target.value)); 
+                              handleCheatToggle('forceCrashMultiplier', val); 
+                            }} 
+                            placeholder="e.g. 2.50" 
+                            className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold" 
+                            style={{ borderColor: `${primaryAccent}60` }} 
+                            step="0.01"
+                          /> 
+                          <button onClick={() => handleCheatToggle('forceCrashMultiplier', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white">OFF</button> 
+                        </div> 
+                      </div> 
                       <div className="p-4 rounded-xl bg-black/30"> 
                         <div className="mb-3"> 
                           <div className="font-bold text-white">Force Start Multiplier</div> 
