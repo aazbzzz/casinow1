@@ -84,6 +84,8 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   
   // Cheat: Auto pick
   useEffect(() => {
+    const user = getUser();
+    const cheats = getCheats(user);
     if (gameActive && !gameOver && cheats.minesAutoPick && revealed.size < (25 - minesCount)) {
       const timer = setTimeout(() => {
         const unrevealedSafe = Array.from({ length: 25 }, (_, i) => i)
@@ -96,7 +98,7 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [gameActive, gameOver, revealed.size, cheats.minesAutoPick]);
+  }, [gameActive, gameOver, revealed.size, minesCount]);
 
   const revealTile = (index: number) => {
     if (!gameActive || revealed.has(index) || gameOver) return;
@@ -293,40 +295,42 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
         )}
         
         <div className="grid grid-cols-5 gap-3 w-full max-w-sm p-5 rounded-[2.5rem] bg-white/5 border border-white/10 relative">
-          {Array.from({ length: 25 }, (_, i) => {
-            const isRevealed = revealed.has(i);
-            const isMine = minePositions.has(i);
-            const showMine = isRevealed && isMine;
-            const showSafe = isRevealed && !isMine;
-            
-            // Cheat: Show mines
+          {(() => {
             const user = getUser();
             const cheats = getCheats(user);
-            const shouldShowCheatMine = gameActive && !isRevealed && isMine && (cheats.minesRevealAll || cheats.minesShowMines);
-            const isPredictivePath = gameActive && !isRevealed && !isMine && cheats.minesPredictivePath && i % 3 === 0; // Simple pattern for predictive path
+            return Array.from({ length: 25 }, (_, i) => {
+              const isRevealed = revealed.has(i);
+              const isMine = minePositions.has(i);
+              const showMine = isRevealed && isMine;
+              const showSafe = isRevealed && !isMine;
+              
+              // Cheat: Show mines
+              const shouldShowCheatMine = gameActive && !isRevealed && isMine && (cheats.minesRevealAll || cheats.minesShowMines);
+              const isPredictivePath = gameActive && !isRevealed && !isMine && cheats.minesPredictivePath && i % 3 === 0; // Simple pattern for predictive path
 
-            return (
-              <button
-                key={i}
-                onPointerDown={(e) => { e.preventDefault(); revealTile(i); }}
-                disabled={!gameActive || isRevealed}
-                className="aspect-square rounded-2xl flex items-center justify-center transition-all active:scale-90 disabled:scale-100 relative overflow-hidden group touch-manipulation"
-                style={{
-                  backgroundColor: isRevealed ? (isMine ? '#ff1a1a' : primaryAccent) : (isPredictivePath ? `${primaryAccent}20` : 'rgba(255,255,255,0.05)'),
-                  border: `2px solid ${isRevealed ? (isMine ? '#ff1a1a' : '#fff') : (shouldShowCheatMine ? '#ff1a1a' : (isPredictivePath ? primaryAccent : 'rgba(255,255,255,0.1)'))}`,
-                  boxShadow: isRevealed ? `0 0 25px ${isMine ? '#ff1a1a' : primaryAccent}60` : (shouldShowCheatMine ? `inset 0 0 15px #ff1a1a60` : (isPredictivePath ? `inset 0 0 15px ${primaryAccent}40` : 'none')),
-                  pointerEvents: !gameActive || isRevealed ? 'none' : 'auto'
-                }}
-              >
-                {showMine && <Bomb className="size-7 text-white" />}
-                {showSafe && <Gem className="size-7 text-black" />}
-                {shouldShowCheatMine && <Bomb className="size-5 text-red-500" />}
-                {!isRevealed && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent group-active:from-white/20" />
-                )}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={i}
+                  onPointerDown={(e) => { e.preventDefault(); revealTile(i); }}
+                  disabled={!gameActive || isRevealed}
+                  className="aspect-square rounded-2xl flex items-center justify-center transition-all active:scale-90 disabled:scale-100 relative overflow-hidden group touch-manipulation"
+                  style={{
+                    backgroundColor: isRevealed ? (isMine ? '#ff1a1a' : primaryAccent) : (isPredictivePath ? `${primaryAccent}20` : 'rgba(255,255,255,0.05)'),
+                    border: `2px solid ${isRevealed ? (isMine ? '#ff1a1a' : '#fff') : (shouldShowCheatMine ? '#ff1a1a' : (isPredictivePath ? primaryAccent : 'rgba(255,255,255,0.1)'))}`,
+                    boxShadow: isRevealed ? `0 0 25px ${isMine ? '#ff1a1a' : primaryAccent}60` : (shouldShowCheatMine ? `inset 0 0 15px #ff1a1a60` : (isPredictivePath ? `inset 0 0 15px ${primaryAccent}40` : 'none')),
+                    pointerEvents: !gameActive || isRevealed ? 'none' : 'auto'
+                  }}
+                >
+                  {showMine && <Bomb className="size-7 text-white" />}
+                  {showSafe && <Gem className="size-7 text-black" />}
+                  {shouldShowCheatMine && <Bomb className="size-5 text-red-500" />}
+                  {!isRevealed && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent group-active:from-white/20" />
+                  )}
+                </button>
+              );
+            });
+          })()}
         </div>
         
         {gameOver && (
