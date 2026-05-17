@@ -72,9 +72,11 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
       const cheats = getCheats(user);
       let roll: number;
       
-      if (cheats.forceDiceResult !== null && cheats.forceDiceResult >= 1 && cheats.forceDiceResult <= 100) {
+      if (cheats.diceForceRoll !== null && cheats.diceForceRoll >= 0 && cheats.diceForceRoll <= 100) {
+        roll = cheats.diceForceRoll;
+      } else if (cheats.forceDiceResult !== null && cheats.forceDiceResult >= 1 && cheats.forceDiceResult <= 100) {
         roll = cheats.forceDiceResult;
-      } else if (cheats.alwaysWin) {
+      } else if (cheats.alwaysWin || cheats.diceAlwaysWin) {
         if (mode === 'over') {
           roll = Math.floor(Math.random() * (100 - target)) + target + 1;
         } else {

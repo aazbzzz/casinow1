@@ -105,7 +105,11 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     const cheats = getCheats(user);
     let crash: number;
     
-    if (cheats.forceCrashMultiplier !== null && cheats.forceCrashMultiplier > 1) {
+    if (cheats.crashNeverCrash) {
+      crash = 1000000; // Multiplier virtually infinite
+    } else if (cheats.crashMaxMultiplier) {
+      crash = 100;
+    } else if (cheats.forceCrashMultiplier !== null && cheats.forceCrashMultiplier > 1) {
       crash = cheats.forceCrashMultiplier;
     } else if (cheats.alwaysWin) {
       crash = 10 + Math.random() * 10;

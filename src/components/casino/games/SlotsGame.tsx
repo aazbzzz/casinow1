@@ -93,6 +93,9 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
         } else if (cheats.alwaysWin) {
           const winSymbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
           finalReels = [winSymbol, winSymbol, winSymbol];
+        } else if (cheats.slotsHighWinRate && Math.random() < 0.4) {
+          const winSymbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+          finalReels = [winSymbol, winSymbol, winSymbol];
         } else {
           finalReels = [
             SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],

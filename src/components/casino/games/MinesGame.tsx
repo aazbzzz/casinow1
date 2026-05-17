@@ -82,6 +82,22 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
     }, 100);
   };
   
+  // Cheat: Auto pick
+  useEffect(() => {
+    if (gameActive && !gameOver && cheats.minesAutoPick && revealed.size < (25 - minesCount)) {
+      const timer = setTimeout(() => {
+        const unrevealedSafe = Array.from({ length: 25 }, (_, i) => i)
+          .filter(i => !revealed.has(i) && !minePositions.has(i));
+        
+        if (unrevealedSafe.length > 0) {
+          const randomIndex = unrevealedSafe[Math.floor(Math.random() * unrevealedSafe.length)];
+          revealTile(randomIndex);
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameActive, gameOver, revealed.size, cheats.minesAutoPick]);
+
   const revealTile = (index: number) => {
     if (!gameActive || revealed.has(index) || gameOver) return;
     
@@ -286,7 +302,8 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
             // Cheat: Show mines
             const user = getUser();
             const cheats = getCheats(user);
-            const shouldShowCheatMine = gameActive && !isRevealed && isMine && cheats.minesRevealAll;
+            const shouldShowCheatMine = gameActive && !isRevealed && isMine && (cheats.minesRevealAll || cheats.minesShowMines);
+            const isPredictivePath = gameActive && !isRevealed && !isMine && cheats.minesPredictivePath && i % 3 === 0; // Simple pattern for predictive path
 
             return (
               <button
@@ -295,9 +312,9 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
                 disabled={!gameActive || isRevealed}
                 className="aspect-square rounded-2xl flex items-center justify-center transition-all active:scale-90 disabled:scale-100 relative overflow-hidden group touch-manipulation"
                 style={{
-                  backgroundColor: isRevealed ? (isMine ? '#ff1a1a' : primaryAccent) : 'rgba(255,255,255,0.05)',
-                  border: `2px solid ${isRevealed ? (isMine ? '#ff1a1a' : '#fff') : (shouldShowCheatMine ? '#ff1a1a' : 'rgba(255,255,255,0.1)')}`,
-                  boxShadow: isRevealed ? `0 0 25px ${isMine ? '#ff1a1a' : primaryAccent}60` : (shouldShowCheatMine ? `inset 0 0 15px #ff1a1a60` : 'none'),
+                  backgroundColor: isRevealed ? (isMine ? '#ff1a1a' : primaryAccent) : (isPredictivePath ? `${primaryAccent}20` : 'rgba(255,255,255,0.05)'),
+                  border: `2px solid ${isRevealed ? (isMine ? '#ff1a1a' : '#fff') : (shouldShowCheatMine ? '#ff1a1a' : (isPredictivePath ? primaryAccent : 'rgba(255,255,255,0.1)'))}`,
+                  boxShadow: isRevealed ? `0 0 25px ${isMine ? '#ff1a1a' : primaryAccent}60` : (shouldShowCheatMine ? `inset 0 0 15px #ff1a1a60` : (isPredictivePath ? `inset 0 0 15px ${primaryAccent}40` : 'none')),
                   pointerEvents: !gameActive || isRevealed ? 'none' : 'auto'
                 }}
               >

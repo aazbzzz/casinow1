@@ -784,206 +784,206 @@ interface AdminPanelProps {
             </div>
           )}
           
-          {activeTab === 'cheats' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex gap-2 overflow-x-auto pb-2 flex-1 no-scrollbar">
-                  {[
-                    { key: 'global', label: '🌐 Global' },
-                    { key: 'roulette', label: '🎡 Roulette' },
-                    { key: 'slots', label: '🎰 Slots' },
-                    { key: 'coinflip', label: '🪙 Coinflip' },
-                    { key: 'dice', label: '🎲 Dice' },
-                    { key: 'mines', label: '💣 Mines' },
-                    { key: 'crash', label: '🚀 Crash' },
-                    { key: 'plinko', label: '🎯 Plinko' },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        setCheatCategory(key as any);
-                        if (enableHaptics) vibrate(30);
-                      }}
-                      className="px-4 py-2 rounded-xl font-bold transition-all active:scale-95 border-2 whitespace-nowrap text-xs"
-                      style={{
-                        backgroundColor: cheatCategory === key ? primaryAccent : 'transparent',
-                        color: cheatCategory === key ? '#000' : '#fff',
-                        borderColor: cheatCategory === key ? primaryAccent : `${primaryAccent}20`,
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {cheatTargetUserId && !cheatOnlyMode && (
-                  <button
-                    onClick={() => setCheatTargetUserId(null)}
-                    className="ml-4 px-4 py-2 rounded-xl bg-red-500/20 border-2 border-red-500 text-red-500 font-black text-[10px] uppercase tracking-widest whitespace-nowrap"
-                  >
-                    Target: {dbUsers.find(u => u.id === cheatTargetUserId)?.username} (X)
-                  </button>
-                )}
-              </div>
+          {activeTab === 'cheats' && ( 
+            <div className="space-y-4"> 
+              <div className="flex items-center justify-between mb-4"> 
+                <div className="flex gap-2 overflow-x-auto pb-2 flex-1 no-scrollbar"> 
+                  {[ 
+                    { key: 'global', label: '🌐 Global' }, 
+                    { key: 'roulette', label: '🎡 Roulette' }, 
+                    { key: 'slots', label: '🎰 Slots' }, 
+                    { key: 'coinflip', label: '🪙 Coinflip' }, 
+                    { key: 'dice', label: '🎲 Dice' }, 
+                    { key: 'mines', label: '💣 Mines' }, 
+                    { key: 'crash', label: '🚀 Crash' }, 
+                    { key: 'plinko', label: '🎯 Plinko' }, 
+                  ].map(({ key, label }) => ( 
+                    <button 
+                      key={key} 
+                      onClick={() => { 
+                        setCheatCategory(key as any); 
+                        if (enableHaptics) vibrate(30); 
+                      }} 
+                      className="px-4 py-2 rounded-xl font-bold transition-all active:scale-95 border-2 whitespace-nowrap text-xs" 
+                      style={{ 
+                        backgroundColor: cheatCategory === key ? primaryAccent : 'transparent', 
+                        color: cheatCategory === key ? '#000' : '#fff', 
+                        borderColor: cheatCategory === key ? primaryAccent : `${primaryAccent}20`, 
+                      }} 
+                    > 
+                      {label} 
+                    </button> 
+                  ))} 
+                </div> 
+                {cheatTargetUserId && !cheatOnlyMode && ( 
+                  <button 
+                    onClick={() => setCheatTargetUserId(null)} 
+                    className="ml-4 px-4 py-2 rounded-xl bg-red-500/20 border-2 border-red-500 text-red-500 font-black text-[10px] uppercase tracking-widest whitespace-nowrap" 
+                  > 
+                    Target: {dbUsers.find(u => u.id === cheatTargetUserId)?.username} (X) 
+                  </button> 
+                )} 
+              </div> 
 
-              <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}>
-                <div className="space-y-4">
-                  {cheatCategory === 'global' && (
-                    <>
-                      <CheatToggle label="Always Win" description="Force all games to win" value={cheats.alwaysWin} onChange={(v) => handleCheatToggle('alwaysWin', v)} />
-                      <CheatToggle label="Infinite Balance" description="Balance never decreases" value={cheats.infiniteBalance} onChange={(v) => handleCheatToggle('infiniteBalance', v)} />
-                      <CheatToggle label="Freeze Balance" description="Balance stays constant" value={cheats.freezeBalance} onChange={(v) => handleCheatToggle('freezeBalance', v)} />
-                      <CheatToggle label="Double Winnings" description="All wins are doubled" value={cheats.doubleWinnings} onChange={(v) => handleCheatToggle('doubleWinnings', v)} />
-                      <CheatToggle label="Triple Winnings" description="All wins are tripled" value={cheats.tripleWinnings} onChange={(v) => handleCheatToggle('tripleWinnings', v)} />
-                      <CheatToggle label="Instant Win" description="Win immediately on bet" value={cheats.instantWin} onChange={(v) => handleCheatToggle('instantWin', v)} />
-                      <CheatToggle label="Instant Loss" description="Lose immediately on bet" value={cheats.instantLoss} onChange={(v) => handleCheatToggle('instantLoss', v)} />
-                      <div className="p-4 rounded-xl bg-black/30">
-                        <div className="mb-3">
-                          <div className="font-bold text-white">Custom Multiplier</div>
-                          <div className="text-sm text-gray-400">Set a fixed multiplier for all wins</div>
-                        </div>
-                        <input
-                          type="number"
-                          value={cheats.customMultiplier}
-                          onChange={(e) => handleCheatToggle('customMultiplier', Math.max(1, Number(e.target.value)))}
-                          className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none transition-all"
-                          style={{ borderColor: `${primaryAccent}60` }}
-                          min="1"
-                          step="0.1"
-                        />
-                      </div>
-                    </>
-                  )}
+              <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: '#0a0a0a', borderColor: `${primaryAccent}20` }}> 
+                <div className="space-y-4"> 
+                  {cheatCategory === 'global' && ( 
+                    <> 
+                      <CheatToggle label="Always Win" description="Force all games to win" value={cheats.alwaysWin} onChange={(v) => handleCheatToggle('alwaysWin', v)} /> 
+                      <CheatToggle label="Infinite Balance" description="Balance never decreases" value={cheats.infiniteBalance} onChange={(v) => handleCheatToggle('infiniteBalance', v)} /> 
+                      <CheatToggle label="Freeze Balance" description="Balance stays constant" value={cheats.freezeBalance} onChange={(v) => handleCheatToggle('freezeBalance', v)} /> 
+                      <CheatToggle label="Double Winnings" description="All wins are doubled" value={cheats.doubleWinnings} onChange={(v) => handleCheatToggle('doubleWinnings', v)} /> 
+                      <CheatToggle label="Triple Winnings" description="All wins are tripled" value={cheats.tripleWinnings} onChange={(v) => handleCheatToggle('tripleWinnings', v)} /> 
+                      <CheatToggle label="Instant Win" description="Win immediately on bet" value={cheats.instantWin} onChange={(v) => handleCheatToggle('instantWin', v)} /> 
+                      <CheatToggle label="Instant Loss" description="Lose immediately on bet" value={cheats.instantLoss} onChange={(v) => handleCheatToggle('instantLoss', v)} /> 
+                      <div className="p-4 rounded-xl bg-black/30"> 
+                        <div className="mb-3"> 
+                          <div className="font-bold text-white">Custom Multiplier</div> 
+                          <div className="text-sm text-gray-400">Set a fixed multiplier for all wins</div> 
+                        </div> 
+                        <input 
+                          type="number" 
+                          value={cheats.customMultiplier} 
+                          onChange={(e) => handleCheatToggle('customMultiplier', Math.max(1, Number(e.target.value)))} 
+                          className="w-full px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-black outline-none transition-all" 
+                          style={{ borderColor: `${primaryAccent}60` }} 
+                          min="1" 
+                          step="0.1" 
+                        /> 
+                      </div> 
+                    </> 
+                  )} 
 
-                  {cheatCategory === 'roulette' && (
-                    <>
-                      <div className="p-4 rounded-xl bg-black/30">
-                        <div className="mb-3">
-                          <div className="font-bold text-white">Force Number</div>
-                          <div className="text-sm text-gray-400">Choose winning number (0-36)</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={cheats.forceRouletteNumber ?? ''}
-                            onChange={(e) => {
-                              const val = e.target.value === '' ? null : Math.max(0, Math.min(36, Number(e.target.value)));
-                              handleCheatToggle('forceRouletteNumber', val);
-                            }}
-                            placeholder="0-36"
-                            className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
-                            style={{ borderColor: `${primaryAccent}60` }}
-                          />
-                          <button onClick={() => handleCheatToggle('forceRouletteNumber', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white">OFF</button>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  {cheatCategory === 'roulette' && ( 
+                    <> 
+                      <div className="p-4 rounded-xl bg-black/30"> 
+                        <div className="mb-3"> 
+                          <div className="font-bold text-white">Force Number</div> 
+                          <div className="text-sm text-gray-400">Choose winning number (0-36)</div> 
+                        </div> 
+                        <div className="flex gap-2"> 
+                          <input 
+                            type="number" 
+                            value={cheats.forceRouletteNumber ?? ''} 
+                            onChange={(e) => { 
+                              const val = e.target.value === '' ? null : Math.max(0, Math.min(36, Number(e.target.value))); 
+                              handleCheatToggle('forceRouletteNumber', val); 
+                            }} 
+                            placeholder="0-36" 
+                            className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold" 
+                            style={{ borderColor: `${primaryAccent}60` }} 
+                          /> 
+                          <button onClick={() => handleCheatToggle('forceRouletteNumber', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white">OFF</button> 
+                        </div> 
+                      </div> 
+                    </> 
+                  )} 
 
-                  {cheatCategory === 'slots' && (
-                    <>
-                      <CheatToggle label="Always Jackpot" description="Force triple 7s" value={cheats.slotsAlwaysJackpot} onChange={(v) => handleCheatToggle('slotsAlwaysJackpot', v)} />
-                      <CheatToggle label="High Win Rate" description="Increase win frequency" value={cheats.slotsHighWinRate} onChange={(v) => handleCheatToggle('slotsHighWinRate', v)} />
-                    </>
-                  )}
+                  {cheatCategory === 'slots' && ( 
+                    <> 
+                      <CheatToggle label="Always Jackpot" description="Force triple 7s" value={cheats.slotsAlwaysJackpot} onChange={(v) => handleCheatToggle('slotsAlwaysJackpot', v)} /> 
+                      <CheatToggle label="High Win Rate" description="Increase win frequency" value={cheats.slotsHighWinRate} onChange={(v) => handleCheatToggle('slotsHighWinRate', v)} /> 
+                    </> 
+                  )} 
 
-                  {cheatCategory === 'coinflip' && (
-                    <>
-                      <CheatToggle label="Force Heads" description="Always land on heads" value={cheats.coinflipForceHeads} onChange={(v) => handleCheatToggle('coinflipForceHeads', v)} />
-                      <CheatToggle label="Force Tails" description="Always land on tails" value={cheats.coinflipForceTails} onChange={(v) => handleCheatToggle('coinflipForceTails', v)} />
-                    </>
-                  )}
+                  {cheatCategory === 'coinflip' && ( 
+                    <> 
+                      <CheatToggle label="Force Heads" description="Always land on heads" value={cheats.coinflipForceHeads} onChange={(v) => handleCheatToggle('coinflipForceHeads', v)} /> 
+                      <CheatToggle label="Force Tails" description="Always land on tails" value={cheats.coinflipForceTails} onChange={(v) => handleCheatToggle('coinflipForceTails', v)} /> 
+                    </> 
+                  )} 
 
-                  {cheatCategory === 'dice' && (
-                    <>
-                      <CheatToggle label="Always Win" description="Always roll in winning range" value={cheats.diceAlwaysWin} onChange={(v) => handleCheatToggle('diceAlwaysWin', v)} />
-                      <div className="p-4 rounded-xl bg-black/30">
-                        <div className="mb-3">
-                          <div className="font-bold text-white">Force Roll</div>
-                          <div className="text-sm text-gray-400">Force a specific number (0.00-99.99)</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={cheats.diceForceRoll ?? ''}
-                            onChange={(e) => {
-                              const val = e.target.value === '' ? null : Math.max(0, Math.min(99.99, Number(e.target.value)));
-                              handleCheatToggle('diceForceRoll', val);
-                            }}
-                            placeholder="0.00-99.99"
-                            className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
-                            style={{ borderColor: `${primaryAccent}60` }}
-                          />
-                          <button onClick={() => handleCheatToggle('diceForceRoll', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white">OFF</button>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  {cheatCategory === 'dice' && ( 
+                    <> 
+                      <CheatToggle label="Always Win" description="Always roll in winning range" value={cheats.diceAlwaysWin} onChange={(v) => handleCheatToggle('diceAlwaysWin', v)} /> 
+                      <div className="p-4 rounded-xl bg-black/30"> 
+                        <div className="mb-3"> 
+                          <div className="font-bold text-white">Force Roll</div> 
+                          <div className="text-sm text-gray-400">Force a specific number (0.00-99.99)</div> 
+                        </div> 
+                        <div className="flex gap-2"> 
+                          <input 
+                            type="number" 
+                            value={cheats.diceForceRoll ?? ''} 
+                            onChange={(e) => { 
+                              const val = e.target.value === '' ? null : Math.max(0, Math.min(99.99, Number(e.target.value))); 
+                              handleCheatToggle('diceForceRoll', val); 
+                            }} 
+                            placeholder="0.00-99.99" 
+                            className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold" 
+                            style={{ borderColor: `${primaryAccent}60` }} 
+                          /> 
+                          <button onClick={() => handleCheatToggle('diceForceRoll', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white">OFF</button> 
+                        </div> 
+                      </div> 
+                    </> 
+                  )} 
 
-                  {cheatCategory === 'mines' && (
-                    <>
-                      <CheatToggle label="Show Mines" description="Mines are visible through cards" value={cheats.minesShowMines} onChange={(v) => handleCheatToggle('minesShowMines', v)} />
-                      <CheatToggle label="Force Safe" description="First 10 picks are always safe" value={cheats.minesForceSafe} onChange={(v) => handleCheatToggle('minesForceSafe', v)} />
-                      <CheatToggle label="Auto Pick" description="Automatically pick safe tiles" value={cheats.minesAutoPick} onChange={(v) => handleCheatToggle('minesAutoPick', v)} />
-                      <CheatToggle label="Predictive Path" description="Highlight a winning path" value={cheats.minesPredictivePath} onChange={(v) => handleCheatToggle('minesPredictivePath', v)} />
-                    </>
-                  )}
+                  {cheatCategory === 'mines' && ( 
+                    <> 
+                      <CheatToggle label="Show Mines" description="Mines are visible through cards" value={cheats.minesShowMines} onChange={(v) => handleCheatToggle('minesShowMines', v)} /> 
+                      <CheatToggle label="Force Safe" description="First 10 picks are always safe" value={cheats.minesForceSafe} onChange={(v) => handleCheatToggle('minesForceSafe', v)} /> 
+                      <CheatToggle label="Auto Pick" description="Automatically pick safe tiles" value={cheats.minesAutoPick} onChange={(v) => handleCheatToggle('minesAutoPick', v)} /> 
+                      <CheatToggle label="Predictive Path" description="Highlight a winning path" value={cheats.minesPredictivePath} onChange={(v) => handleCheatToggle('minesPredictivePath', v)} /> 
+                    </> 
+                  )} 
 
-                  {cheatCategory === 'crash' && (
-                    <>
-                      <div className="p-4 rounded-xl bg-black/30">
-                        <div className="mb-3">
-                          <div className="font-bold text-white">Force Start Multiplier</div>
-                          <div className="text-sm text-gray-400">Game starts at this value</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={cheats.crashStartMultiplier ?? ''}
-                            onChange={(e) => {
-                              const val = e.target.value === '' ? null : Math.max(1, Number(e.target.value));
-                              handleCheatToggle('crashStartMultiplier', val);
-                            }}
-                            placeholder="1+"
-                            className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold"
-                            style={{ borderColor: `${primaryAccent}60` }}
-                          />
-                          <button onClick={() => handleCheatToggle('crashStartMultiplier', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white">OFF</button>
-                        </div>
-                      </div>
-                      <CheatToggle label="Never Crash" description="Multiplier never crashes" value={cheats.crashNeverCrash} onChange={(v) => handleCheatToggle('crashNeverCrash', v)} />
-                      <CheatToggle label="Max Multiplier" description="Always crash at 100x" value={cheats.crashMaxMultiplier} onChange={(v) => handleCheatToggle('crashMaxMultiplier', v)} />
-                    </>
-                  )}
+                  {cheatCategory === 'crash' && ( 
+                    <> 
+                      <div className="p-4 rounded-xl bg-black/30"> 
+                        <div className="mb-3"> 
+                          <div className="font-bold text-white">Force Start Multiplier</div> 
+                          <div className="text-sm text-gray-400">Game starts at this value</div> 
+                        </div> 
+                        <div className="flex gap-2"> 
+                          <input 
+                            type="number" 
+                            value={cheats.crashStartMultiplier ?? ''} 
+                            onChange={(e) => { 
+                              const val = e.target.value === '' ? null : Math.max(1, Number(e.target.value)); 
+                              handleCheatToggle('crashStartMultiplier', val); 
+                            }} 
+                            placeholder="1+" 
+                            className="flex-1 px-4 py-3 rounded-xl bg-black/50 border-2 text-white font-bold" 
+                            style={{ borderColor: `${primaryAccent}60` }} 
+                          /> 
+                          <button onClick={() => handleCheatToggle('crashStartMultiplier', null)} className="px-4 py-3 rounded-xl font-bold bg-red-500/20 border-2 border-red-500 text-white">OFF</button> 
+                        </div> 
+                      </div> 
+                      <CheatToggle label="Never Crash" description="Multiplier never crashes" value={cheats.crashNeverCrash} onChange={(v) => handleCheatToggle('crashNeverCrash', v)} /> 
+                      <CheatToggle label="Max Multiplier" description="Always crash at 100x" value={cheats.crashMaxMultiplier} onChange={(v) => handleCheatToggle('crashMaxMultiplier', v)} /> 
+                    </> 
+                  )} 
 
-                  {cheatCategory === 'plinko' && (
-                    <>
-                      <CheatToggle label="Force Big Win" description="Always lands in x4+ slot" value={cheats.forcePlinkoWin} onChange={(v) => handleCheatToggle('forcePlinkoWin', v)} />
-                      <CheatToggle label="Max Multiplier" description="Always land in 16x slot" value={cheats.plinkoMaxMultiplier} onChange={(v) => handleCheatToggle('plinkoMaxMultiplier', v)} />
-                    </>
-                  )}
+                  {cheatCategory === 'plinko' && ( 
+                    <> 
+                      <CheatToggle label="Force Big Win" description="Always lands in x4+ slot" value={cheats.forcePlinkoWin} onChange={(v) => handleCheatToggle('forcePlinkoWin', v)} /> 
+                      <CheatToggle label="Max Multiplier" description="Always land in 16x slot" value={cheats.plinkoMaxMultiplier} onChange={(v) => handleCheatToggle('plinkoMaxMultiplier', v)} /> 
+                    </> 
+                  )} 
 
-                  <div className="p-4 rounded-xl border-2 border-yellow-500/20 bg-yellow-500/5 flex items-start gap-3">
-                    <AlertTriangle className="size-5 text-yellow-500 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="text-sm text-yellow-500 font-bold mb-1">⚠️ Warning</div>
-                      <div className="text-xs text-gray-400">
-                        {cheatTargetUserId ? 'Cheats for this user are stored in the cloud and sync in real-time.' : 'Local cheats are stored in your browser. Target a user to apply cheats remotely.'}
-                      </div>
-                    </div>
-                  </div>
+                  <div className="p-4 rounded-xl border-2 border-yellow-500/20 bg-yellow-500/5 flex items-start gap-3"> 
+                    <AlertTriangle className="size-5 text-yellow-500 shrink-0 mt-0.5" /> 
+                    <div> 
+                      <div className="text-sm text-yellow-500 font-bold mb-1">⚠️ Warning</div> 
+                      <div className="text-xs text-gray-400"> 
+                        {cheatTargetUserId ? 'Cheats for this user are stored in the cloud and sync in real-time.' : 'Local cheats are stored in your browser. Target a user to apply cheats remotely.'} 
+                      </div> 
+                    </div> 
+                  </div> 
 
-                  {cheatOnlyMode && timeLeft !== null && (
-                    <div className="mt-8 p-6 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex flex-col items-center gap-2">
-                      <div className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em]">Access Expires In</div>
-                      <div className="text-3xl sm:text-4xl font-black text-white tabular-nums tracking-tighter italic">
-                        {formatTimeDetailed(timeLeft)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+                  {cheatOnlyMode && timeLeft !== null && ( 
+                    <div className="mt-8 p-6 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex flex-col items-center gap-2"> 
+                      <div className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em]">Access Expires In</div> 
+                      <div className="text-3xl sm:text-4xl font-black text-white tabular-nums tracking-tighter italic"> 
+                        {formatTimeDetailed(timeLeft)} 
+                      </div> 
+                    </div> 
+                  )} 
+                </div> 
+              </div> 
+            </div> 
+          )} 
           
               {activeTab === 'roles' && isAdmin && (
                 <div className="space-y-6">

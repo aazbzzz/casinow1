@@ -67,7 +67,11 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
     const cheats = getCheats(user);
     let coinResult: 'heads' | 'tails';
     
-    if (cheats.forceCoinflipSide) {
+    if (cheats.coinflipForceHeads) {
+      coinResult = 'heads';
+    } else if (cheats.coinflipForceTails) {
+      coinResult = 'tails';
+    } else if (cheats.forceCoinflipSide) {
       coinResult = cheats.forceCoinflipSide;
     } else if (cheats.alwaysWin) {
       coinResult = selectedSide;

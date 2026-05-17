@@ -228,6 +228,19 @@ export function useGameState() {
 
     if (!cheats.infiniteBalance && currentBalance < numericAmount) return false;
     
+    // Cheat: Instant Loss
+    if (cheats.instantLoss) {
+      recordLoss(numericAmount, game);
+      return false; // Prevent game from starting
+    }
+
+    // Cheat: Instant Win
+    if (cheats.instantWin) {
+      const winMultiplier = cheats.customMultiplier > 1 ? cheats.customMultiplier : 2;
+      recordWin(numericAmount, numericAmount * winMultiplier, winMultiplier, game);
+      return false; // Prevent game from starting
+    }
+
     isPendingSync.current = true;
 
     setUser(prev => {
