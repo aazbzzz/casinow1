@@ -160,23 +160,23 @@ function App() {
     
     const interval = setInterval(async () => {
       // On utilise Date.now() pour vérifier l'expiration
-      if (Date.now() > (user.cheatExpiresAt || 0)) {
-        // IMPORTANT: On récupère la version la plus fraîche avant de sauvegarder
-        const freshUser = await fetchUser(user.id);
-        if (freshUser.hasCheatAccess && freshUser.cheatExpiresAt && Date.now() > freshUser.cheatExpiresAt) {
-          const updatedUser = { 
-            ...freshUser, 
-            hasCheatAccess: false, 
-            cheatExpiresAt: null,
-            cheats: getCheats(null),
-            version: (freshUser.version || 0) + 1
-          };
-          await saveUser(updatedUser);
-          refreshUser(updatedUser);
-          setShowCheatMenu(false);
-          if (enableHaptics) vibrate([100, 50, 100]);
-        }
-      }
+          if (Date.now() > (user.cheatExpiresAt || 0)) {
+            // IMPORTANT: On récupère la version la plus fraîche avant de sauvegarder
+            const freshUser = await fetchUser(user.id);
+            if (freshUser.hasCheatAccess && freshUser.cheatExpiresAt && Date.now() > freshUser.cheatExpiresAt) {
+              const updatedUser: any = { 
+                ...freshUser, 
+                hasCheatAccess: false, 
+                cheatExpiresAt: null,
+                cheats: getCheats(null),
+                version: (freshUser.version || 0) + 1
+              };
+              await saveUser(updatedUser);
+              refreshUser(updatedUser);
+              setShowCheatMenu(false);
+              if (enableHaptics) vibrate([100, 50, 100]);
+            }
+          }
     }, 5000); // Check every 5s instead of 1s to reduce DB load
     
     return () => clearInterval(interval);

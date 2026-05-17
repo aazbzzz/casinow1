@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { User, Quest } from '@/types';
-import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured } from '@/lib/storage';
+import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat } from '@/lib/storage';
 import { getVIPLevel, VIP_LEVELS } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
@@ -95,8 +95,17 @@ export function useGameState() {
     if (!uid || !isSupabaseConfigured() || uid === 'guest') return;
 
     // REALTIME: Écouter les changements spécifiques à CET utilisateur
+    // On utilise un ID unique pour le canal pour éviter les conflits si le hook est utilisé plusieurs fois
+    const channelId = `user-sync-${uid}-${Math.random().toString(36).slice(2, 11)}`;
+    
+    // Nettoyage préventif au cas où un canal avec le même ID existerait déjà
+    const existingChannel = supabase.getChannels().find(c => c.name === channelId);
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel);
+    }
+
     const userChannel = supabase
-      .channel(`user-sync-${uid}`)
+      .channel(channelId)
       .on('postgres_changes', { 
         event: 'UPDATE', 
         schema: 'public', 
@@ -184,8 +193,7 @@ export function useGameState() {
       if (now > (user.cheatExpiresAt || 0)) {
         console.log('[useGameState] Cheat expired, triggering cloud expiration...');
         try {
-          // Utilise la nouvelle fonction robuste de storage.ts
-          const { expireUserCheat } = await import('@/lib/storage');
+          // Utilisation de l'importation statique déjà définie en haut du fichier
           const finalUser = await expireUserCheat(user.id);
           if (finalUser) {
             setUser(finalUser);

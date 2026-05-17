@@ -1,6 +1,7 @@
 import { type User, type Quest } from '@/types';
 import { supabase } from './supabase';
 import { getVIPLevel } from './vip';
+import { INITIAL_QUESTS } from './quests';
 export { supabase };
 
 export interface PromoCode {
@@ -522,7 +523,6 @@ export async function getQuests(): Promise<Quest[]> {
     } else {
       console.log(`[storage] No quests in DB for ${uid}, loading initial quests...`);
       // No quests in DB yet, return initial quests
-      const { INITIAL_QUESTS } = await import('./quests');
       const initial = INITIAL_QUESTS.map((q, i) => ({
         ...q,
         id: `q-${i}`,
@@ -538,7 +538,6 @@ export async function getQuests(): Promise<Quest[]> {
   if (stored) return JSON.parse(stored);
 
   // Default fallback if no DB and no LocalStorage
-  const { INITIAL_QUESTS } = await import('./quests');
   console.log(`[storage] Loading default fallback quests`);
   return INITIAL_QUESTS.map((q, i) => ({
     ...q,
