@@ -82,16 +82,15 @@ function mapDBUserToUser(data: any): User {
     return Math.ceil(num);
   };
 
-  // Try both snake_case and camelCase for each field
+  // 1. EXTRACTION DES DONNÉES (Source de vérité)
   const totalWagered = Math.max(0, cleanDBNum(data.total_wagered ?? data.totalWagered, 0));
   const balance = Math.max(0, cleanDBNum(data.balance, 0));
   const bankBalance = Math.max(0, cleanDBNum(data.bank_balance ?? data.bankBalance, 0));
   
-  // ALWAYS recalculate VIP level from totalWagered to prevent freezing
-  // RÈGLE ABSOLUE : VIP = getVIPLevel(totalWagered)
+  // 2. CALCUL VIP CENTRALISÉ (Toujours dérivé du totalWagered)
   const computedVip = getVIPLevel(totalWagered);
-  const finalVipLevel = computedVip.level;
 
+  // 3. MAPPAGE DE L'OBJET USER
   const user: User = {
     id: data.id,
     username: data.username,
@@ -104,7 +103,7 @@ function mapDBUserToUser(data: any): User {
     cheatExpiresAt: data.cheat_expires_at ?? data.cheatExpiresAt ?? null,
     balance: balance,
     bankBalance: bankBalance,
-    vipLevel: finalVipLevel,
+    vipLevel: computedVip.level, // Source unique : calculée
     totalWagered: totalWagered,
     createdAt: data.created_at ?? data.createdAt,
     hasDeposited: !!(data.has_deposited ?? data.hasDeposited),
@@ -114,6 +113,8 @@ function mapDBUserToUser(data: any): User {
     version: Number(data.version) || 0,
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
   };
+
+  console.log(`[storage] User Mapped: ${user.username} | Wagered: ${user.totalWagered} | VIP: ${user.vipLevel} | v${user.version}`);
 
   return user;
 }

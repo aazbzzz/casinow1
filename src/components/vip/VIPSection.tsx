@@ -22,12 +22,18 @@ export function VIPSection() {
   const currentVIP = getVIPLevel(safeTotalWagered) || VIP_LEVELS[0];
   const nextVIP = getNextVIPLevel(currentVIP.level);
   
-  // Progression calculée dynamiquement pour la barre
-  const progressValue = getVIPProgress(safeTotalWagered, currentVIP.level);
-  const safeProgress = isNaN(progressValue) ? 0 : Math.min(100, Math.max(0, progressValue));
+  // Progression calculée dynamiquement pour la barre (Source: totalWagered pure)
+  const currentRequired = currentVIP.wagerRequired;
+  const nextRequired = nextVIP ? nextVIP.wagerRequired : currentRequired;
+  const neededForNext = nextRequired - currentRequired;
+  const currentProgressInLevel = safeTotalWagered - currentRequired;
+  
+  const progressPercent = nextVIP 
+    ? Math.max(0, Math.min(100, (currentProgressInLevel / neededForNext) * 100))
+    : 100;
 
   // Calcul du montant manquant pour le prochain niveau
-  const amountToNext = nextVIP ? Math.max(0, nextVIP.wagerRequired - safeTotalWagered) : 0;
+  const amountToNext = nextVIP ? Math.max(0, nextRequired - safeTotalWagered) : 0;
 
   const formatAmount = (amount: number, exact = false) => {
     const val = Math.ceil(Number(amount) || 0);
@@ -80,11 +86,11 @@ export function VIPSection() {
             <div>
               <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest mb-3">
                 <span className="text-gray-400">Progression : <span className="text-white">{formatAmount(safeTotalWagered, true)}</span> / <span className="text-white/60">{nextVIP ? formatAmount(nextVIP.wagerRequired, true) : 'MAX'}</span></span>
-                <span style={{ color: primaryAccent }}>{safeProgress.toFixed(1)}%</span>
+                <span style={{ color: primaryAccent }}>{progressPercent.toFixed(1)}%</span>
               </div>
               <div className="h-5 rounded-full bg-black/60 border border-white/10 overflow-hidden p-1 shadow-inner">
                 <div className="h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(0,0,0,0.5)]" style={{
-                  width: `${safeProgress}%`,
+                  width: `${progressPercent}%`,
                   background: `linear-gradient(90deg, ${primaryAccent}, ${secondaryAccent})`,
                   boxShadow: `0 0 15px ${primaryAccent}60`
                 }} />

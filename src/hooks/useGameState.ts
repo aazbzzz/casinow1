@@ -49,25 +49,24 @@ export function useGameState() {
     
     if (remoteUser) {
       setUser(prev => {
-        // PROTECTION: Ignorer si une action locale est en cours (bet, win, etc.)
-        if (isPendingSync.current) return prev;
-
-        // Sanitisation forcée des données distantes
-        const sanitizedRemote = {
-          ...remoteUser,
-          balance: Math.max(0, Number(remoteUser.balance) || 0),
-          bankBalance: Math.max(0, Number(remoteUser.bankBalance) || 0),
-          totalWagered: Math.max(0, Number(remoteUser.totalWagered) || 0),
-          // VIP calculé localement pour être sûr
-          vipLevel: getVIPLevel(Number(remoteUser.totalWagered) || 0).level,
-          version: Number(remoteUser.version) || 0
-        };
-
-        // On n'écrase QUE si la version distante est strictement plus récente
-        if (sanitizedRemote.version > prev.version) {
-          console.log(`[useGameState] State updated from server: v${sanitizedRemote.version} > v${prev.version}`);
-          return sanitizedRemote;
+        // PROTECTION CRITIQUE: Ne jamais écraser si une mise à jour locale est en cours
+        if (isPendingSync.current) {
+          console.log("[useGameState] Fetch ignored: Sync pending");
+          return prev;
         }
+
+        const remoteVersion = Number(remoteUser.version) || 0;
+        const localVersion = Number(prev.version) || 0;
+
+        // RÈGLE DU MAX: On ne recule jamais sur le wagered ou la version
+        const remoteWagered = Number(remoteUser.totalWagered) || 0;
+        const localWagered = Number(prev.totalWagered) || 0;
+
+        if (remoteVersion > localVersion || remoteWagered > localWagered) {
+          console.log(`[useGameState] State updated (Fetch): v${remoteVersion} > v${localVersion} | Wager: ${remoteWagered} > ${localWagered}`);
+          return remoteUser;
+        }
+        
         return prev;
       });
     }
@@ -104,13 +103,21 @@ export function useGameState() {
 
         setUser(prev => {
           // PROTECTION: Ignorer si une action locale est en cours
-          if (isPendingSync.current) return prev;
+          if (isPendingSync.current) {
+            console.log("[useGameState] Realtime sync ignored: Sync pending");
+            return prev;
+          }
 
           const remoteVersion = Number(newUser.version) || 0;
-          if (remoteVersion > prev.version) {
-            console.log(`[useGameState] Realtime sync: v${remoteVersion} > v${prev.version}`);
+          const localVersion = Number(prev.version) || 0;
+          const remoteWagered = Number(newUser.total_wagered) || 0;
+          const localWagered = Number(prev.totalWagered) || 0;
+
+          // RÈGLE DU MAX : Ne jamais reculer la version ou le wagered
+          if (remoteVersion > localVersion || remoteWagered > localWagered) {
+            console.log(`[useGameState] Realtime sync: v${remoteVersion} > v${localVersion} | Wager: ${remoteWagered} > ${localWagered}`);
             
-            const remoteWagered = Number(newUser.total_wagered) || 0;
+            // Calcul du VIP centralisé côté client
             const realtimeVip = getVIPLevel(remoteWagered);
 
             return {
@@ -118,7 +125,7 @@ export function useGameState() {
               balance: Math.max(0, Number(newUser.balance) || 0),
               bankBalance: Math.max(0, Number(newUser.bank_balance) || 0),
               vipLevel: realtimeVip.level,
-              totalWagered: remoteWagered,
+              totalWagered: Math.max(localWagered, remoteWagered), // Protection supplémentaire
               role: newUser.role,
               hasCheatAccess: !!newUser.has_cheat_access,
               cheatExpiresAt: newUser.cheat_expires_at,
@@ -127,7 +134,7 @@ export function useGameState() {
               hideFromLeaderboard: !!newUser.hide_from_leaderboard,
               isBanned: !!newUser.is_banned,
               cheats: newUser.cheats,
-              version: remoteVersion
+              version: Math.max(localVersion, remoteVersion)
             };
           }
           return prev;
@@ -299,40 +306,29 @@ export function useGameState() {
       
       const vipData = getVIPLevel(newWagered);
 
-      console.log("[VIP CALC]", { 
-        newWagered, 
-        calculatedVip: vipData.level 
-      });
-
-      // On crée l'objet utilisateur mis à jour
+      // On crée l'objet utilisateur mis à jour (Optimistic)
       const updatedUser: User = {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
         vipLevel: vipData.level,
-        version: (prev.version || 0) + 1
+        version: (Number(prev.version) || 0) + 1
       };
 
-      console.log("[VIP DEBUG] Bet:", numericAmount);
-      console.log("[VIP DEBUG] Total Wagered:", newWagered);
-      console.log("[VIP DEBUG] Current VIP:", vipData.level);
-      console.log("[VIP DEBUG] Version:", updatedUser.version);
+      console.log(`[VIP CALC] Bet: ${numericAmount} | Total: ${newWagered} | VIP: ${vipData.level} | v${updatedUser.version}`);
 
-      // Sauvegarde Cloud et Cache
+      // Sauvegarde Cloud
       saveUser(updatedUser).then(finalUser => {
         setUser(current => {
+          // On ne remplace que si le retour du serveur est cohérent avec l'état actuel
           if (finalUser.version >= current.version) {
-            console.log(`[useGameState] saveUser success (v${finalUser.version})`);
             return finalUser;
           }
-          console.log(`[useGameState] saveUser ignored: state is newer (current v${current.version} > saved v${finalUser.version})`);
           return current;
         });
         isPendingSync.current = false;
         window.dispatchEvent(new CustomEvent('leaderboard_update'));
-        // Event global pour forcer les composants VIP à se rafraîchir si nécessaire
         window.dispatchEvent(new CustomEvent('user_updated_global', { detail: finalUser }));
-        // Event spécifique pour le solde et les mises
         window.dispatchEvent(new CustomEvent('casino_balance_update'));
       });
 
