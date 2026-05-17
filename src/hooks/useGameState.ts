@@ -99,7 +99,7 @@ export function useGameState() {
     const channelId = `user-sync-${uid}-${Math.random().toString(36).slice(2, 11)}`;
     
     // Nettoyage préventif au cas où un canal avec le même ID existerait déjà
-    const existingChannel = supabase.getChannels().find(c => c.name === channelId);
+    const existingChannel = supabase.getChannels().find(c => (c as any).topic === channelId);
     if (existingChannel) {
       supabase.removeChannel(existingChannel);
     }
