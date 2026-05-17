@@ -143,6 +143,7 @@ function App() {
 
   const handleLogout = () => {
     logout();
+    setActiveSection('casino');
     setShowAuth(true);
     refreshUser();
   };
@@ -384,7 +385,7 @@ function App() {
             />
           )}
           {activeSection === 'vip' && (
-            <VIPSection />
+            <VIPSection user={user} />
           )}
           {activeSection === 'quests' && (
             <QuestsSection quests={quests} onClaimQuest={claimQuest} />

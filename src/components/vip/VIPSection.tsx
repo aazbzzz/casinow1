@@ -1,14 +1,17 @@
 import assetsData from "@/config/assets";
 import { Trophy, TrendingUp, Crown, Zap } from 'lucide-react';
 import { VIP_LEVELS, getVIPLevel, getNextVIPLevel, getVIPProgress } from '@/lib/vip';
-import { useGameState } from '@/hooks/useGameState';
+import { User } from '@/types';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
-export function VIPSection() {
-  const { user } = useGameState();
+interface VIPSectionProps {
+  user: User;
+}
+
+export function VIPSection({ user }: VIPSectionProps) {
   const cardBg = tweaks.cardBackground.useState() || '#1A1A2E';
   const primaryAccent = tweaks.primaryAccent.useState() || '#00efff';
   const secondaryAccent = tweaks.secondaryAccent.useState() || '#FF00FF';

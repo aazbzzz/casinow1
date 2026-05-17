@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { User, Quest } from '@/types';
-import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat } from '@/lib/storage';
+import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat, getDefaultUser, logout as storageLogout } from '@/lib/storage';
 import { getVIPLevel, VIP_LEVELS } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
@@ -40,10 +40,17 @@ export function useGameState() {
 
   const fetchLatestData = useCallback(async (force = false) => {
     const uid = getCurrentUID();
-    if (!uid || uid === 'guest') return;
+    
+    // Si pas de UID ou 'guest', on réinitialise au state par défaut
+    if (!uid || uid === 'guest') {
+      const defaultUser = getDefaultUser(uid || 'guest');
+      setUser(defaultUser);
+      setQuests([]);
+      return;
+    }
 
-    // Ne pas écraser si une mise à jour locale est en cours
-    if (!force && isPendingSync.current) return;
+    // Protection contre les fetchs inutiles si déjà en cours
+    if (isPendingSync.current && !force) return;
 
     const [remoteUser, remoteQuests] = await Promise.all([
       fetchUser(uid),
@@ -78,10 +85,10 @@ export function useGameState() {
 
   // Synchronisation avec le backend au montage & Realtime subscription
   useEffect(() => {
+    const uid = getCurrentUID();
     fetchLatestData(true);
 
-    const uid = getCurrentUID();
-    if (!uid || !isSupabaseConfigured() || uid === 'guest') return;
+    if (!uid || uid === 'guest' || !isSupabaseConfigured()) return;
 
     // REALTIME: Écouter les changements spécifiques à CET utilisateur
     // On utilise un ID unique pour le canal pour éviter les conflits si le hook est utilisé plusieurs fois
@@ -152,7 +159,7 @@ export function useGameState() {
       supabase.removeChannel(userChannel);
       window.removeEventListener('casino_balance_update', handleBalanceUpdate);
     };
-  }, [fetchLatestData]);
+  }, [fetchLatestData, user.id]);
 
   // AUTO-EXPIRE CHEATS
   useEffect(() => {
