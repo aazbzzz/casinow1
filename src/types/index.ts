@@ -28,6 +28,23 @@ export interface User {
     value: number;
     expiresAt: number;
   } | null;
+  // Titles System
+  titleProgress?: Record<string, number>;
+  completedTitleChallenges?: string[];
+}
+
+export type TitleRarity = 'Commun' | 'Rare' | 'Épique' | 'Légendaire' | 'Mythique' | 'Divin' | 'Ultime';
+
+export interface TitleChallenge {
+  id: string;
+  title: string;
+  description: string;
+  rarity: TitleRarity;
+  category: 'Casino' | 'Économie' | 'Défis Rares' | 'ULTIME';
+  target: number;
+  rewardTitle: string;
+  nextChallengeId?: string;
+  isHidden?: boolean;
 }
 
 export interface CryptoAsset {

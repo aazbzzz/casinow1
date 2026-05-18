@@ -4,11 +4,11 @@ import { TopBar } from '@/components/TopBar';
 import { CasinoSection } from '@/components/casino/CasinoSection';
 import { WalletSection } from '@/components/wallet/WalletSection';
 import { VIPSection } from '@/components/vip/VIPSection';
-import { QuestsSection } from '@/components/quests/QuestsSection';
+import { TitlesSection } from '@/components/vip/TitlesSection';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { AdminPanel } from '@/components/AdminPanel';
 import { AuthModal } from '@/components/AuthModal';
-import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAlert, Zap, Coins, Globe, Shield, Target, TrendingUp, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Trophy, Wallet, Settings as SettingsIcon, Crown, ShieldAlert, Zap, Coins, Globe, Shield, Target, TrendingUp, ShieldCheck, Star } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { vibrate } from '@aippy/runtime/device';
 import { sendEvent, reportScore } from '@aippy/runtime/leaderboard';
@@ -31,8 +31,8 @@ import tweaksConfig from '@/config/tweaksConfig.json';
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 function App() {
-  const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, updateBankBalance, refreshUser, error: gameError, clearError } = useGameState();
-  const [activeSection, setActiveSection] = useState<'casino' | 'wallet' | 'vip' | 'quests' | 'settings' | 'leaderboard'>('casino');
+  const { user, quests, updateBalance, placeBet, recordWin, recordLoss, claimQuest, depositToBank, withdrawFromBank, updateBankBalance, refreshUser, error: gameError, clearError, updateTitleProgress, equipTitle } = useGameState();
+  const [activeSection, setActiveSection] = useState<'casino' | 'wallet' | 'vip' | 'titles' | 'settings' | 'leaderboard'>('casino');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState(() => !getCurrentUID());
 
@@ -275,7 +275,7 @@ function App() {
     { id: 'wallet', icon: Wallet, label: 'Wallet' },
     { id: 'leaderboard', icon: Globe, label: 'Ranking' },
     { id: 'vip', icon: Crown, label: 'VIP' },
-    { id: 'quests', icon: Target, label: 'Quests' },
+    { id: 'titles', icon: Target, label: 'Titres' },
     { id: 'settings', icon: SettingsIcon, label: 'Settings' },
   ];
 
@@ -392,8 +392,12 @@ function App() {
           {activeSection === 'vip' && (
             <VIPSection user={user} />
           )}
-          {activeSection === 'quests' && (
-            <QuestsSection quests={quests} onClaimQuest={claimQuest} />
+          {activeSection === 'titles' && (
+            <TitlesSection 
+              user={user} 
+              onEquipTitle={equipTitle} 
+              updateTitleProgress={updateTitleProgress} 
+            />
           )}
           {activeSection === 'leaderboard' && (
             <div className="p-6 rounded-3xl bg-[#0a0a0a] border-2 border-white/5 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -447,10 +451,17 @@ function App() {
                           )}
                         </div>
                         <div className="text-[10px] text-gray-500 font-bold uppercase">
-                          {entry.role === 'admin' && entry.showBadge ? 'Administrator' : 
-                           entry.role === 'moderator' && entry.showModBadge ? 'Moderator' : 
-                           entry.role === 'cheat' ? 'Cheat User' :
-                           `Rank ${idx + 1}`}
+                          {entry.equippedTitle ? (
+                            <span className="flex items-center gap-1" style={{ color: primaryAccent }}>
+                              <Star className="size-2" fill="currentColor" />
+                              {entry.equippedTitle}
+                            </span>
+                          ) : (
+                            entry.role === 'admin' && entry.showBadge ? 'Administrator' : 
+                            entry.role === 'moderator' && entry.showModBadge ? 'Moderator' : 
+                            entry.role === 'cheat' ? 'Cheat User' :
+                            `Rank ${idx + 1}`
+                          )}
                         </div>
                       </div>
                     </div>

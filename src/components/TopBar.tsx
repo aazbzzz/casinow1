@@ -94,14 +94,21 @@ export function TopBar({ user, onAdminClick, onDirectAdmin, onCheatClick }: TopB
           <div className="text-base font-black text-white italic tracking-tighter uppercase leading-tight">
             {user.username}
           </div>
-          <div 
-            className="text-[10px] font-black uppercase tracking-[0.2em] italic"
-            style={{ color: primaryAccent }}
-          >
-            {user.equippedTitle ? user.equippedTitle : (user.role === 'admin' ? 'Administrator' : 
-             user.role === 'moderator' ? 'Moderator' : 
-             `Elite VIP ${safeVipLevel}`)}
-          </div>
+          {user.equippedTitle ? (
+            <div className="text-[9px] font-black text-white px-2 py-0.5 rounded bg-white/10 border border-white/20 uppercase tracking-widest mt-0.5 flex items-center gap-1 w-fit shadow-lg">
+              <Crown className="size-2" style={{ color: primaryAccent }} fill="currentColor" />
+              {user.equippedTitle}
+            </div>
+          ) : (
+            <div 
+              className="text-[10px] font-black uppercase tracking-[0.2em] italic"
+              style={{ color: primaryAccent }}
+            >
+              {user.role === 'admin' ? 'Administrator' : 
+               user.role === 'moderator' ? 'Moderator' : 
+               `Elite VIP ${safeVipLevel}`}
+            </div>
+          )}
         </div>
       </div>
       

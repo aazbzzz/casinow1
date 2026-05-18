@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { User, Quest } from '@/types';
-import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat, getDefaultUser, logout as storageLogout, mergeUserData, mapDBUserToUser } from '@/lib/storage';
+import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat, getDefaultUser, logout as storageLogout, mergeUserData, mapDBUserToUser, sendMoney } from '@/lib/storage';
 import { getVIPLevel, VIP_LEVELS } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
 import { getCheats } from '@/lib/cheats';
+import { TITLE_CHALLENGES } from '@/lib/titles';
 
 const cleanAmount = (val: any): number => {
   if (val === null || val === undefined) return 0;
@@ -208,7 +209,7 @@ export function useGameState() {
   const refreshUser = useCallback(async (updatedUser?: any) => {
      if (updatedUser) {
        // On s'assure que l'objet est bien mappé s'il vient de la DB (snake_case)
-       const cleanUser = (updatedUser.id && (updatedUser.total_wagered !== undefined || updatedUser.bank_balance !== undefined)) 
+       const cleanUser = (updatedUser.id && (updatedUser.total_wagered !== undefined || updatedUser.bank_balance !== undefined || updatedUser.vip_level !== undefined)) 
          ? mapDBUserToUser(updatedUser) 
          : updatedUser;
        setUser(cleanUser);
@@ -525,6 +526,81 @@ export function useGameState() {
     });
   }, []);
 
+  const updateTitleProgress = useCallback((challengeId: string, value: number, isAbsolute = false) => {
+    const challenge = TITLE_CHALLENGES.find(c => c.id === challengeId);
+    if (!challenge || user.vipLevel < 10) return;
+
+    setUser(prev => {
+      const currentProgress = prev.titleProgress?.[challengeId] || 0;
+      if (currentProgress >= challenge.target) return prev;
+
+      const newProgress = isAbsolute ? value : currentProgress + value;
+      const isCompleted = newProgress >= challenge.target;
+
+      const newTitleProgress = { ...prev.titleProgress, [challengeId]: Math.min(newProgress, challenge.target) };
+      const newUnlockedTitles = [...(prev.unlockedTitles || [])];
+      const newCompletedChallenges = [...(prev.completedTitleChallenges || [])];
+
+      if (isCompleted && !newCompletedChallenges.includes(challengeId)) {
+        newCompletedChallenges.push(challengeId);
+        if (!newUnlockedTitles.includes(challenge.rewardTitle)) {
+          newUnlockedTitles.push(challenge.rewardTitle);
+        }
+      }
+
+      const updatedUser: User = {
+        ...prev,
+        titleProgress: newTitleProgress,
+        unlockedTitles: newUnlockedTitles,
+        completedTitleChallenges: newCompletedChallenges,
+        version: (prev.version || 0) + 1
+      };
+
+      saveUser(updatedUser).then(finalUser => {
+        setUser(current => (finalUser.version >= current.version ? finalUser : current));
+      });
+
+      return updatedUser;
+    });
+  }, [user.vipLevel]);
+
+  const equipTitle = useCallback((title: string | null) => {
+    if (title && !user.unlockedTitles?.includes(title)) return;
+
+    setUser(prev => {
+      const updatedUser: User = {
+        ...prev,
+        equippedTitle: title,
+        version: (prev.version || 0) + 1
+      };
+
+      saveUser(updatedUser).then(finalUser => {
+        setUser(current => (finalUser.version >= current.version ? finalUser : current));
+      });
+
+      return updatedUser;
+    });
+  }, [user.unlockedTitles]);
+
+  // Auto-unlock "Légende" at VIP 10
+  useEffect(() => {
+    if (user.vipLevel >= 10 && !user.unlockedTitles?.includes('Légende')) {
+      setUser(prev => {
+        const newTitles = [...(prev.unlockedTitles || []), 'Légende'];
+        const updatedUser: User = {
+          ...prev,
+          unlockedTitles: newTitles,
+          equippedTitle: prev.equippedTitle || 'Légende',
+          version: (prev.version || 0) + 1
+        };
+        saveUser(updatedUser).then(finalUser => {
+          setUser(current => (finalUser.version >= current.version ? finalUser : current));
+        });
+        return updatedUser;
+      });
+    }
+  }, [user.vipLevel, user.unlockedTitles]);
+
   return {
     user,
     quests,
@@ -539,6 +615,8 @@ export function useGameState() {
     refreshUser,
     error,
     clearError,
+    updateTitleProgress,
+    equipTitle,
   };
 }
 

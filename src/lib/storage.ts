@@ -91,6 +91,11 @@ export function mapDBUserToUser(data: any): User {
     
   const equippedTitle = data.equipped_title ?? data.equippedTitle ?? rootCheats.equippedTitle ?? null;
   const lastSeen = data.last_seen ?? data.lastSeen ?? rootCheats.lastSeen ?? null;
+  
+  const titleProgress = data.title_progress ?? data.titleProgress ?? rootCheats.titleProgress ?? {};
+  const completedTitleChallenges = Array.isArray(data.completed_title_challenges ?? data.completedTitleChallenges)
+    ? (data.completed_title_challenges ?? data.completedTitleChallenges)
+    : (Array.isArray(rootCheats.completedTitleChallenges) ? rootCheats.completedTitleChallenges : []);
 
   const user: User = {
     id: data.id,
@@ -116,6 +121,8 @@ export function mapDBUserToUser(data: any): User {
     lastSeen: lastSeen,
     version: Number(data.version ?? data.version) || 0,
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
+    titleProgress,
+    completedTitleChallenges,
   };
 
   return user;
@@ -240,14 +247,20 @@ export async function saveUser(user: User): Promise<User> {
   const balance = Math.max(0, cleanNum(user.balance, 0));
   const bankBalance = Math.max(0, cleanNum(user.bankBalance, 0));
   
+  // Si le VIP est forcé (ex: via Admin), on ne le recalcule pas à partir du wager
+  // Sauf si l'utilisateur n'a pas de niveau VIP défini
+  const currentVipLevel = Number(user.vipLevel) || 1;
   const computedVip = getVIPLevel(totalWagered);
+  
+  // RÈGLE : On prend le plus élevé entre le forcé et le calculé
+  const finalVipLevel = Math.max(currentVipLevel, computedVip.level);
 
   const cleanUser: User = {
     ...user,
     balance: balance,
     bankBalance: bankBalance,
     totalWagered: totalWagered,
-    vipLevel: computedVip.level,
+    vipLevel: finalVipLevel,
     version: (Number(user.version) || 0) + 1
   };
 
@@ -267,7 +280,9 @@ export async function saveUser(user: User): Promise<User> {
         ...(cleanUser.cheats || {}),
         unlockedTitles: cleanUser.unlockedTitles,
         equippedTitle: cleanUser.equippedTitle,
-        lastSeen: cleanUser.lastSeen
+        lastSeen: cleanUser.lastSeen,
+        titleProgress: cleanUser.titleProgress,
+        completedTitleChallenges: cleanUser.completedTitleChallenges
       };
 
       const dbData: any = {
@@ -928,6 +943,8 @@ export function getDefaultUser(uid?: string): User {
     equippedTitle: null,
     version: 0,
     activeMultiplier: undefined,
+    titleProgress: {},
+    completedTitleChallenges: [],
   };
 }
 
