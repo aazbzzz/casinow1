@@ -166,10 +166,16 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
     
     const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Mines');
     
-    // TRACK MINES 24 STAT
+    // TRACK MINES STATS
     if (minesCount === 24) {
       window.dispatchEvent(new CustomEvent('stat_update', { 
         detail: { key: 'mines24SuccessCount', value: 1 } 
+      }));
+    }
+    
+    if (revealed.size >= 20) {
+      window.dispatchEvent(new CustomEvent('stat_update', { 
+        detail: { key: 'mines20DiamondsCount', value: 1 } 
       }));
     }
     

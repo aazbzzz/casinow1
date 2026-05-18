@@ -66,7 +66,7 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     id: 'casino_plinko_x16_10',
     title: 'Chute Parfaite',
     description: 'Faire x16 au Plinko 10 fois',
-    rarity: 'Rare',
+    rarity: 'Mythique',
     category: 'Casino',
     target: 10,
     rewardTitle: 'Plinkeur Pro',
@@ -76,7 +76,7 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     id: 'casino_crash_100x',
     title: 'Vers la Stratosphère',
     description: 'Faire x100 au Crash',
-    rarity: 'Mythique',
+    rarity: 'Divin',
     category: 'Casino',
     target: 1,
     rewardTitle: 'Cosmonaute',
@@ -86,7 +86,7 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     id: 'casino_crash_10x_multi',
     title: 'Pilote de Ligne',
     description: 'Gagner Crash au-dessus de x10 plusieurs fois',
-    rarity: 'Épique',
+    rarity: 'Mythique',
     category: 'Casino',
     target: 5,
     rewardTitle: 'Pilote',
@@ -106,7 +106,7 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     id: 'casino_slots_3stars_20',
     title: 'Jackpot Star',
     description: 'Gagner 20 fois avec 3 étoiles au Slots',
-    rarity: 'Rare',
+    rarity: 'Légendaire',
     category: 'Casino',
     target: 20,
     rewardTitle: 'Étoile Filante',
@@ -116,7 +116,7 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     id: 'casino_roulette_exact_10',
     title: 'Précision Chirurgicale',
     description: 'Gagner roulette sur une valeur précise 10 fois',
-    rarity: 'Épique',
+    rarity: 'Légendaire',
     category: 'Casino',
     target: 10,
     rewardTitle: 'Sniper de Roulette',
@@ -132,6 +132,16 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     rewardTitle: 'Invincible',
     statKey: 'maxWinStreak'
   },
+  {
+    id: 'casino_mines_20_diamonds',
+    title: 'Trouveur Absolu',
+    description: 'Réussir à obtenir 20 diamants dans une partie 10 fois',
+    rarity: 'Légendaire',
+    category: 'Casino',
+    target: 10,
+    rewardTitle: 'Expert en Diamants',
+    statKey: 'mines20DiamondsCount'
+  },
 
   // CATEGORY: Économie
   {
@@ -145,24 +155,14 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     statKey: 'leaderboardRank1'
   },
   {
-    id: 'econ_vip_15',
-    title: 'Privilégié',
-    description: 'Atteindre VIP 15',
-    rarity: 'Légendaire',
+    id: 'econ_leaderboard_1_streak',
+    title: 'Souverain',
+    description: 'Gagner 50 parties consécutives',
+    rarity: 'Mythique',
     category: 'Économie',
-    target: 15,
-    rewardTitle: 'Aristocrate',
-    statKey: 'vipLevel'
-  },
-  {
-    id: 'econ_vip_max',
-    title: 'Sommet du Monde',
-    description: 'Atteindre VIP max',
-    rarity: 'Divin',
-    category: 'Économie',
-    target: 10,
-    rewardTitle: 'Légende Éternelle',
-    statKey: 'vipLevel'
+    target: 50,
+    rewardTitle: 'L\'Indétrônable',
+    statKey: 'maxWinStreak'
   },
   {
     id: 'econ_transfer_huge',
@@ -188,7 +188,7 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     id: 'econ_balance_huge',
     title: 'Trésor Vivant',
     description: 'Avoir une balance gigantesque',
-    rarity: 'Mythique',
+    rarity: 'Rare',
     category: 'Économie',
     target: 10000000000000,
     rewardTitle: 'Crésus',
@@ -198,9 +198,9 @@ export const TITLE_CHALLENGES: TitleChallenge[] = [
     id: 'econ_finish_all_normal',
     title: 'Complétiste',
     description: 'Finir toutes les quêtes normales',
-    rarity: 'Légendaire',
+    rarity: 'Divin',
     category: 'Économie',
-    target: 19,
+    target: 20,
     rewardTitle: 'Le Maître',
     statKey: 'completedNormalChallenges'
   },

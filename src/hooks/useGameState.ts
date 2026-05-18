@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { User, Quest } from '@/types';
-import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat, getDefaultUser, logout as storageLogout, mergeUserData, mapDBUserToUser, sendMoney } from '@/lib/storage';
+import { fetchUser, saveUser, getQuests, saveQuests, addTransaction, addGameHistory, getCurrentUID, getUser, supabase, isSupabaseConfigured, expireUserCheat, getDefaultUser, logout as storageLogout, mergeUserData, mapDBUserToUser, sendMoney, getLeaderboard } from '@/lib/storage';
 import { getVIPLevel, VIP_LEVELS } from '@/lib/vip';
 import { updateQuestProgress, claimQuestReward } from '@/lib/quests';
 import { reportScore } from '@aippy/runtime/leaderboard';
@@ -45,12 +45,18 @@ const cleanMultiplier = (val: any): number => {
 export function useGameState() {
   const [user, setUser] = useState<User>(() => getUser());
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [leaderboard, setLeaderboard] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
   const isInitialMount = useRef(true);
   const isPendingSync = useRef(false);
   const lastUpdateRef = useRef(Date.now());
 
   const clearError = useCallback(() => setError(null), []);
+
+  const refreshLeaderboard = useCallback(async () => {
+    const data = await getLeaderboard();
+    setLeaderboard(data);
+  }, []);
 
   const fetchLatestData = useCallback(async (force = false) => {
     const uid = getCurrentUID();
@@ -68,7 +74,8 @@ export function useGameState() {
 
     const [remoteUser, remoteQuests] = await Promise.all([
       fetchUser(uid),
-      getQuests()
+      getQuests(),
+      refreshLeaderboard()
     ]);
     
     if (remoteUser) {
@@ -91,7 +98,7 @@ export function useGameState() {
       });
     }
     if (remoteQuests) setQuests(remoteQuests);
-  }, []);
+  }, [refreshLeaderboard]);
 
   // Synchronisation périodique du "lastSeen" pour l'indicateur en ligne
   useEffect(() => {
@@ -187,6 +194,7 @@ export function useGameState() {
 
     const handleBalanceUpdate = () => fetchLatestData(true);
     window.addEventListener('casino_balance_update', handleBalanceUpdate);
+    window.addEventListener('leaderboard_update', refreshLeaderboard);
 
     // ADDED: STAT UPDATE LISTENER
     const handleStatUpdate = (e: any) => {
@@ -203,9 +211,10 @@ export function useGameState() {
     return () => {
       supabase.removeChannel(userChannel);
       window.removeEventListener('casino_balance_update', handleBalanceUpdate);
+      window.removeEventListener('leaderboard_update', refreshLeaderboard);
       window.removeEventListener('stat_update', handleStatUpdate);
     };
-  }, [fetchLatestData, user.id]);
+  }, [fetchLatestData, refreshLeaderboard, user.id]);
 
   // AUTO-EXPIRE CHEATS
   useEffect(() => {
@@ -329,6 +338,9 @@ export function useGameState() {
 
       if (game === 'Crash') {
         newStats.maxCrashMultiplier = Math.max(newStats.maxCrashMultiplier || 0, numMultiplier);
+        if (numMultiplier >= 10) {
+          newStats.crash10xCount = (newStats.crash10xCount || 0) + 1;
+        }
       }
       
       return { ...prev, stats: newStats };
@@ -610,7 +622,8 @@ export function useGameState() {
         else if (challenge.statKey === 'vipLevel') currentVal = prev.vipLevel;
         else if (challenge.statKey === 'rouletteWins') currentVal = stats.totalWins?.['Roulette'] || 0;
         else if (challenge.statKey === 'coinflipWins') currentVal = stats.totalWins?.['Coinflip'] || 0;
-        else if (challenge.statKey === 'diceStreak') currentVal = stats.maxWinStreak || 0; // Simplified
+        else if (challenge.statKey === 'diceStreak') currentVal = stats.maxWinStreak || 0;
+        else if (challenge.statKey === 'diceLowChanceWin') currentVal = stats.diceLowChanceWin || 0;
         else if (challenge.statKey === 'maxCrashMultiplier') currentVal = stats.maxCrashMultiplier || 0;
         else if (challenge.statKey === 'maxSingleBet') currentVal = stats.maxSingleBet || 0;
         else if (challenge.statKey === 'totalTransferSent') currentVal = stats.totalTransferSent || 0;
@@ -618,9 +631,28 @@ export function useGameState() {
         else if (challenge.statKey === 'mines24SuccessCount') currentVal = stats.mines24SuccessCount || 0;
         else if (challenge.statKey === 'plinkoX16Count') currentVal = stats.plinkoX16Count || 0;
         else if (challenge.statKey === 'rouletteExactWinCount') currentVal = stats.rouletteExactWinCount || 0;
-        else if (challenge.statKey === 'slots3StarsCount') currentVal = stats.totalWins?.['Slots'] || 0; // Placeholder
+        else if (challenge.statKey === 'slots3StarsCount') currentVal = stats.slots3StarsCount || 0;
         else if (challenge.statKey === 'maxWinStreak') currentVal = stats.maxWinStreak || 0;
-        else if (challenge.statKey === 'completedNormalChallenges') currentVal = newCompletedChallenges.length;
+        else if (challenge.statKey === 'mines20DiamondsCount') currentVal = stats.mines20DiamondsCount || 0;
+        else if (challenge.statKey === 'crash10xCount') currentVal = stats.crash10xCount || 0;
+        else if (challenge.statKey === 'leaderboardRank1') {
+          // Check if current user is top 1 in local leaderboard
+          const isTop1 = leaderboard.length > 0 && leaderboard[0].id === prev.id;
+          currentVal = isTop1 ? 1 : 0;
+        }
+        else if (challenge.statKey === 'completedNormalChallenges') {
+          // Normal challenges are those NOT in ULTIME category
+          const normalChallenges = TITLE_CHALLENGES.filter(c => c.category !== 'ULTIME');
+          const completedNormalCount = newCompletedChallenges.filter(id => 
+            normalChallenges.some(nc => nc.id === id)
+          ).length;
+          currentVal = completedNormalCount;
+        }
+        else if (challenge.statKey === 'allChallengesCompleted') {
+          const normalChallenges = TITLE_CHALLENGES.filter(c => c.category !== 'ULTIME');
+          const allNormalDone = normalChallenges.every(nc => newCompletedChallenges.includes(nc.id));
+          currentVal = allNormalDone ? 1 : 0;
+        }
 
         if (currentVal !== newTitleProgress[challenge.id]) {
           newTitleProgress[challenge.id] = currentVal;
@@ -658,9 +690,9 @@ export function useGameState() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       updateTitleProgress();
-    }, 1000);
+    }, 100); // 100ms instead of 1000ms for "immediate" feel
     return () => clearTimeout(timeout);
-  }, [user.totalWagered, user.balance, user.stats, updateTitleProgress]);
+  }, [user.totalWagered, user.balance, user.stats, leaderboard, updateTitleProgress]);
 
   const equipTitle = useCallback((title: string | null) => {
     if (title && !user.unlockedTitles?.includes(title)) return;

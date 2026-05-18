@@ -38,9 +38,13 @@ export interface User {
     maxWinStreak?: number;
     currentWinStreak?: number;
     maxCrashMultiplier?: number;
+    crash10xCount?: number;
     plinkoX16Count?: number;
     mines24SuccessCount?: number;
+    mines20DiamondsCount?: number;
     rouletteExactWinCount?: number;
+    slots3StarsCount?: number;
+    diceLowChanceWin?: number;
     maxSingleBet?: number;
     totalCryptoDeposited?: number;
     totalTransferSent?: number;

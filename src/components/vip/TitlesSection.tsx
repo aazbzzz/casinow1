@@ -90,7 +90,7 @@ export function TitlesSection({ user, onEquipTitle, updateTitleProgress }: Title
   return (
     <div className="p-6 space-y-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* HEADER SECTION */}
-      <div className="relative p-8 rounded-3xl border-2 overflow-hidden shadow-2xl" style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}40` }}>
+      <div className="relative p-8 rounded-3xl border-2 shadow-2xl" style={{ backgroundColor: cardBg, borderColor: `${primaryAccent}40` }}>
         <div className="absolute top-0 right-0 p-4">
           <Award className="size-24 opacity-10 rotate-12" style={{ color: primaryAccent }} />
         </div>
@@ -104,7 +104,7 @@ export function TitlesSection({ user, onEquipTitle, updateTitleProgress }: Title
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Selector Dropdown */}
-            <div className="relative">
+            <div className="relative z-[100]">
               <div className="text-[10px] font-black text-gray-500 uppercase mb-2 ml-1">Titre Équipé</div>
               <button 
                 onClick={() => setShowSelector(!showSelector)}
@@ -120,7 +120,7 @@ export function TitlesSection({ user, onEquipTitle, updateTitleProgress }: Title
               </button>
 
               {showSelector && (
-                <div className="absolute top-full left-0 right-0 mt-2 p-2 rounded-2xl bg-[#0a0a0a] border border-white/10 shadow-2xl z-[100] max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-full left-0 right-0 mt-2 p-2 rounded-2xl bg-[#0a0a0a] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-[200] max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 animate-in fade-in slide-in-from-top-2 duration-200">
                   <button 
                     onClick={() => { onEquipTitle(null); setShowSelector(false); }}
                     className="w-full p-3 rounded-xl text-left text-sm font-black uppercase text-gray-500 hover:bg-white/5 transition-colors mb-1"

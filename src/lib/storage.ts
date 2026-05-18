@@ -809,7 +809,7 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
       // 1. Fetch sender first
       const { data: senderData, error: senderFetchError } = await supabase
         .from('users')
-        .select('id, bank_balance, username')
+        .select('id, bank_balance, username, version')
         .eq('id', senderId)
         .single();
 
@@ -821,7 +821,7 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
       // On utilise une syntaxe plus simple pour éviter les erreurs de parsing Supabase
       const { data: receiverResults, error: receiverFetchError } = await supabase
         .from('users')
-        .select('id, bank_balance, username')
+        .select('id, bank_balance, username, version')
         .or(`id.eq.${cleanReceiverId},username.ilike.${cleanReceiverId}`);
 
       if (receiverFetchError || !receiverResults || receiverResults.length === 0) {
@@ -861,19 +861,26 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
       // 3. Update Sender
       const { error: sUpdateError } = await supabase
         .from('users')
-        .update({ bank_balance: newSenderBankBalance })
-        .eq('id', sender.id);
+        .update({ 
+          bank_balance: newSenderBankBalance,
+          version: (sender.version || 0) + 1 
+        })
+        .eq('id', sender.id)
+        .eq('bank_balance', senderBank); // CAS D'OR : Empêche la duplication si la balance a changé entre-temps
 
       if (sUpdateError) {
-        console.error("[storage] Sender update error:", sUpdateError);
-        throw sUpdateError;
+        console.error("[storage] Sender update error (Concurrency or Insufficient funds):", sUpdateError);
+        return { success: false, error: 'Transfer failed: Concurrency error or balance changed.' };
       }
 
       // 4. Update Receiver
       // On s'assure d'utiliser l'ID exact trouvé en DB
       const { error: rUpdateError } = await supabase
         .from('users')
-        .update({ bank_balance: newReceiverBankBalance })
+        .update({ 
+          bank_balance: newReceiverBankBalance,
+          version: (receiver.version || 0) + 1 
+        })
         .eq('id', receiver.id);
 
       if (rUpdateError) {
