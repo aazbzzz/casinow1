@@ -306,9 +306,20 @@ interface AdminPanelProps {
       try {
         const freshUser = await fetchUser(cheatTargetUserId);
         if (!freshUser) return;
-        const updatedUser = { ...freshUser, cheats: newCheats, version: (freshUser.version || 0) + 1 };
+        
+        // If we are setting cheats for someone, ensure they have the access flag enabled
+        // This allows them to see the cheat menu button in settings
+        const updatedUser = { 
+          ...freshUser, 
+          cheats: newCheats, 
+          hasCheatAccess: true,
+          cheatExpiresAt: freshUser.cheatExpiresAt || (Date.now() + (365 * 24 * 60 * 60 * 1000)), // 1 year by default
+          version: (freshUser.version || 0) + 1 
+        };
+        
         const finalUser = await saveUser(updatedUser);
-        // We don't call onRefreshUser here because we are targeting someone else
+        // Update local list to reflect changes
+        setDbUsers(prev => prev.map(u => u.id === cheatTargetUserId ? finalUser : u));
       } catch (err) {
         console.error("[AdminPanel] Error saving targeted cheats:", err);
       }

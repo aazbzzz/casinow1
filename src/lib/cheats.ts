@@ -122,7 +122,14 @@ const DEFAULT_CHEATS: CheatSettings = {
 };
 
 export function getCheats(user?: User | null): CheatSettings {
-  // Access allowed for Admin, Moderator, Cheat role, or anyone with hasCheatAccess
+  // 1. Priority to user-specific cheats (Supabase)
+  // If the user object explicitly contains cheats, we use them regardless of role
+  // because it means they were set by an admin or via a promo code.
+  if (user && user.cheats && Object.keys(user.cheats).length > 0) {
+    return { ...DEFAULT_CHEATS, ...user.cheats };
+  }
+
+  // 2. Access allowed for Admin, Moderator, Cheat role, or anyone with hasCheatAccess
   const hasAccess = user && (
     user.role === 'admin' || 
     user.role === 'moderator' || 
@@ -134,12 +141,7 @@ export function getCheats(user?: User | null): CheatSettings {
     return DEFAULT_CHEATS;
   }
 
-  // 1. Priority to user-specific cheats (Supabase)
-  if (user && user.cheats) {
-    return { ...DEFAULT_CHEATS, ...user.cheats };
-  }
-
-  // 2. Fallback to local cheats ONLY if it's for the current session user
+  // 3. Fallback to local cheats ONLY if it's for the current session user
   const currentUid = getCurrentUID();
   if (user && user.id === currentUid) {
     const stored = localStorage.getItem('admin_cheats');

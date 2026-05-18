@@ -76,6 +76,8 @@ const translations = {
   },
 };
 
+import { getCheats, isCheatsActive } from '@/lib/cheats';
+
 export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePromoCodes, onLogout, onUpdateBalance, onShowCheatMenu }: { 
   user: any,
   onRewardClaimed?: (updatedUser?: any) => void,
@@ -103,7 +105,7 @@ export function SettingsSection({ user, onRewardClaimed, promoCodes, onUpdatePro
   const isAdmin = user.role === 'admin';
   const isMod = user.role === 'moderator';
   const isCheatRole = user.role === 'cheat';
-  const hasCheatAccess = isCheatRole || (user.hasCheatAccess && user.cheatExpiresAt && user.cheatExpiresAt > now);
+  const hasCheatAccess = isCheatRole || (user.hasCheatAccess && user.cheatExpiresAt && user.cheatExpiresAt > now) || isCheatsActive(user);
   
   // Roles detection logic (strict)
   const isPlayerOnly = !isAdmin && !isMod && !isCheatRole && !hasCheatAccess;
