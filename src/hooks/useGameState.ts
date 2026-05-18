@@ -175,9 +175,22 @@ export function useGameState() {
     const handleBalanceUpdate = () => fetchLatestData(true);
     window.addEventListener('casino_balance_update', handleBalanceUpdate);
 
+    // ADDED: STAT UPDATE LISTENER
+    const handleStatUpdate = (e: any) => {
+      const { key, value, isAbsolute } = e.detail;
+      setUser(prev => {
+        const newStats = { ...(prev.stats || {}) };
+        const currentVal = (newStats as any)[key] || 0;
+        (newStats as any)[key] = isAbsolute ? value : currentVal + value;
+        return { ...prev, stats: newStats };
+      });
+    };
+    window.addEventListener('stat_update', handleStatUpdate);
+
     return () => {
       supabase.removeChannel(userChannel);
       window.removeEventListener('casino_balance_update', handleBalanceUpdate);
+      window.removeEventListener('stat_update', handleStatUpdate);
     };
   }, [fetchLatestData, user.id]);
 
@@ -287,6 +300,26 @@ export function useGameState() {
     const safeFinalAmount = cheats.freezeBalance ? 0 : Math.max(0, calculatedPayout);
     
     updateBalance(safeFinalAmount, 'win', game);
+
+    // STATS TRACKING
+    setUser(prev => {
+      const newStats = { ...(prev.stats || {}) };
+      const totalWins = { ...(newStats.totalWins || {}) };
+      totalWins[game] = (totalWins[game] || 0) + 1;
+      
+      const currentStreak = (newStats.currentWinStreak || 0) + 1;
+      const maxStreak = Math.max(newStats.maxWinStreak || 0, currentStreak);
+      
+      newStats.totalWins = totalWins;
+      newStats.currentWinStreak = currentStreak;
+      newStats.maxWinStreak = maxStreak;
+
+      if (game === 'Crash') {
+        newStats.maxCrashMultiplier = Math.max(newStats.maxCrashMultiplier || 0, numMultiplier);
+      }
+      
+      return { ...prev, stats: newStats };
+    });
     
     addGameHistory({ 
       game,
@@ -304,6 +337,18 @@ export function useGameState() {
     if (cheats.infiniteBalance) return;
     
     const numBet = cleanAmount(amount);
+
+    // STATS TRACKING
+    setUser(prev => {
+      const newStats = { ...(prev.stats || {}) };
+      const totalLosses = { ...(newStats.totalLosses || {}) };
+      totalLosses[game] = (totalLosses[game] || 0) + 1;
+      
+      newStats.totalLosses = totalLosses;
+      newStats.currentWinStreak = 0; // Reset streak on loss
+      
+      return { ...prev, stats: newStats };
+    });
     
     addGameHistory({
       game,
@@ -351,13 +396,18 @@ export function useGameState() {
       
       const vipData = getVIPLevel(newWagered);
 
+      // STATS TRACKING
+      const newStats = { ...(prev.stats || {}) };
+      newStats.maxSingleBet = Math.max(newStats.maxSingleBet || 0, numericAmount);
+
       // On crée l'objet utilisateur mis à jour (Optimistic)
       const updatedUser: User = {
         ...prev,
         balance: newBalance,
         totalWagered: newWagered,
         vipLevel: vipData.level,
-        version: (Number(prev.version) || 0) + 1
+        version: (Number(prev.version) || 0) + 1,
+        stats: newStats
       };
 
       console.log(`[VIP CALC] Bet: ${numericAmount} | Total: ${newWagered} | VIP: ${vipData.level} | v${updatedUser.version}`);
@@ -393,8 +443,6 @@ export function useGameState() {
     setQuests(prev => prev.map(q => q.id === questId ? { ...q, claimed: true } : q));
     
     updateBalance(quest.reward, 'deposit', `Quest: ${quest.title}`);
-    
-    if (onRewardClaimed) onRewardClaimed();
   }, [quests, updateBalance]);
 
   const depositToBank = useCallback((amount: number) => {
@@ -519,40 +567,69 @@ export function useGameState() {
           }
           return current;
         });
+        window.dispatchEvent(new CustomEvent('leaderboard_update'));
+      }).catch(err => {
+        console.error("[useGameState] updateBankBalance save error:", err);
+      }).finally(() => {
         isPendingSync.current = false;
       });
-      
+
       return newUser;
     });
   }, []);
 
-  const updateTitleProgress = useCallback((challengeId: string, value: number, isAbsolute = false) => {
-    const challenge = TITLE_CHALLENGES.find(c => c.id === challengeId);
-    if (!challenge || user.vipLevel < 10) return;
+  const updateTitleProgress = useCallback(() => {
+    if (user.vipLevel < 10) return;
 
     setUser(prev => {
-      const currentProgress = prev.titleProgress?.[challengeId] || 0;
-      if (currentProgress >= challenge.target) return prev;
-
-      const newProgress = isAbsolute ? value : currentProgress + value;
-      const isCompleted = newProgress >= challenge.target;
-
-      const newTitleProgress = { ...prev.titleProgress, [challengeId]: Math.min(newProgress, challenge.target) };
-      const newUnlockedTitles = [...(prev.unlockedTitles || [])];
+      let hasChanges = false;
+      const newTitleProgress = { ...(prev.titleProgress || {}) };
       const newCompletedChallenges = [...(prev.completedTitleChallenges || [])];
+      const newUnlockedTitles = [...(prev.unlockedTitles || [])];
+      const stats = prev.stats || {};
 
-      if (isCompleted && !newCompletedChallenges.includes(challengeId)) {
-        newCompletedChallenges.push(challengeId);
-        if (!newUnlockedTitles.includes(challenge.rewardTitle)) {
-          newUnlockedTitles.push(challenge.rewardTitle);
+      TITLE_CHALLENGES.forEach(challenge => {
+        if (newCompletedChallenges.includes(challenge.id)) return;
+
+        let currentVal = 0;
+        if (challenge.statKey === 'totalWagered') currentVal = prev.totalWagered;
+        else if (challenge.statKey === 'balance') currentVal = prev.balance;
+        else if (challenge.statKey === 'vipLevel') currentVal = prev.vipLevel;
+        else if (challenge.statKey === 'rouletteWins') currentVal = stats.totalWins?.['Roulette'] || 0;
+        else if (challenge.statKey === 'coinflipWins') currentVal = stats.totalWins?.['Coinflip'] || 0;
+        else if (challenge.statKey === 'diceStreak') currentVal = stats.maxWinStreak || 0; // Simplified
+        else if (challenge.statKey === 'maxCrashMultiplier') currentVal = stats.maxCrashMultiplier || 0;
+        else if (challenge.statKey === 'maxSingleBet') currentVal = stats.maxSingleBet || 0;
+        else if (challenge.statKey === 'totalTransferSent') currentVal = stats.totalTransferSent || 0;
+        else if (challenge.statKey === 'totalCryptoDeposited') currentVal = stats.totalCryptoDeposited || 0;
+        else if (challenge.statKey === 'mines24SuccessCount') currentVal = stats.mines24SuccessCount || 0;
+        else if (challenge.statKey === 'plinkoX16Count') currentVal = stats.plinkoX16Count || 0;
+        else if (challenge.statKey === 'rouletteExactWinCount') currentVal = stats.rouletteExactWinCount || 0;
+        else if (challenge.statKey === 'slots3StarsCount') currentVal = stats.totalWins?.['Slots'] || 0; // Placeholder
+        else if (challenge.statKey === 'maxWinStreak') currentVal = stats.maxWinStreak || 0;
+        else if (challenge.statKey === 'completedNormalChallenges') currentVal = newCompletedChallenges.length;
+
+        if (currentVal !== newTitleProgress[challenge.id]) {
+          newTitleProgress[challenge.id] = currentVal;
+          hasChanges = true;
         }
-      }
+
+        if (currentVal >= challenge.target) {
+          newCompletedChallenges.push(challenge.id);
+          if (!newUnlockedTitles.includes(challenge.rewardTitle)) {
+            newUnlockedTitles.push(challenge.rewardTitle);
+          }
+          hasChanges = true;
+        }
+      });
+
+      if (!hasChanges) return prev;
 
       const updatedUser: User = {
         ...prev,
         titleProgress: newTitleProgress,
-        unlockedTitles: newUnlockedTitles,
         completedTitleChallenges: newCompletedChallenges,
+        unlockedTitles: newUnlockedTitles,
         version: (prev.version || 0) + 1
       };
 
@@ -562,7 +639,15 @@ export function useGameState() {
 
       return updatedUser;
     });
-  }, [user.vipLevel]);
+  }, [user.vipLevel, user.totalWagered, user.balance, user.stats]);
+
+  // AUTO-TRACK TITLES
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      updateTitleProgress();
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [user.totalWagered, user.balance, user.stats, updateTitleProgress]);
 
   const equipTitle = useCallback((title: string | null) => {
     if (title && !user.unlockedTitles?.includes(title)) return;
@@ -620,7 +705,4 @@ export function useGameState() {
   };
 }
 
-let onRewardClaimed: (() => void) | undefined;
-export function setOnRewardClaimed(callback: () => void) {
-  onRewardClaimed = callback;
-}
+export function setOnRewardClaimed(callback: () => void) {}

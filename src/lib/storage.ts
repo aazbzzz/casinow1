@@ -89,6 +89,10 @@ export function mapDBUserToUser(data: any): User {
     ? (data.unlocked_titles ?? data.unlockedTitles) 
     : (Array.isArray(rootCheats.unlockedTitles) ? rootCheats.unlockedTitles : []);
     
+  if (computedVip.level >= 10 && !unlockedTitles.includes('Légende')) {
+    unlockedTitles.push('Légende');
+  }
+
   const equippedTitle = data.equipped_title ?? data.equippedTitle ?? rootCheats.equippedTitle ?? null;
   const lastSeen = data.last_seen ?? data.lastSeen ?? rootCheats.lastSeen ?? null;
   
@@ -96,6 +100,20 @@ export function mapDBUserToUser(data: any): User {
   const completedTitleChallenges = Array.isArray(data.completed_title_challenges ?? data.completedTitleChallenges)
     ? (data.completed_title_challenges ?? data.completedTitleChallenges)
     : (Array.isArray(rootCheats.completedTitleChallenges) ? rootCheats.completedTitleChallenges : []);
+  
+  const stats = data.stats ?? rootCheats.stats ?? {
+    totalWins: {},
+    totalLosses: {},
+    maxWinStreak: 0,
+    currentWinStreak: 0,
+    maxCrashMultiplier: 0,
+    plinkoX16Count: 0,
+    mines24SuccessCount: 0,
+    rouletteExactWinCount: 0,
+    maxSingleBet: 0,
+    totalCryptoDeposited: 0,
+    totalTransferSent: 0
+  };
 
   const user: User = {
     id: data.id,
@@ -123,6 +141,7 @@ export function mapDBUserToUser(data: any): User {
     activeMultiplier: data.active_multiplier ?? data.activeMultiplier ?? null,
     titleProgress,
     completedTitleChallenges,
+    stats,
   };
 
   return user;
@@ -154,6 +173,22 @@ export function mergeUserData(local: User, remote: User): User {
   const hasCheat = local.hasCheatAccess || cleanRemote.hasCheatAccess;
   const cheatExpiry = Math.max(local.cheatExpiresAt || 0, cleanRemote.cheatExpiresAt || 0) || null;
 
+  // STATS MERGE (Max values)
+  const localStats = local.stats || {};
+  const remoteStats = cleanRemote.stats || {};
+  const mergedStats = {
+    ...remoteStats,
+    ...localStats,
+    maxWinStreak: Math.max(localStats.maxWinStreak || 0, remoteStats.maxWinStreak || 0),
+    maxCrashMultiplier: Math.max(localStats.maxCrashMultiplier || 0, remoteStats.maxCrashMultiplier || 0),
+    maxSingleBet: Math.max(localStats.maxSingleBet || 0, remoteStats.maxSingleBet || 0),
+    totalCryptoDeposited: Math.max(localStats.totalCryptoDeposited || 0, remoteStats.totalCryptoDeposited || 0),
+    totalTransferSent: Math.max(localStats.totalTransferSent || 0, remoteStats.totalTransferSent || 0),
+    plinkoX16Count: Math.max(localStats.plinkoX16Count || 0, remoteStats.plinkoX16Count || 0),
+    mines24SuccessCount: Math.max(localStats.mines24SuccessCount || 0, remoteStats.mines24SuccessCount || 0),
+    rouletteExactWinCount: Math.max(localStats.rouletteExactWinCount || 0, remoteStats.rouletteExactWinCount || 0),
+  };
+
   return {
     ...cleanRemote, // On prend les données distantes comme base (balance, role, etc.)
     version: finalVersion,
@@ -163,6 +198,7 @@ export function mergeUserData(local: User, remote: User): User {
     usedPromoCodes: mergedPromos,
     hasCheatAccess: hasCheat,
     cheatExpiresAt: cheatExpiry,
+    stats: mergedStats,
     // On garde le titre équipé local s'il est débloqué, sinon celui distant
     equippedTitle: (local.equippedTitle && mergedTitles.includes(local.equippedTitle)) 
       ? local.equippedTitle 
@@ -253,7 +289,17 @@ export async function saveUser(user: User): Promise<User> {
   const computedVip = getVIPLevel(totalWagered);
   
   // RÈGLE : On prend le plus élevé entre le forcé et le calculé
+  // SAUF si le calculé est supérieur (progression naturelle)
   const finalVipLevel = Math.max(currentVipLevel, computedVip.level);
+
+  // AUTO-UNLOCK TITLES AT VIP 10
+  const unlockedTitles = Array.isArray(user.unlockedTitles) 
+    ? [...user.unlockedTitles] 
+    : [];
+
+  if (finalVipLevel >= 10 && !unlockedTitles.includes('Légende')) {
+    unlockedTitles.push('Légende');
+  }
 
   const cleanUser: User = {
     ...user,
@@ -261,6 +307,7 @@ export async function saveUser(user: User): Promise<User> {
     bankBalance: bankBalance,
     totalWagered: totalWagered,
     vipLevel: finalVipLevel,
+    unlockedTitles: unlockedTitles,
     version: (Number(user.version) || 0) + 1
   };
 
@@ -282,7 +329,8 @@ export async function saveUser(user: User): Promise<User> {
         equippedTitle: cleanUser.equippedTitle,
         lastSeen: cleanUser.lastSeen,
         titleProgress: cleanUser.titleProgress,
-        completedTitleChallenges: cleanUser.completedTitleChallenges
+        completedTitleChallenges: cleanUser.completedTitleChallenges,
+        stats: cleanUser.stats
       };
 
       const dbData: any = {
@@ -851,6 +899,11 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
         balanceAfter: newSenderBankBalance
       });
 
+      // TRACK STATS ON TRANSFER
+      window.dispatchEvent(new CustomEvent('stat_update', { 
+        detail: { key: 'totalTransferSent', value: amount } 
+      }));
+
       // Update local cache for sender (immediate UI feedback)
       const localSender = getUser(sender.id);
       localSender.bankBalance = newSenderBankBalance;
@@ -945,6 +998,19 @@ export function getDefaultUser(uid?: string): User {
     activeMultiplier: undefined,
     titleProgress: {},
     completedTitleChallenges: [],
+    stats: {
+      totalWins: {},
+      totalLosses: {},
+      maxWinStreak: 0,
+      currentWinStreak: 0,
+      maxCrashMultiplier: 0,
+      plinkoX16Count: 0,
+      mines24SuccessCount: 0,
+      rouletteExactWinCount: 0,
+      maxSingleBet: 0,
+      totalCryptoDeposited: 0,
+      totalTransferSent: 0
+    }
   };
 }
 

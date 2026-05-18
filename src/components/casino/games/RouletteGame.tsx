@@ -231,6 +231,14 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
         const totalPayout = Number(betAmount) * finalMultiplier;
         
         const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, `Roulette (${betType})`);
+        
+        // TRACK EXACT WIN STAT
+        if (selectedNumber !== null && finalNumber === selectedNumber) {
+          window.dispatchEvent(new CustomEvent('stat_update', {
+            detail: { key: 'rouletteExactWinCount', value: 1 }
+          }));
+        }
+
         setLastWin(payout);
         if (enableHaptics) vibrate(300);
       } else {

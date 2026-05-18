@@ -165,6 +165,13 @@ export function WalletSection({ user, onDeposit, onWithdraw, onUpdateBank, onRef
     
     // Deduct from bank balance
     if (onUpdateBank) onUpdateBank(-tradeAmount); 
+
+    // UPDATE STATS ON CRYPTO DEPOSIT
+    if (onRefreshUser) {
+      // Small delay to ensure DB sync
+      setTimeout(onRefreshUser, 500);
+    }
+
     if (enableHaptics) vibrate(100);
     setSelectedCrypto(null);
   };

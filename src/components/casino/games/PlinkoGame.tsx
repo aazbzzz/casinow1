@@ -261,6 +261,14 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
           });
 
           const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Plinko');
+
+          // TRACK PLINKO X16 STAT
+          if (finalMultiplier >= 16) {
+            window.dispatchEvent(new CustomEvent('stat_update', { 
+              detail: { key: 'plinkoX16Count', value: 1 } 
+            }));
+          }
+
           console.log('ONWIN RETURN =', payoutResult);
           setLastMultiplier(finalMultiplier);
           setLastPayout(payoutResult);

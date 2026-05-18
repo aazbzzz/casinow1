@@ -105,6 +105,14 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
         });
         
         const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Dice');
+        
+        // TRACK DICE LOW CHANCE STAT
+        if (winChance < 5) {
+          window.dispatchEvent(new CustomEvent('stat_update', { 
+            detail: { key: 'diceLowChanceWin', value: 1 } 
+          }));
+        }
+        
         console.log('ONWIN RETURN =', payout);
         setLastWin(payout);
         if (enableSounds) playWin();

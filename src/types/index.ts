@@ -31,6 +31,20 @@ export interface User {
   // Titles System
   titleProgress?: Record<string, number>;
   completedTitleChallenges?: string[];
+  titleCategoryProgress?: Record<string, number>;
+  stats?: {
+    totalWins?: Record<string, number>;
+    totalLosses?: Record<string, number>;
+    maxWinStreak?: number;
+    currentWinStreak?: number;
+    maxCrashMultiplier?: number;
+    plinkoX16Count?: number;
+    mines24SuccessCount?: number;
+    rouletteExactWinCount?: number;
+    maxSingleBet?: number;
+    totalCryptoDeposited?: number;
+    totalTransferSent?: number;
+  };
 }
 
 export type TitleRarity = 'Commun' | 'Rare' | 'Épique' | 'Légendaire' | 'Mythique' | 'Divin' | 'Ultime';
@@ -45,6 +59,7 @@ export interface TitleChallenge {
   rewardTitle: string;
   nextChallengeId?: string;
   isHidden?: boolean;
+  statKey?: string; // Key in stats object to track
 }
 
 export interface CryptoAsset {

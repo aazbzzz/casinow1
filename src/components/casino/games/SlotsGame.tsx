@@ -123,6 +123,15 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
           });
           
           const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Slots');
+          
+          // TRACK SLOTS 3 STARS STAT
+          const is3Stars = finalReels.every(sym => sym === '⭐');
+          if (is3Stars) {
+            window.dispatchEvent(new CustomEvent('stat_update', { 
+              detail: { key: 'slots3StarsCount', value: 1 } 
+            }));
+          }
+          
           console.log('ONWIN RETURN =', payout);
           setLastWin(payout);
           if (enableHaptics) vibrate(200);
