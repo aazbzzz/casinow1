@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Coins, Info, Lock, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { User } from '@/types';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
 import { getVIPLevelByNumber } from '@/lib/vip';
-import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface RouletteGameProps {
+  user: User;
   balance: number;
   onBet: (amount: number, game: string) => boolean;
   onWin: (betAmount: number, payout: number, multiplier: number, game: string) => number;
@@ -28,8 +29,7 @@ const getNumberColor = (num: number) => {
   return RED_NUMBERS.includes(num) ? '#FF0000' : '#111';
 };
 
-export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: RouletteGameProps) {
-  const user = getUser();
+export function RouletteGame({ user, balance, onBet, onWin, onLoss, onBack }: RouletteGameProps) {
   const cheats = getCheats(user);
 
   const [betAmount, setBetAmount] = useState(10);
@@ -112,8 +112,6 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
     }, 100);
     
     setTimeout(() => {
-      const user = getUser();
-      const cheats = getCheats(user);
       let finalNumber: number;
       
       // Use predicted result if available, otherwise calculate
@@ -536,7 +534,6 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
                 ))}
                 <button 
                   onClick={() => {
-                    const user = getUser();
                     const vip = getVIPLevelByNumber(user.vipLevel);
                     const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
                     setBetAmount(maxAllowed);

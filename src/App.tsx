@@ -372,6 +372,7 @@ function App() {
         <div className="max-w-2xl mx-auto space-y-6">
           {activeSection === 'casino' && (
             <CasinoSection 
+              user={user}
               balance={user.balance} 
               onBet={placeBet} 
               onWin={recordWin} 

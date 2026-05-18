@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Coins, Target, Info, AlertCircle } from 'lucide-react';
+import { User } from '@/types';
 import { vibrate } from '@aippy/runtime/device';
 import { useGameSounds } from '@/hooks/useGameSounds';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
 import { getVIPLevelByNumber } from '@/lib/vip';
-import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface PlinkoGameProps {
+  user: User;
   balance: number;
   onBet: (amount: number, game: string) => boolean;
   onWin: (betAmount: number, payout: number, multiplier: number, game: string) => number;
@@ -30,7 +31,8 @@ interface Ball {
 const MULTIPLIERS = [16, 9, 4.2, 2, 1.2, 0.6, 0.3, 0.2, 0.3, 0.6, 1.2, 2, 4.2, 9, 16];
 const ROWS = 14;
 
-export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGameProps) {
+export function PlinkoGame({ user, balance, onBet, onWin, onLoss, onBack }: PlinkoGameProps) {
+  const cheats = getCheats(user);
   const [betAmount, setBetAmount] = useState(10);
   const [isDropping, setIsDropping] = useState(false);
   const [lastMultiplier, setLastMultiplier] = useState<number | null>(null);
@@ -132,8 +134,6 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
         ball.vy += 0.5;
         
         // Cheat Steering
-         const user = getUser();
-         const cheats = getCheats(user);
          let targetX: number | null = null;
          
          if (cheats.forcePlinkoMultiplier !== null) {
@@ -214,8 +214,6 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
         
         if (ball.y >= slotY - ballRadius) {
           ball.active = false;
-          const user = getUser();
-          const cheats = getCheats(user);
           let slotIndex = Math.floor(ball.x / slotWidth);
           
           if (cheats.forcePlinkoMultiplier !== null) {
@@ -308,7 +306,7 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, [primaryAccent, betAmount, enableHaptics, enableSounds, onWin, onLoss, playWin]);
+  }, [primaryAccent, betAmount, enableHaptics, enableSounds, onWin, onLoss, playWin, cheats, user]);
   
   const dropBall = () => {
     if (isDropping || !onBet(betAmount, 'Plinko')) {
@@ -405,7 +403,6 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
             </label>
             <button 
               onClick={() => {
-                const user = getUser();
                 const vip = getVIPLevelByNumber(user.vipLevel);
                 const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
                 setBetAmount(maxAllowed);

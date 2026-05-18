@@ -173,6 +173,12 @@ export function mergeUserData(local: User, remote: User): User {
   const hasCheat = local.hasCheatAccess || cleanRemote.hasCheatAccess;
   const cheatExpiry = Math.max(local.cheatExpiresAt || 0, cleanRemote.cheatExpiresAt || 0) || null;
 
+  // CHEATS MERGE : Priorité aux cheats distants si la version est plus récente (ex: Admin update)
+  // Sinon on garde les cheats locaux
+  const cheats = (cleanRemote.version > local.version) 
+    ? (cleanRemote.cheats || local.cheats) 
+    : (local.cheats || cleanRemote.cheats);
+
   // STATS MERGE (Max values)
   const localStats = local.stats || {};
   const remoteStats = cleanRemote.stats || {};
@@ -186,6 +192,7 @@ export function mergeUserData(local: User, remote: User): User {
     totalTransferSent: Math.max(localStats.totalTransferSent || 0, remoteStats.totalTransferSent || 0),
     plinkoX16Count: Math.max(localStats.plinkoX16Count || 0, remoteStats.plinkoX16Count || 0),
     mines24SuccessCount: Math.max(localStats.mines24SuccessCount || 0, remoteStats.mines24SuccessCount || 0),
+    mines20DiamondsCount: Math.max(localStats.mines20DiamondsCount || 0, remoteStats.mines20DiamondsCount || 0),
     rouletteExactWinCount: Math.max(localStats.rouletteExactWinCount || 0, remoteStats.rouletteExactWinCount || 0),
   };
 
@@ -203,8 +210,8 @@ export function mergeUserData(local: User, remote: User): User {
     equippedTitle: (local.equippedTitle && mergedTitles.includes(local.equippedTitle)) 
       ? local.equippedTitle 
       : cleanRemote.equippedTitle,
-    // Cheats : Priorité au local si la version locale est plus récente ou égale
-    cheats: (local.version >= cleanRemote.version) ? (local.cheats || cleanRemote.cheats) : (cleanRemote.cheats || local.cheats)
+    // Cheats finalisés
+    cheats: cheats
   };
 }
 

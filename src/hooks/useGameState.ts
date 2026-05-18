@@ -185,6 +185,10 @@ export function useGameState() {
 
           if (merged.version > prev.version || merged.totalWagered > prev.totalWagered) {
             console.log(`[REALTIME MERGE] v${merged.version} | Wager: ${merged.totalWagered} | Titles: ${merged.unlockedTitles?.length}`);
+            
+            // CRITICAL: Synchronize localStorage so getUser() calls elsewhere get the new data
+            localStorage.setItem(`casino_user_data_${uid}`, JSON.stringify(merged));
+            
             return merged;
           }
           return prev;

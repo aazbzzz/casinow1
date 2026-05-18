@@ -7,7 +7,7 @@ import { PlinkoGame } from './games/PlinkoGame';
 import { CrashGame } from './games/CrashGame';
 import { SlotsGame } from './games/SlotsGame';
 import { RouletteGame } from './games/RouletteGame';
-import { GameType } from '@/types';
+import { GameType, User } from '@/types';
 import { ChevronRight } from 'lucide-react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
@@ -15,6 +15,7 @@ import tweaksConfig from '@/config/tweaksConfig.json';
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface CasinoSectionProps {
+  user: User;
   balance: number;
   onBet: (amount: number, game: string) => boolean;
   onWin: (betAmount: number, payout: number, multiplier: number, game: string) => number;
@@ -23,7 +24,7 @@ interface CasinoSectionProps {
   onSetCloseCallback?: (callback: () => void) => void;
 }
 
-export function CasinoSection({ balance, onBet, onWin, onLoss, onGameStatusChange, onSetCloseCallback }: CasinoSectionProps) {
+export function CasinoSection({ user, balance, onBet, onWin, onLoss, onGameStatusChange, onSetCloseCallback }: CasinoSectionProps) {
   const [activeGame, setActiveGame] = useState<GameType | null>(null);
   const primaryAccent = tweaks.primaryAccent.useState();
   
@@ -48,13 +49,13 @@ export function CasinoSection({ balance, onBet, onWin, onLoss, onGameStatusChang
   if (activeGame !== null) {
     return (
       <div className="fixed inset-0 z-[100] bg-black">
-        {activeGame === 'coinflip' && <CoinflipGame balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
-        {activeGame === 'mines' && <MinesGame balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
-        {activeGame === 'dice' && <DiceGame balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
-        {activeGame === 'plinko' && <PlinkoGame balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
-        {activeGame === 'crash' && <CrashGame balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
-        {activeGame === 'slots' && <SlotsGame balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
-        {activeGame === 'roulette' && <RouletteGame balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
+        {activeGame === 'coinflip' && <CoinflipGame user={user} balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
+        {activeGame === 'mines' && <MinesGame user={user} balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
+        {activeGame === 'dice' && <DiceGame user={user} balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
+        {activeGame === 'plinko' && <PlinkoGame user={user} balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
+        {activeGame === 'crash' && <CrashGame user={user} balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
+        {activeGame === 'slots' && <SlotsGame user={user} balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
+        {activeGame === 'roulette' && <RouletteGame user={user} balance={balance} onBet={onBet} onWin={onWin} onLoss={onLoss} onBack={() => handleGameChange(null)} />}
       </div>
     );
   }

@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Coins, TrendingUp, TrendingDown, Info, AlertCircle } from 'lucide-react';
+import { User } from '@/types';
 import { vibrate } from '@aippy/runtime/device';
 import { useGameSounds } from '@/hooks/useGameSounds';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
 import { getVIPLevelByNumber } from '@/lib/vip';
-import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface DiceGameProps {
+  user: User;
   balance: number;
   onBet: (amount: number, game: string) => boolean;
   onWin: (betAmount: number, payout: number, multiplier: number, game: string) => number;
@@ -18,7 +19,8 @@ interface DiceGameProps {
   onBack: () => void;
 }
 
-export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProps) {
+export function DiceGame({ user, balance, onBet, onWin, onLoss, onBack }: DiceGameProps) {
+  const cheats = getCheats(user);
   const [betAmount, setBetAmount] = useState(10);
   const [target, setTarget] = useState(50);
   const [mode, setMode] = useState<'over' | 'under'>('over');
@@ -68,8 +70,6 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
     }, 100);
     
     setTimeout(() => {
-      const user = getUser();
-      const cheats = getCheats(user);
       let roll: number;
       
       if (cheats.diceForceRoll !== null && cheats.diceForceRoll >= 0 && cheats.diceForceRoll <= 100) {
@@ -250,7 +250,6 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
               <label className="text-sm font-semibold" style={{ color: primaryAccent }}>Bet Amount</label>
               <button 
                 onClick={() => {
-                  const user = getUser();
                   const vip = getVIPLevelByNumber(user.vipLevel);
                   const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
                   setBetAmount(maxAllowed);

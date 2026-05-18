@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Coins, Info, AlertCircle } from 'lucide-react';
+import { User } from '@/types';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
 import { getVIPLevelByNumber } from '@/lib/vip';
-import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface SlotsGameProps {
+  user: User;
   balance: number;
   onBet: (amount: number, game: string) => boolean;
   onWin: (betAmount: number, payout: number, multiplier: number, game: string) => number;
@@ -28,7 +29,8 @@ const PAYOUTS: Record<string, number> = {
   '⭐': 128,
 };
 
-export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGameProps) {
+export function SlotsGame({ user, balance, onBet, onWin, onLoss, onBack }: SlotsGameProps) {
+  const cheats = getCheats(user);
   const [betAmount, setBetAmount] = useState(10);
   const [reels, setReels] = useState(['🍒', '🍒', '🍒']);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -82,20 +84,15 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
       if (count >= spinCount) {
         clearInterval(interval);
         
-        const user = getUser();
-        const cheats = getCheats(user);
         let finalReels: string[];
         
-        if (cheats.forceSlotsSymbol && SYMBOLS.includes(cheats.forceSlotsSymbol)) {
+        if (cheats.forceSlotsSymbol) {
           finalReels = [cheats.forceSlotsSymbol, cheats.forceSlotsSymbol, cheats.forceSlotsSymbol];
         } else if (cheats.slotsAlwaysJackpot) {
           finalReels = ['⭐', '⭐', '⭐'];
-        } else if (cheats.alwaysWin) {
-          const winSymbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
-          finalReels = [winSymbol, winSymbol, winSymbol];
-        } else if (cheats.slotsHighWinRate && Math.random() < 0.4) {
-          const winSymbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
-          finalReels = [winSymbol, winSymbol, winSymbol];
+        } else if (cheats.alwaysWin || cheats.slotsHighWinRate) {
+          const symbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+          finalReels = [symbol, symbol, symbol];
         } else {
           finalReels = [
             SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
@@ -124,20 +121,6 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
           
           const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Slots');
           
-          // QUEST UPDATE (NO CHEATS)
-          const isCheating = cheats.forceSlotsSymbol !== null || cheats.slotsAlwaysJackpot || cheats.alwaysWin || cheats.slotsHighWinRate;
-          if (!isCheating) {
-            window.dispatchEvent(new CustomEvent('quest_update', {
-              detail: {
-                game: 'Slots',
-                status: 'completed',
-                betAmount: Number(betAmount),
-                payout: payout,
-                multiplier: finalMultiplier,
-              }
-            }));
-          }
-
           // TRACK SLOTS 3 STARS STAT
           const is3Stars = finalReels.every(sym => sym === '⭐');
           if (is3Stars) {
@@ -165,41 +148,11 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
           });
           
           const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Slots');
-
-          // QUEST UPDATE (NO CHEATS)
-          const isCheating = cheats.forceSlotsSymbol !== null || cheats.slotsAlwaysJackpot || cheats.alwaysWin || cheats.slotsHighWinRate;
-          if (!isCheating) {
-            window.dispatchEvent(new CustomEvent('quest_update', {
-              detail: {
-                game: 'Slots',
-                status: 'completed',
-                betAmount: Number(betAmount),
-                payout: payout,
-                multiplier: finalMultiplier,
-              }
-            }));
-          }
-
           console.log('ONWIN RETURN =', payout);
           setLastWin(payout);
           if (enableHaptics) vibrate(100);
         } else {
           onLoss(betAmount, 'Slots');
-
-          // QUEST UPDATE (NO CHEATS)
-          const isCheating = cheats.forceSlotsSymbol !== null || cheats.slotsAlwaysJackpot || cheats.alwaysWin || cheats.slotsHighWinRate;
-          if (!isCheating) {
-            window.dispatchEvent(new CustomEvent('quest_update', {
-              detail: {
-                game: 'Slots',
-                status: 'failed',
-                betAmount: Number(betAmount),
-                payout: 0,
-                multiplier: 0,
-              }
-            }));
-          }
-
           if (enableHaptics) vibrate([100, 50, 100]);
         }
         
@@ -293,7 +246,6 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
               <label className="text-sm font-semibold" style={{ color: primaryAccent }}>Bet Amount</label>
               <button 
                 onClick={() => {
-                  const user = getUser();
                   const vip = getVIPLevelByNumber(user.vipLevel);
                   const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
                   setBetAmount(maxAllowed);

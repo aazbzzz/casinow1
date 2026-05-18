@@ -7,10 +7,12 @@ import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
 import { getVIPLevelByNumber } from '@/lib/vip';
 import { getUser } from '@/lib/storage';
+import { User } from '@/types';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface MinesGameProps {
+  user: User;
   balance: number;
   onBet: (amount: number, game: string) => boolean;
   onWin: (betAmount: number, payout: number, multiplier: number, game: string) => number;
@@ -18,7 +20,7 @@ interface MinesGameProps {
   onBack: () => void;
 }
 
-export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGameProps) {
+export function MinesGame({ user, balance, onBet, onWin, onLoss, onBack }: MinesGameProps) {
   const [betAmount, setBetAmount] = useState(10);
   const [minesCount, setMinesCount] = useState(3);
   const [gameActive, setGameActive] = useState(false);
@@ -84,7 +86,6 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
   
   // Cheat: Auto pick
   useEffect(() => {
-    const user = getUser();
     const cheats = getCheats(user);
     if (gameActive && !gameOver && cheats.minesAutoPick) {
       const timer = setTimeout(() => {
@@ -342,7 +343,6 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
         
         <div className="grid grid-cols-5 gap-3 w-full max-w-sm p-5 rounded-[2.5rem] bg-white/5 border border-white/10 relative">
           {(() => {
-            const user = getUser();
             const cheats = getCheats(user);
             return Array.from({ length: 25 }, (_, i) => {
               const isRevealed = revealed.has(i);

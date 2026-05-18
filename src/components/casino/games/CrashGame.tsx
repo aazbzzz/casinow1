@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Coins, Info, AlertCircle } from 'lucide-react';
+import { User } from '@/types';
 import { vibrate } from '@aippy/runtime/device';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
 import { getVIPLevelByNumber } from '@/lib/vip';
-import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface CrashGameProps {
+  user: User;
   balance: number;
   onBet: (amount: number, game: string) => boolean;
   onWin: (betAmount: number, payout: number, multiplier: number, game: string) => number;
@@ -17,7 +18,8 @@ interface CrashGameProps {
   onBack: () => void;
 }
 
-export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGameProps) {
+export function CrashGame({ user, balance, onBet, onWin, onLoss, onBack }: CrashGameProps) {
+  const cheats = getCheats(user);
   const [betAmount, setBetAmount] = useState(10);
   const [gameState, setGameState] = useState<'idle' | 'betting' | 'running' | 'crashed'>('idle');
   const [currentMultiplier, setCurrentMultiplier] = useState(1.00);
@@ -49,7 +51,7 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     if (gameState === 'running') {
       const blinkInterval = setInterval(() => {
         setBlink(prev => !prev);
-      }, 300);
+      }, 500);
       return () => clearInterval(blinkInterval);
     } else {
       setBlink(false);
@@ -60,12 +62,8 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     if (gameState !== 'running') return;
     
     const animate = () => {
-      const user = getUser();
-      const cheats = getCheats(user);
-      
-      const startMult = cheats.crashStartMultiplier || 1.0;
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
-      const newMultiplier = startMult + elapsed * 0.5;
+      const newMultiplier = Math.pow(1.06, elapsed);
       
       if (!cheats.crashNeverCrash && newMultiplier >= crashPoint) {
         setCurrentMultiplier(crashPoint);
@@ -111,69 +109,40 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
       return;
     }
     
-    if (enableHaptics) vibrate(50);
-    
     setHasBet(true);
+    setCashedOut(false);
+    setLastWin(null);
     setGameState('betting');
     
-    const user = getUser();
-    const cheats = getCheats(user);
-    let crash: number;
-    
-    if (cheats.crashNeverCrash) {
-      crash = 1000000; // Multiplier virtually infinite
-    } else if (cheats.crashMaxMultiplier) {
-      crash = 100;
-    } else if (cheats.forceCrashMultiplier !== null && cheats.forceCrashMultiplier > 1) {
-      crash = cheats.forceCrashMultiplier;
-    } else if (cheats.alwaysWin) {
-      crash = 10 + Math.random() * 10;
-    } else {
-      const randomValue = Math.random();
-      if (randomValue < 0.5) {
-        crash = 1 + Math.random() * 2;
-      } else if (randomValue < 0.8) {
-        crash = 2 + Math.random() * 3;
-      } else if (randomValue < 0.95) {
-        crash = 5 + Math.random() * 5;
-      } else {
-        crash = 10 + Math.random() * 10;
-      }
-    }
-    
-    setCrashPoint(crash);
+    setTimeout(() => {
+      gameAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
     
     setTimeout(() => {
-      const user = getUser();
-      const cheats = getCheats(user);
-      const startMult = cheats.crashStartMultiplier || 1.0;
-      
       setGameState('running');
-      setCurrentMultiplier(startMult);
       startTimeRef.current = Date.now();
-      gameAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 1500);
+      
+      // Determine crash point
+      let point: number;
+      if (cheats.forceCrashMultiplier !== null) {
+        point = cheats.forceCrashMultiplier;
+      } else if (cheats.crashNeverCrash) {
+        point = 1000000;
+      } else {
+        const r = Math.random();
+        point = 0.99 / (1 - r);
+        point = Math.max(1.01, Math.floor(point * 100) / 100);
+      }
+      setCrashPoint(point);
+    }, 2000);
   };
   
   const cashOut = () => {
-    if (gameState !== 'running' || !hasBet || cashedOut) return;
-    
-    const user = getUser();
-    const cheats = getCheats(user);
-    const baseMultiplier = cheats.crashMaxMultiplier ? Math.max(currentMultiplier, 100) : currentMultiplier;
-    const finalMultiplier = Number(cheats.customMultiplier) > 1 ? baseMultiplier * Number(cheats.customMultiplier) : baseMultiplier;
+    if (gameState !== 'running' || cashedOut) return;
     
     setCashedOut(true);
+    const finalMultiplier = currentMultiplier;
     const totalPayout = Number(betAmount) * finalMultiplier;
-    
-    console.log({ 
-      game: 'Crash', 
-      betAmount: Number(betAmount), 
-      payout: totalPayout, 
-      multiplier: finalMultiplier, 
-      payoutType: typeof totalPayout, 
-      multiplierType: typeof finalMultiplier 
-    });
     
     const bonusWon = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Crash');
     
@@ -194,10 +163,6 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     console.log('ONWIN RETURN =', bonusWon);
     setLastWin(bonusWon);
     if (enableHaptics) vibrate(200);
-    
-    setTimeout(() => {
-      resetGame();
-    }, 2000);
   };
   
   const resetGame = () => {
@@ -250,7 +215,6 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
               <label className="text-sm font-semibold" style={{ color: primaryAccent }}>Bet Amount</label>
               <button 
                 onClick={() => {
-                  const user = getUser();
                   const vip = getVIPLevelByNumber(user.vipLevel);
                   const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
                   setBetAmount(maxAllowed);

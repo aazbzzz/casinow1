@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Coins, Info, AlertCircle } from 'lucide-react';
+import { User } from '@/types';
 import { vibrate } from '@aippy/runtime/device';
 import { useGameSounds } from '@/hooks/useGameSounds';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { getCheats } from '@/lib/cheats';
 import { getVIPLevelByNumber } from '@/lib/vip';
-import { getUser } from '@/lib/storage';
 
 const tweaks = aippyTweaks(tweaksConfig as any);
 
 interface CoinflipGameProps {
+  user: User;
   balance: number;
   onBet: (amount: number, game: string) => boolean;
   onWin: (betAmount: number, payout: number, multiplier: number, game: string) => number;
@@ -18,7 +19,8 @@ interface CoinflipGameProps {
   onBack: () => void;
 }
 
-export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: CoinflipGameProps) {
+export function CoinflipGame({ user, balance, onBet, onWin, onLoss, onBack }: CoinflipGameProps) {
+  const cheats = getCheats(user);
   const [betAmount, setBetAmount] = useState(10);
   const [selectedSide, setSelectedSide] = useState<'heads' | 'tails'>('heads');
   const [isFlipping, setIsFlipping] = useState(false);
@@ -63,8 +65,6 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
       gameAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
     
-    const user = getUser();
-    const cheats = getCheats(user);
     let coinResult: 'heads' | 'tails';
     
     if (cheats.coinflipForceHeads) {
@@ -239,7 +239,6 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
               <label className="text-sm font-semibold" style={{ color: primaryAccent }}>Bet Amount</label>
               <button 
                 onClick={() => {
-                  const user = getUser();
                   const vip = getVIPLevelByNumber(user.vipLevel);
                   const maxAllowed = user.vipLevel === 10 ? balance : Math.min(balance, vip.maxBet);
                   setBetAmount(maxAllowed);
