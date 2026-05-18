@@ -29,6 +29,19 @@ const cleanAmount = (val: any): number => {
   return Math.ceil(num);
 };
 
+const cleanMultiplier = (val: any): number => {
+  if (val === null || val === undefined) return 0;
+  let num = 0;
+  if (typeof val === 'number') {
+    num = isNaN(val) ? 0 : val;
+  } else if (typeof val === 'string') {
+    let cleaned = val.replace(/\s/g, '').replace(',', '.');
+    const parsed = parseFloat(cleaned);
+    num = isNaN(parsed) ? 0 : parsed;
+  }
+  return num;
+};
+
 export function useGameState() {
   const [user, setUser] = useState<User>(() => getUser());
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -277,7 +290,7 @@ export function useGameState() {
   const recordWin = useCallback((betAmount: number | string, payout: number | string, multiplier: number | string, game: string) => {
     const numBet = cleanAmount(betAmount);
     const numPayout = cleanAmount(payout);
-    const numMultiplier = cleanAmount(multiplier);
+    const numMultiplier = cleanMultiplier(multiplier);
 
     let calculatedPayout = numPayout;
     
