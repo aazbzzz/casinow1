@@ -232,6 +232,20 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
         
         const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, `Roulette (${betType})`);
         
+        // QUEST UPDATE (NO CHEATS)
+        const isCheating = cheats.alwaysWin || cheats.rouletteInstantPayout || cheats.forceRouletteNumber !== null || cheats.forceRouletteColor || cheats.forceRouletteParity;
+        if (!isCheating) {
+          window.dispatchEvent(new CustomEvent('quest_update', {
+            detail: {
+              game: 'Roulette',
+              status: 'completed',
+              betAmount: Number(betAmount),
+              payout: payout,
+              multiplier: finalMultiplier,
+            }
+          }));
+        }
+
         // TRACK EXACT WIN STAT
         if (selectedNumber !== null && finalNumber === selectedNumber) {
           window.dispatchEvent(new CustomEvent('stat_update', {
@@ -243,6 +257,21 @@ export function RouletteGame({ balance, onBet, onWin, onLoss, onBack }: Roulette
         if (enableHaptics) vibrate(300);
       } else {
         onLoss(betAmount, `Roulette (${betType})`);
+        
+        // QUEST UPDATE (NO CHEATS)
+        const isCheating = cheats.alwaysWin || cheats.forceRouletteNumber !== null || cheats.forceRouletteColor || cheats.forceRouletteParity;
+        if (!isCheating) {
+          window.dispatchEvent(new CustomEvent('quest_update', {
+            detail: {
+              game: 'Roulette',
+              status: 'failed',
+              betAmount: Number(betAmount),
+              payout: 0,
+              multiplier: 0,
+            }
+          }));
+        }
+
         if (enableHaptics) vibrate([100, 50, 100]);
       }
       

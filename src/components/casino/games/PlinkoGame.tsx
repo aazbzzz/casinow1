@@ -262,6 +262,20 @@ export function PlinkoGame({ balance, onBet, onWin, onLoss, onBack }: PlinkoGame
 
           const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Plinko');
 
+          // QUEST UPDATE (NO CHEATS)
+          const isCheating = cheats.forcePlinkoMultiplier !== null || cheats.plinkoMaxMultiplier || cheats.forcePlinkoWin || cheats.alwaysWin;
+          if (!isCheating) {
+            window.dispatchEvent(new CustomEvent('quest_update', {
+              detail: {
+                game: 'Plinko',
+                status: finalMultiplier >= 1 ? 'completed' : 'failed',
+                betAmount: Number(betAmount),
+                payout: payoutResult,
+                multiplier: finalMultiplier,
+              }
+            }));
+          }
+
           // TRACK PLINKO X16 STAT
           if (finalMultiplier >= 16) {
             window.dispatchEvent(new CustomEvent('stat_update', { 

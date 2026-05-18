@@ -208,11 +208,31 @@ export function useGameState() {
     };
     window.addEventListener('stat_update', handleStatUpdate);
 
+    // ADDED: QUEST UPDATE LISTENER
+    const handleQuestUpdate = (e: any) => {
+      const { game, status, betAmount, payout, multiplier } = e.detail;
+      console.log(`[QuestUpdate] ${game} | ${status} | Bet: ${betAmount} | Payout: ${payout}`);
+      
+      // Update quests logic (legacy)
+      if (status === 'completed') {
+        setQuests(prev => prev.map(q => {
+          if (q.game === game && !q.completed) {
+            const newProgress = (q.progress || 0) + 1;
+            const completed = newProgress >= q.target;
+            return { ...q, progress: newProgress, completed };
+          }
+          return q;
+        }));
+      }
+    };
+    window.addEventListener('quest_update', handleQuestUpdate);
+
     return () => {
       supabase.removeChannel(userChannel);
       window.removeEventListener('casino_balance_update', handleBalanceUpdate);
       window.removeEventListener('leaderboard_update', refreshLeaderboard);
       window.removeEventListener('stat_update', handleStatUpdate);
+      window.removeEventListener('quest_update', handleQuestUpdate);
     };
   }, [fetchLatestData, refreshLeaderboard, user.id]);
 
@@ -242,16 +262,16 @@ export function useGameState() {
   }, [user.hasCheatAccess, user.cheatExpiresAt, user.role, user.id]);
 
   const refreshUser = useCallback(async (updatedUser?: any) => {
-     if (updatedUser) {
-       // On s'assure que l'objet est bien mappé s'il vient de la DB (snake_case)
-       const cleanUser = (updatedUser.id && (updatedUser.total_wagered !== undefined || updatedUser.bank_balance !== undefined || updatedUser.vip_level !== undefined)) 
-         ? mapDBUserToUser(updatedUser) 
-         : updatedUser;
-       setUser(cleanUser);
-     } else {
-       await fetchLatestData(true);
-     }
-   }, [fetchLatestData]);
+    if (updatedUser) {
+      // On s'assure que l'objet est bien mappé s'il vient de la DB (snake_case)
+      const cleanUser = (updatedUser.id && (updatedUser.total_wagered !== undefined || updatedUser.bank_balance !== undefined || updatedUser.vip_level !== undefined)) 
+        ? mapDBUserToUser(updatedUser) 
+        : updatedUser;
+      setUser(cleanUser);
+    } else {
+      await fetchLatestData(true);
+    }
+  }, [fetchLatestData]);
 
   const updateBalance = useCallback(async (amount: number | string, type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'loss', game?: string) => {
     const numericAmount = cleanAmount(amount);

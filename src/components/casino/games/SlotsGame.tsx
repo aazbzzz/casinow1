@@ -124,6 +124,20 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
           
           const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Slots');
           
+          // QUEST UPDATE (NO CHEATS)
+          const isCheating = cheats.forceSlotsSymbol !== null || cheats.slotsAlwaysJackpot || cheats.alwaysWin || cheats.slotsHighWinRate;
+          if (!isCheating) {
+            window.dispatchEvent(new CustomEvent('quest_update', {
+              detail: {
+                game: 'Slots',
+                status: 'completed',
+                betAmount: Number(betAmount),
+                payout: payout,
+                multiplier: finalMultiplier,
+              }
+            }));
+          }
+
           // TRACK SLOTS 3 STARS STAT
           const is3Stars = finalReels.every(sym => sym === '⭐');
           if (is3Stars) {
@@ -151,11 +165,41 @@ export function SlotsGame({ balance, onBet, onWin, onLoss, onBack }: SlotsGamePr
           });
           
           const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Slots');
+
+          // QUEST UPDATE (NO CHEATS)
+          const isCheating = cheats.forceSlotsSymbol !== null || cheats.slotsAlwaysJackpot || cheats.alwaysWin || cheats.slotsHighWinRate;
+          if (!isCheating) {
+            window.dispatchEvent(new CustomEvent('quest_update', {
+              detail: {
+                game: 'Slots',
+                status: 'completed',
+                betAmount: Number(betAmount),
+                payout: payout,
+                multiplier: finalMultiplier,
+              }
+            }));
+          }
+
           console.log('ONWIN RETURN =', payout);
           setLastWin(payout);
           if (enableHaptics) vibrate(100);
         } else {
           onLoss(betAmount, 'Slots');
+
+          // QUEST UPDATE (NO CHEATS)
+          const isCheating = cheats.forceSlotsSymbol !== null || cheats.slotsAlwaysJackpot || cheats.alwaysWin || cheats.slotsHighWinRate;
+          if (!isCheating) {
+            window.dispatchEvent(new CustomEvent('quest_update', {
+              detail: {
+                game: 'Slots',
+                status: 'failed',
+                betAmount: Number(betAmount),
+                payout: 0,
+                multiplier: 0,
+              }
+            }));
+          }
+
           if (enableHaptics) vibrate([100, 50, 100]);
         }
         

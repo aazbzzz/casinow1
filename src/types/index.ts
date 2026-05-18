@@ -106,6 +106,7 @@ export interface Quest {
   title: string;
   description: string;
   type: 'play' | 'wager' | 'win' | 'streak' | 'vip';
+  game?: string; // Add game field for quest matching
   target: number;
   progress: number;
   reward: number;

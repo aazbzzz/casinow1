@@ -144,6 +144,21 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
       setGameOver(true);
       setGameActive(false);
       onLoss(betAmount, 'Mines');
+
+      // QUEST UPDATE (NO CHEATS)
+      const isCheating = cheats.minesNoExplosion || cheats.alwaysWin || cheats.minesForceSafe;
+      if (!isCheating) {
+        window.dispatchEvent(new CustomEvent('quest_update', {
+          detail: {
+            game: 'Mines',
+            status: 'failed',
+            betAmount: Number(betAmount),
+            payout: 0,
+            multiplier: 0,
+          }
+        }));
+      }
+
       if (enableSounds) playError();
       if (enableHaptics) vibrate([150, 80, 150]);
     } else {
@@ -166,6 +181,20 @@ export function MinesGame({ balance, onBet, onWin, onLoss, onBack }: MinesGamePr
     
     const payoutResult = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Mines');
     
+    // QUEST UPDATE (NO CHEATS)
+    const isCheating = cheats.minesInstantWin || cheats.minesMaxMultiplier || cheats.alwaysWin || cheats.minesForceSafe;
+    if (!isCheating) {
+      window.dispatchEvent(new CustomEvent('quest_update', {
+        detail: {
+          game: 'Mines',
+          status: 'completed',
+          betAmount: Number(betAmount),
+          payout: payoutResult,
+          multiplier: finalMultiplier,
+        }
+      }));
+    }
+
     // TRACK MINES STATS
     if (minesCount === 24) {
       window.dispatchEvent(new CustomEvent('stat_update', { 

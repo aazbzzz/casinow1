@@ -106,6 +106,20 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
         
         const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Dice');
         
+        // QUEST UPDATE (NO CHEATS)
+        const isCheating = cheats.diceAlwaysWin || cheats.diceForceRoll !== null || cheats.forceDiceResult !== null || cheats.alwaysWin || cheats.diceMaxMultiplier;
+        if (!isCheating) {
+          window.dispatchEvent(new CustomEvent('quest_update', {
+            detail: {
+              game: 'Dice',
+              status: 'completed',
+              betAmount: Number(betAmount),
+              payout: payout,
+              multiplier: finalMultiplier,
+            }
+          }));
+        }
+
         // TRACK DICE LOW CHANCE STAT
         if (winChance < 5) {
           window.dispatchEvent(new CustomEvent('stat_update', { 
@@ -119,6 +133,21 @@ export function DiceGame({ balance, onBet, onWin, onLoss, onBack }: DiceGameProp
         if (enableHaptics) vibrate(200);
       } else {
         onLoss(betAmount, 'Dice');
+
+        // QUEST UPDATE (NO CHEATS)
+        const isCheating = cheats.diceAlwaysWin || cheats.diceForceRoll !== null || cheats.forceDiceResult !== null || cheats.alwaysWin;
+        if (!isCheating) {
+          window.dispatchEvent(new CustomEvent('quest_update', {
+            detail: {
+              game: 'Dice',
+              status: 'failed',
+              betAmount: Number(betAmount),
+              payout: 0,
+              multiplier: 0,
+            }
+          }));
+        }
+
         if (enableHaptics) vibrate([100, 50, 100]);
       }
       

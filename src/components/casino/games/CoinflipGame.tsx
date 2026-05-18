@@ -100,12 +100,42 @@ export function CoinflipGame({ balance, onBet, onWin, onLoss, onBack }: Coinflip
         });
         
         const payout = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Coinflip');
+        
+        // QUEST UPDATE (NO CHEATS)
+        const isCheating = cheats.coinflipForceHeads || cheats.coinflipForceTails || cheats.forceCoinflipSide !== null || cheats.alwaysWin;
+        if (!isCheating) {
+          window.dispatchEvent(new CustomEvent('quest_update', {
+            detail: {
+              game: 'Coinflip',
+              status: 'completed',
+              betAmount: Number(betAmount),
+              payout: payout,
+              multiplier: finalMultiplier,
+            }
+          }));
+        }
+
         console.log('ONWIN RETURN =', payout);
         setLastWin(payout);
         if (enableSounds) playWin();
         if (enableHaptics) vibrate(200);
       } else {
         onLoss(betAmount, 'Coinflip');
+
+        // QUEST UPDATE (NO CHEATS)
+        const isCheating = cheats.coinflipForceHeads || cheats.coinflipForceTails || cheats.forceCoinflipSide !== null || cheats.alwaysWin;
+        if (!isCheating) {
+          window.dispatchEvent(new CustomEvent('quest_update', {
+            detail: {
+              game: 'Coinflip',
+              status: 'failed',
+              betAmount: Number(betAmount),
+              payout: 0,
+              multiplier: 0,
+            }
+          }));
+        }
+
         if (enableHaptics) vibrate([100, 50, 100]);
       }
       

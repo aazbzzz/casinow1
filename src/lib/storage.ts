@@ -870,7 +870,7 @@ export async function sendMoney(receiverId: string, amount: number): Promise<{ s
 
       if (sUpdateError) {
         console.error("[storage] Sender update error (Concurrency or Insufficient funds):", sUpdateError);
-        return { success: false, error: 'Transfer failed: Concurrency error or balance changed.' };
+        return { success: false, error: 'Transfer failed: Bank balance changed during transaction.' };
       }
 
       // 4. Update Receiver

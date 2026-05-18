@@ -72,6 +72,21 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
         setGameState('crashed');
         if (hasBet && !cashedOut) {
           onLoss(betAmount, 'Crash');
+
+          // QUEST UPDATE (NO CHEATS)
+          const isCheating = cheats.crashNeverCrash || cheats.forceCrashMultiplier !== null || cheats.alwaysWin || cheats.crashMaxMultiplier;
+          if (!isCheating) {
+            window.dispatchEvent(new CustomEvent('quest_update', {
+              detail: {
+                game: 'Crash',
+                status: 'failed',
+                betAmount: Number(betAmount),
+                payout: 0,
+                multiplier: 0,
+              }
+            }));
+          }
+
           if (enableHaptics) vibrate([100, 50, 100]);
         }
         return;
@@ -161,6 +176,21 @@ export function CrashGame({ balance, onBet, onWin, onLoss, onBack }: CrashGamePr
     });
     
     const bonusWon = onWin(Number(betAmount), totalPayout, finalMultiplier, 'Crash');
+    
+    // QUEST UPDATE (NO CHEATS)
+    const isCheating = cheats.crashNeverCrash || cheats.forceCrashMultiplier !== null || cheats.alwaysWin || cheats.crashMaxMultiplier;
+    if (!isCheating) {
+      window.dispatchEvent(new CustomEvent('quest_update', {
+        detail: {
+          game: 'Crash',
+          status: 'completed',
+          betAmount: Number(betAmount),
+          payout: bonusWon,
+          multiplier: finalMultiplier,
+        }
+      }));
+    }
+
     console.log('ONWIN RETURN =', bonusWon);
     setLastWin(bonusWon);
     if (enableHaptics) vibrate(200);
